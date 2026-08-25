@@ -1,26 +1,238 @@
+/* indas-ui design tokens first (defines --bg-*, --color-*, --bd-* variables) */
+@import "../../node_modules/indas-ui/src/styles/tokens.css";
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Tailwind v4 defaults the `dark:` variant to the OS `prefers-color-scheme` media query.
+   This app toggles dark mode IN-APP via indas-ui's ThemeContext, which adds a `.dark` class
+   to <html> — so retarget the dark variant to that class. Without this, every `dark:` utility
+   (grid header bg, filter row, editable cells, messages/notifications) ignores the header
+   light/dark toggle and only reacts to the OS theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Let Tailwind scan indas-ui's shipped class names */
+@source "../../node_modules/indas-ui/dist";
+
+html, body { height: 100%; }
+
+/* ── Settings → Preferences: make Font Family + Font Size actually apply ──
+   indas-ui's ThemeProvider sets --font-family-base and --font-scale as CSS
+   vars, but nothing consumed them. Apply the family to the whole app, and
+   scale the rem root so the Font-Size slider resizes all rem-based text. */
+html { font-size: calc(100% * var(--font-scale, 1)); }
+body { font-family: var(--font-family-base) !important; }
+*:not(i):not([class^="lucide"]):not([class*=" lucide"]) { font-family: inherit; }
+
+/* Tailwind v4 doesn't auto-generate indas-ui's primary color utilities from its
+   raw-RGB CSS variables, so the DynamicSidebar renders transparent. Define them
+   explicitly from the tokens so the sidebar is navy (matching the top header). */
+.bg-primary { background-color: rgb(var(--color-primary)); }
+.bg-primary-hover { background-color: rgb(var(--color-primary-hover)); }
+.border-primary\/20 { border-color: rgb(var(--color-primary) / 0.2); }
+.text-primary-foreground { color: rgb(var(--color-primary-foreground)); }
+
+/* Same problem for indas-ui's fg/bg/bd token utilities (`text-fg-default`, `bg-bg-surface`,
+   `border-bd-default`, …): Tailwind v4 never generates them from the raw-RGB CSS vars, so they
+   were DEAD classes — the DataGrid cell wrapper uses `text-fg-default`, which produced no color,
+   so cell text fell back to inherited black (fine on white in light mode, INVISIBLE on dark).
+   Define them explicitly from the tokens so they resolve AND flip via the `.dark` scope. */
+.text-fg-default { color: rgb(var(--fg-default)); }
+.text-fg-muted   { color: rgb(var(--fg-muted)); }
+.text-fg-subtle  { color: rgb(var(--fg-subtle)); }
+.text-fg-inverse { color: rgb(var(--fg-inverse)); }
+.bg-bg-app       { background-color: rgb(var(--bg-app)); }
+.bg-bg-surface   { background-color: rgb(var(--bg-surface)); }
+.bg-bg-subtle    { background-color: rgb(var(--bg-subtle)); }
+.bg-bg-hover     { background-color: rgb(var(--bg-hover)); }
+.bg-bg-selected  { background-color: rgb(var(--bg-selected)); }
+.border-bd-default { border-color: rgb(var(--bd-default)); }
+.border-bd-subtle  { border-color: rgb(var(--bd-subtle)); }
+.border-bd-strong  { border-color: rgb(var(--bd-strong)); }
+
+/* The header sits above the AppShell, which hard-codes h-screen (100vh). Make it
+   fill the remaining space below the header instead of overflowing the viewport. */
+.app-frame .h-screen { height: 100% !important; }
+
+/* indas-ui's StandardModal header hard-codes a light-blue gradient
+   (bg-gradient-to-r from-blue-50 to-indigo-50) that ignores the theme. Retint it
+   to a subtle shade of the active primary so the modal header follows the theme. */
+[role="dialog"] .bg-gradient-to-r.from-blue-50,
+[role="dialog"] .from-blue-50.to-indigo-50 {
+  background-image: none !important;
+  background-color: color-mix(in srgb, rgb(var(--color-primary)) 9%, rgb(var(--bg-surface))) !important;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Subtle page background so cards stand out / feel elevated. Theme-aware:
+   light grey in light mode, dark canvas in dark mode (indas-ui --bg-app flips). */
+.app-frame main { background: rgb(var(--bg-app)); }
+
+/* Premium card: indas-ui's .card-base is transparent by default — give it a white
+   surface, soft border, generous radius and a layered shadow so it reads as a raised panel. */
+.card-base {
+  background: rgb(var(--bg-surface));
+  border: 1px solid rgb(var(--bd-subtle));
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 4px 12px rgba(16, 24, 40, 0.05),
+    0 24px 48px -20px rgba(16, 24, 40, 0.14);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-base:hover {
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 8px 20px rgba(16, 24, 40, 0.07),
+    0 28px 56px -20px rgba(16, 24, 40, 0.18);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* When the desktop sidebar is open, indas-ui adds a full-screen backdrop
+   (fixed inset-0 z-[39] bg-black/20 backdrop-blur-[2px]) that dims + blurs the
+   page content. Keep the main screen fully sharp — make that backdrop invisible.
+   It stays in the DOM so clicking outside still closes the sidebar; only the
+   dim/blur is removed. (The mobile overlay is z-[100] and is left untouched.) */
+.z-\[39\].backdrop-blur-\[2px\] {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---- Premium client cards (/clients) ---- */
+.client-card{
+  position:relative; background:rgb(var(--bg-surface)); border:1px solid rgb(var(--bd-subtle)); border-radius:16px;
+  padding:18px 18px 14px; overflow:hidden;
+  box-shadow:0 1px 2px rgba(16,24,40,.04), 0 10px 24px -14px rgba(16,24,40,.18);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.client-card::before{ content:""; position:absolute; left:0; right:0; top:0; height:3px;
+  background:linear-gradient(90deg,rgb(var(--color-primary)),color-mix(in srgb, rgb(var(--color-primary)) 60%, white) 55%,color-mix(in srgb, rgb(var(--color-primary)) 45%, white)); opacity:.92; }
+.client-card:hover{ transform:translateY(-4px); border-color:#cdddf1;
+  box-shadow:0 4px 8px rgba(16,24,40,.05), 0 24px 46px -18px rgba(31,69,118,.34); }
+.cc-chip{ width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  background:#eef3fa; color:#3a5b86; flex-shrink:0; }
+.cc-tag{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
+  padding:3px 10px; border-radius:999px; background:#eef2f8; color:#33527d; white-space:nowrap; }
+
+/* ---- User Master grid: per-column filter inputs ----
+   indas-ui caps DataGrid header content at max-height:36px / overflow:hidden,
+   which clips the stacked column label + filter input (they bled into row 1).
+   Scoped to .user-grid so no other grid's header is affected. */
+.user-grid table thead th {
+  overflow: visible !important;
+  height: auto !important;
+  vertical-align: top !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+.user-grid table thead th div {
+  max-height: none !important;
+  overflow: visible !important;
+}
+.user-grid table thead th input {
+  overflow: visible !important;
+}
+
+/* ── Branded loader (INDAS logo + dots + progress bar) — see components/BrandedLoader.tsx ── */
+.indus-loader-wrap {
+  min-height: 74vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.indus-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(3px);
+}
+.indus-loader-card {
+  background: rgb(var(--bg-surface));
+  border-radius: 18px;
+  padding: 34px 46px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgb(var(--bd-subtle));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  min-width: 260px;
+}
+.indus-loader-logo {
+  height: 84px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  animation: indusLogoPulse 1.8s ease-in-out infinite;
+}
+.indus-loader-dots {
+  display: flex;
+  gap: 8px;
+}
+.indus-loader-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgb(var(--color-primary));
+  display: inline-block;
+  animation: indusDotBounce 1s ease-in-out infinite;
+}
+.indus-loader-bar {
+  position: relative;
+  width: 190px;
+  height: 3px;
+  border-radius: 999px;
+  background: #eef1f6;
+  overflow: hidden;
+}
+.indus-loader-bar > div {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: rgb(var(--color-primary));
+  animation: indusLoaderBar 1.2s ease-in-out infinite;
+}
+.indus-loader-text {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: -4px;
+}
+@keyframes indusLogoPulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.045); }
+}
+@keyframes indusDotBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+  40% { transform: translateY(-8px); opacity: 1; }
+}
+@keyframes indusLoaderBar {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+/* Header-triggered messaging slide-in panel */
+@keyframes indusSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Notification toast slide-in */
+@keyframes indusToastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Point Management modals: center the header title (the close × button stays at the right,
+   in normal flow, so a long title can never overlap it). `.pm-modal-center` goes on the
+   StandardModal (DialogContent); `.close-btn-md` is the built-in close button, the div
+   directly wrapping it is the header row, and that row's first child is the title group. */
+.pm-modal-center div:has(> .close-btn-md) > div:first-child {
+  flex: 1 1 auto;
+  justify-content: center;
+  text-align: center;
 }

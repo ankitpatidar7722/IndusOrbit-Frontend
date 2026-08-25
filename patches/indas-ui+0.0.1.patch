@@ -1,0 +1,50 @@
+diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
+index 99c0137..fefe1f9 100644
+--- a/node_modules/indas-ui/dist/index.cjs
++++ b/node_modules/indas-ui/dist/index.cjs
+@@ -7691,7 +7691,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
+ function useSidebarPreferences() {
+   const context = React26.useContext(SidebarPreferencesContext);
+   if (context === void 0) {
+-    throw new Error("useSidebarPreferences must be used within a SidebarPreferencesProvider");
++    return { favorites: [], hiddenItems: [], isFavorite: () => false, isHidden: () => false, toggleFavorite: () => {}, hideItem: () => {}, showItem: () => {}, unhideItem: () => {}, clearHidden: () => {} };
+   }
+   return context;
+ }
+@@ -7940,6 +7940,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+ ]);
+ var getGroupIcon = (groupName) => {
+   const name = groupName.toLowerCase();
++  if (name.includes("overview")) return lucideReact.Gauge;
++  if (name.includes("point management") || name.includes("point tool")) return lucideReact.Target;
++  if (name.includes("module group") || name.includes("authority")) return lucideReact.Layers;
++  if (name.includes("admin")) return lucideReact.Shield;
++  if (name.includes("customer")) return lucideReact.Building;
+   if (name.includes("dashboard") || name.includes("home")) {
+     return lucideReact.Gauge;
+   } else if (name.includes("sales")) {
+diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
+index 920f23c..1504786 100644
+--- a/node_modules/indas-ui/dist/index.js
++++ b/node_modules/indas-ui/dist/index.js
+@@ -5632,7 +5632,7 @@ var SidebarPreferencesContext = createContext(void 0);
+ function useSidebarPreferences() {
+   const context = useContext(SidebarPreferencesContext);
+   if (context === void 0) {
+-    throw new Error("useSidebarPreferences must be used within a SidebarPreferencesProvider");
++    return { favorites: [], hiddenItems: [], isFavorite: () => false, isHidden: () => false, toggleFavorite: () => {}, hideItem: () => {}, showItem: () => {}, unhideItem: () => {}, clearHidden: () => {} };
+   }
+   return context;
+ }
+@@ -5881,6 +5881,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+ ]);
+ var getGroupIcon = (groupName) => {
+   const name = groupName.toLowerCase();
++  if (name.includes("overview")) return Gauge;
++  if (name.includes("point management") || name.includes("point tool")) return Target;
++  if (name.includes("module group") || name.includes("authority")) return Layers;
++  if (name.includes("admin")) return Shield;
++  if (name.includes("customer")) return Building;
+   if (name.includes("dashboard") || name.includes("home")) {
+     return Gauge;
+   } else if (name.includes("sales")) {

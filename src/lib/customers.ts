@@ -1,0 +1,131 @@
+import { userIdHeader } from "@/lib/currentUser";
+// API client for the Customers (client subscriptions) module — cloned from
+// BulkImport's Company Subscription, reading the central Indus control DB.
+
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
+
+export interface CustomerCard {
+  companyUserID: string;
+  companyUniqueCode?: string | null;
+  companyName: string;
+  companyCode?: string | null;
+  applicationName?: string | null;
+  applicationVersion?: string | null;
+  subscriptionStatus?: string | null;
+  statusDescription?: string | null;
+  subscriptionStatusMessage?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  gstin?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  fromDate?: string | null;
+  toDate?: string | null;
+  paymentDueDate?: string | null;
+  loginAllowed?: number | null;
+  lastLoginDateTime?: string | null;
+  cloudSubscriptionStatus?: string | null;
+}
+
+export interface CustomerDetail extends CustomerCard {
+  password?: string | null;
+  conn_String?: string | null;
+  dataBaseLocation?: string | null;
+  isActive?: boolean | null;
+  applicationBaseURL?: string | null;
+  maxCompanyUniqueCode?: number | null;
+  fYear?: string | null;
+  latestVersion?: string | null;
+  isMessageActive?: boolean | null;
+  messageDurationValue?: number | null;
+  messageDurationType?: string | null;
+  cloudSubscriptionStatus?: string | null;
+  cloudFromDate?: string | null;
+  cloudToDate?: string | null;
+  cloudPaymentDueDate?: string | null;
+}
+
+export interface MessageFormatDto {
+  messageID: number;
+  messageTitle: string;
+  messageContent: string;
+  isActive: boolean;
+}
+
+export interface MessageFormatSaveRequest {
+  messageID?: number;
+  messageTitle: string;
+  messageContent: string;
+  isActive?: boolean;
+}
+
+export interface CustomerStats {
+  total: number;
+  active: number;
+  expired: number;
+}
+
+export type SubscriptionSave = Partial<CustomerDetail> & { originalCompanyUserID?: string };
+
+export interface DeleteRequest {
+  companyUserID: string;
+  companyName?: string;
+  companyUniqueCode?: string;
+  userName: string;
+  password: string;
+  reason: string;
+}
+
+export interface ApiResult {
+  success: boolean;
+  message: string;
+}
+
+async function get<T>(path: string): Promise<T> {
+  // Send UserID so the backend can scope the client list by Project Assignment (non-admins
+  // see only their assigned projects; admins see all).
+  const res = await fetch(`${BASE}${path}`, { cache: "no-store", headers: { ...userIdHeader() } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function send<T>(method: string, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...userIdHeader() },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({ success: false, message: `${res.status} ${res.statusText}` }));
+  return data as T;
+}
+
+export const customersApi = {
+  list: () => get<CustomerCard[]>("/api/customers"),
+  stats: () => get<CustomerStats>("/api/customers/stats"),
+  detail: (id: string) => get<CustomerDetail>(`/api/customers/${encodeURIComponent(id)}`),
+  nextCode: () => get<{ companyUniqueCode: string; maxCompanyUniqueCode: number }>("/api/customers/next-code"),
+  create: (body: SubscriptionSave) => send<ApiResult>("POST", "/api/customers", body),
+  update: (body: SubscriptionSave) => send<ApiResult>("PUT", "/api/customers", body),
+  remove: (body: DeleteRequest) => send<ApiResult>("POST", "/api/customers/delete-with-auth", body),
+};
+
+interface MessageFormatListResponse { success: boolean; message: string; data: MessageFormatDto[]; }
+interface MessageFormatResponse { success: boolean; message: string; data?: { messageID: number } }
+
+export const messageFormatApi = {
+  list: () => get<MessageFormatListResponse>("/api/messageformat"),
+  create: (body: MessageFormatSaveRequest) => send<MessageFormatResponse>("POST", "/api/messageformat", body),
+  update: (body: MessageFormatSaveRequest) => send<MessageFormatResponse>("PUT", "/api/messageformat", body),
+  remove: (id: number) => send<MessageFormatResponse>("DELETE", `/api/messageformat/${id}`, {}),
+};
+
+/** Format a backend ISO date as dd-MMM-yyyy (blank when null). */
+export function fmtDate(d?: string | null): string {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "—";
+  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}

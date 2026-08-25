@@ -1,69 +1,81 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Page, StatsGrid, StatsCard, Badge, Progress } from "indas-ui";
+import BrandedLoader from "@/components/BrandedLoader";
+import { DataGrid } from "@/components/datagrid";
+import type { ColumnDef } from "@tanstack/react-table";
+import { api, type ClientListItem, type Stats } from "@/lib/api";
+import { statusVariant } from "@/lib/ui";
 
-export default function Home() {
+const columns: ColumnDef<ClientListItem>[] = [
+  {
+    accessorKey: "name", header: "Client",
+    cell: ({ row }) => (
+      <div>
+        <div style={{ fontWeight: 600 }}>{row.original.name}</div>
+        <div style={{ fontSize: 11, opacity: 0.6 }}>{row.original.clientCode} · {row.original.city}</div>
+      </div>
+    ),
+  },
+  { accessorKey: "application", header: "Application" },
+  { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge> },
+  { accessorKey: "consultant", header: "Implementation Engineer" },
+  {
+    accessorKey: "progress", header: "Progress",
+    cell: ({ row }) => (
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Progress value={row.original.progress} className="h-2 w-24" />
+        <span>{row.original.progress}%</span>
+      </div>
+    ),
+  },
+  { accessorKey: "openCrCount", header: "Open CR" },
+];
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([api.getStats(), api.getClients()])
+      .then(([s, c]) => { setStats(s); setClients(c); })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <BrandedLoader size="lg" text="Loading dashboard…" />;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <Page title="Dashboard" description="Company-wide overview">
+      {err && (
+        <div style={{ color: "#c0392b", marginBottom: 16 }}>
+          Backend se connect nahi hua — API chal raha hai? (http://localhost:5080)<br />
+          <small style={{ opacity: 0.7 }}>{err}</small>
+        </div>
+      )}
+      <StatsGrid columns={4}>
+        <StatsCard title="Total Clients" value={stats?.total ?? 0} />
+        <StatsCard title="In Implementation" value={stats?.inImplementation ?? 0} />
+        <StatsCard title="Go-Live Stage" value={stats?.goLive ?? 0} variant="accent" />
+        <StatsCard title="Open Change Requests" value={stats?.openChangeRequests ?? 0} variant="warning" />
+      </StatsGrid>
+
+      <div style={{ marginTop: 24 }}>
+        <DataGrid<ClientListItem>
+          data={clients}
+          columns={columns}
+          getRowId={(r) => r.clientCode}
+          title="All Projects"
+          enableSorting
+          enableSearch
+          enablePagination
+          onRowClick={(r) => router.push(`/clients/${r.clientCode}`)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </Page>
   );
 }
