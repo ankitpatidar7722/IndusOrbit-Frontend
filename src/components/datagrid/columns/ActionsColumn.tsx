@@ -195,9 +195,11 @@ export interface ActionsColumnConfig<TData = any> {
   }
 
   // Confirmation Dialog Customization
+  // title/description may be a plain string, or a function of the row so the
+  // confirm dialog can name the exact record being deleted (e.g. the employee).
   deleteConfirmation?: {
-    title?: string
-    description?: string
+    title?: string | ((row: TData) => string)
+    description?: string | ((row: TData) => string)
   }
   archiveConfirmation?: {
     title?: string
@@ -307,9 +309,15 @@ export function ActionsColumn<TData>({
    */
   const handleDelete = useCallback(() => {
     if (confirmDelete) {
+      // Resolve title/description — each may be a string or a (row) => string,
+      // so the dialog can name the exact record (e.g. "Delete Ankit Patidar?").
+      const dc = config.deleteConfirmation
+      const dcTitle = (typeof dc?.title === 'function' ? dc.title(data) : dc?.title) || 'Delete Item'
+      const dcDescription = (typeof dc?.description === 'function' ? dc.description(data) : dc?.description)
+        || 'Are you sure you want to delete this item? This action cannot be undone.'
       alerts.showWarning(
-        config.deleteConfirmation?.title || 'Delete Item',
-        config.deleteConfirmation?.description || 'Are you sure you want to delete this item? This action cannot be undone.',
+        dcTitle,
+        dcDescription,
         [
           {
             label: 'Cancel',

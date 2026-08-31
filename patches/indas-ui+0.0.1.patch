@@ -1,5 +1,5 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..fefe1f9 100644
+index 99c0137..d4e9a9d 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
 @@ -7691,7 +7691,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
@@ -23,8 +23,17 @@ index 99c0137..fefe1f9 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return lucideReact.Gauge;
    } else if (name.includes("sales")) {
+@@ -8052,7 +8057,7 @@ function DynamicSidebar({
+       const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
+       const cachedNav = localStorage.getItem(cacheKey);
+       const cacheTime = localStorage.getItem(`${cacheKey}_time`);
+-      if (cachedNav && cacheTime && Date.now() - parseInt(cacheTime) < 3e5) {
++      if (cachedNav && cacheTime && Date.now() - parseInt(cacheTime) < 0 /* Indus: disable 5-min menu cache — always refetch so module-authority changes reflect on refresh */) {
+         try {
+           const navigation = JSON.parse(cachedNav);
+           setGroupedModules(navigation);
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..1504786 100644
+index 920f23c..1196364 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
 @@ -5632,7 +5632,7 @@ var SidebarPreferencesContext = createContext(void 0);
@@ -48,3 +57,12 @@ index 920f23c..1504786 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return Gauge;
    } else if (name.includes("sales")) {
+@@ -5993,7 +5998,7 @@ function DynamicSidebar({
+       const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
+       const cachedNav = localStorage.getItem(cacheKey);
+       const cacheTime = localStorage.getItem(`${cacheKey}_time`);
+-      if (cachedNav && cacheTime && Date.now() - parseInt(cacheTime) < 3e5) {
++      if (cachedNav && cacheTime && Date.now() - parseInt(cacheTime) < 0 /* Indus: disable 5-min menu cache — always refetch so module-authority changes reflect on refresh */) {
+         try {
+           const navigation = JSON.parse(cachedNav);
+           setGroupedModules(navigation);

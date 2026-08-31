@@ -403,7 +403,8 @@ export default function UsersPage() {
   // The grid's action column shows its own delete-confirm dialog, then calls this.
   const performDelete = async (u: UserListRow) => {
     const r = await usersApi.remove(u.userId);
-    if (r.success) { setFlash("User deleted."); reload(); } else { showError("Delete failed", r.message); }
+    if (r.success) { setFlash(`Employee "${u.fullName}" has been deleted.`); reload(); }
+    else { showError("Delete failed", r.message || `Could not delete "${u.fullName}". Please try again.`); }
   };
 
   const columns = useMemo<ColumnDef<UserListRow>[]>(() => [
@@ -436,8 +437,9 @@ export default function UsersPage() {
       primaryActions: ["view", "edit", "delete"],
       confirmDelete: true,
       deleteConfirmation: {
-        title: "Delete User",
-        description: "This removes the user's login and module authority. This action cannot be undone.",
+        title: "Delete Employee",
+        description: (u) =>
+          `Are you sure you want to delete "${u.fullName}"${u.email ? ` (${u.email})` : ""}? This permanently removes their login and module authority. This action cannot be undone.`,
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
