@@ -29,7 +29,11 @@ export function useKeyboardNavigation<TData>(
   } | null>(null)
 
   const rows = table.getRowModel().rows
-  const columns = table.getAllColumns().filter(col => col.getIsVisible())
+  // Use the VISUAL leaf-column order (left-pinned → center → right-pinned) — the same order the
+  // renderer maps cells with (row.getVisibleCells()). getAllColumns() is DEFINITION order, which
+  // diverges from the visual order once any column is frozen/pinned/reordered, so arrow ←/→ would
+  // land the highlight on the wrong cell. getVisibleLeafColumns() keeps nav in sync with the render.
+  const columns = table.getVisibleLeafColumns()
 
   const moveFocus = useCallback(
     (direction: 'up' | 'down' | 'left' | 'right') => {

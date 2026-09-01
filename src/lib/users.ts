@@ -59,6 +59,7 @@ export interface UserSave {
   fullName: string;
   email: string;
   password?: string;
+  mobile?: string | null;
   role?: string | null;
   reportingManagerId?: number | null;
   isActive: boolean;

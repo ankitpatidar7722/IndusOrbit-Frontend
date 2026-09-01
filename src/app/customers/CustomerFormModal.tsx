@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { StandardModal, Dropdown, Tabs, Button } from "indas-ui";
+import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 import { Building2, CreditCard, Cloud, KeyRound, Save, Wand2, type LucideIcon } from "lucide-react";
 import { customersApi, type CustomerDetail, type SubscriptionSave } from "@/lib/customers";
 import MessageFormatPopup from "./MessageFormatPopup";
@@ -42,6 +43,7 @@ export default function CustomerFormModal({
   onSaved: (msg: string) => void;
 }) {
   const [f, setF] = useState<SubscriptionSave>({});
+  useLocationData(); // lazily load country/state/city data (kept out of the main bundle)
   const [tab, setTab] = useState("company");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -102,6 +104,14 @@ export default function CustomerFormModal({
         options={options.map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />
     </div>
   );
+  // Cascading Country → State → City dropdown (values stored as names; onPick resets dependents).
+  const Loc = (label: string, k: "country" | "state" | "city", options: string[], onPick: (v: string) => void) => (
+    <div>
+      <label style={fldLabel}>{label}</label>
+      <Dropdown value={(f[k] as string) ?? ""} onValueChange={(v) => onPick(String(v))}
+        options={options.map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />
+    </div>
+  );
 
   const tabDefs: { id: string; label: string; icon: LucideIcon }[] = [
     { id: "company", label: "Company Detail", icon: Building2 },
@@ -145,9 +155,9 @@ export default function CustomerFormModal({
               <label style={fldLabel}>Address</label>
               <textarea value={f.address ?? ""} onChange={(e) => set("address", e.target.value)} rows={2} style={fldArea} />
             </div>
-            {Text("City", "city")}
-            {Text("State", "state")}
-            {Text("Country", "country")}
+            {Loc("Country", "country", countryNames(f.country), (v) => setF((p) => ({ ...p, country: v, state: "", city: "" })))}
+            {Loc("State", "state", stateNames(f.country, f.state), (v) => setF((p) => ({ ...p, state: v, city: "" })))}
+            {Loc("City", "city", cityNames(f.country, f.state, f.city), (v) => setF((p) => ({ ...p, city: v })))}
             {Text("Email", "email", { type: "email" })}
             {Text("Mobile", "mobile")}
             {Text("F-Year", "fYear")}

@@ -137,7 +137,7 @@ function ModuleMatrix({ userId, onFlash }: { userId: number; onFlash: (m: string
 }
 
 // ── Create / Edit modal ──────────────────────────────────
-const BLANK_USER: UserSave & { mobile?: string; employeeCode?: string } = {
+const BLANK_USER: UserSave & { employeeCode?: string } = {
   userId: 0, fullName: "", email: "", password: "", role: "", reportingManagerId: null, isActive: true, companyId: 1,
   emailProvider: "SMTP", smtpUsername: "", smtpPassword: "", smtpServer: "smtp.gmail.com", smtpPort: "587", smtpAuthenticate: true, smtpUseSSL: true,
   emailSignature: "",
@@ -149,7 +149,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
 }) {
   const [curId, setCurId] = useState<number | null>(userId);
   const [tab, setTab] = useState("profile");
-  const [f, setF] = useState<UserSave & { mobile?: string; employeeCode?: string }>({ ...BLANK_USER });
+  const [f, setF] = useState<UserSave & { employeeCode?: string }>({ ...BLANK_USER });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -181,7 +181,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
     }
   }, [isOpen, userId]);
 
-  const set = (k: keyof (UserSave & { mobile?: string; employeeCode?: string }), v: unknown) => { setSaved(null); setF((p) => ({ ...p, [k]: v })); };
+  const set = (k: keyof (UserSave & { employeeCode?: string }), v: unknown) => { setSaved(null); setF((p) => ({ ...p, [k]: v })); };
 
   // fill the contentEditable signature editor from state whenever the Emails tab mounts
   // (edits are synced back to f.emailSignature on input, so switching tabs is lossless)
@@ -198,6 +198,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
     setBusy(true); setMsg(null);
     const body: UserSave = {
       userId: curId ?? 0, fullName: f.fullName.trim(), email: f.email.trim(), password: f.password?.trim() || undefined,
+      mobile: f.mobile?.trim() || null,
       role: f.role || null, reportingManagerId: f.reportingManagerId ?? null, isActive: f.isActive, companyId: f.companyId,
       emailProvider: f.emailProvider || "SMTP",
       smtpUsername: f.smtpUsername?.trim() || null, smtpPassword: f.smtpPassword?.trim() || undefined,
@@ -253,7 +254,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
             <div><label style={fldLabel}>Full Name *</label><input value={f.fullName} onChange={(e) => set("fullName", e.target.value)} style={fldInput} placeholder="Employee name" /></div>
             <div><label style={fldLabel}>Email *</label><input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
-            <div><label style={fldLabel}>Mobile No</label><input value={f.mobile ?? ""} readOnly style={{ ...fldInput, background: "rgb(var(--bg-subtle))", color: "rgb(var(--fg-muted))" }} placeholder="— from HR —" /></div>
+            <div><label style={fldLabel}>Mobile No</label><input value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
             <div><label style={fldLabel}>Role</label>
               <Dropdown value={f.role ?? ""} onValueChange={(v) => set("role", String(v))}
                 options={[...(lookups?.roles ?? []), ...(f.role && !(lookups?.roles ?? []).includes(f.role) ? [f.role] : [])].map((r) => ({ value: r, label: r }))}

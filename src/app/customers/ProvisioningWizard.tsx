@@ -2,16 +2,31 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input, Dropdown } from "indas-ui";
-import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check } from "lucide-react";
+import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2 } from "lucide-react";
 import { customersApi } from "@/lib/customers";
 import {
   provisioningApi, generateDatabaseName,
   type SetupDatabaseResponse, type CompanyMasterRequest, type BranchMasterRequest,
   type ProductionUnitRequest, type CompleteSetupResponse,
 } from "@/lib/provisioning";
+import { crmApi, type CrmClient } from "@/lib/crm";
+import CrmClientPickerModal from "./CrmClientPickerModal";
+import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 
 const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP"];
 const BACKUP_TYPES = ["Offset", "Flexo", "Rotogravure"];
+
+// CRM's "Indus Product" is free text (e.g. "Indas Print ERP - Estimo", "Indus Print - Web",
+// "inPrint") — only auto-select an Application when it's an UNAMBIGUOUS match; a wrong guess
+// here would restore the wrong database template, so ambiguous values ("Web"/"inPrint"/
+// "Desktop" — no Desktop option exists in this wizard) are left for the admin to pick manually.
+function guessApplication(indasProduct?: string | null): string {
+  const p = (indasProduct ?? "").toLowerCase();
+  if (p.includes("printude")) return "PrintudeERP";
+  if (p.includes("multiunit") || p.includes("multi unit")) return "multiunit";
+  if (p.includes("estimo") && !p.includes("desktop")) return "estimoprime";
+  return "";
+}
 // Per-application login URL shown on the success screen (keys are lower-cased).
 const APP_LOGIN_URL: Record<string, string> = {
   estimoprime: "https://estimo.indusanalytics.co.in/CompanyLogin.aspx",
@@ -57,16 +72,24 @@ function Label({ text, extra }: { text: string; extra?: string }) {
 
 export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen: boolean; onClose: () => void; onDone: () => void }) {
   const [step, setStep] = useState(1);
+  useLocationData(); // lazily load country/state/city data (kept out of the main bundle)
   const [maxStep, setMaxStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A floating success toast shown after each step completes (auto-dismisses).
+  const [flash, setFlash] = useState<string | null>(null);
+  useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 2600); return () => clearTimeout(t); }, [flash]);
 
   // step 1
   const [servers, setServers] = useState<string[]>([]);
   const [backupDbs, setBackupDbs] = useState<string[]>([]);
   const [db, setDb] = useState({ server: "", app: "", backupType: "", clientName: "", dbName: "", backupDb: "", dbEdited: false });
   const [setup, setSetup] = useState<SetupDatabaseResponse | null>(null);
+  // "CRM Client" picker — pulls the client's known contact details from the internal CRM app
+  // (IndusInternalApp) so Step 2 doesn't need to be retyped from scratch.
+  const [crmPickerOpen, setCrmPickerOpen] = useState(false);
+  const [crmPick, setCrmPick] = useState<CrmClient | null>(null);
 
   // step 2 (subscription)
   const [sub, setSub] = useState<Record<string, unknown>>({ subscriptionStatus: "Active", country: "India", loginAllowed: 1 });
@@ -79,9 +102,10 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
 
   useEffect(() => {
     if (!isOpen) return;
-    setStep(1); setMaxStep(1); setErr(null); setSetup(null); setDone(null);
+    setStep(1); setMaxStep(1); setErr(null); setSetup(null); setDone(null); setFlash(null);
     setDb({ server: "", app: "", backupType: "", clientName: "", dbName: "", backupDb: "", dbEdited: false });
-    setSub({ subscriptionStatus: "Active", country: "India", loginAllowed: 1 });
+    setCrmPick(null);
+    setSub({ subscriptionStatus: "Active", cloudSubscriptionStatus: "Active", country: "India", loginAllowed: 1 });
     provisioningApi.servers()
       .then((r) => { const merged = Array.from(new Set([...r.servers, ...loadStoredServers()])); setServers(merged); setDb((p) => ({ ...p, server: merged[0] ?? "" })); })
       .catch(() => { const s = loadStoredServers(); setServers(s); setDb((p) => ({ ...p, server: s[0] ?? "" })); });
@@ -112,8 +136,22 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       if (!r.success) { setErr(r.message); return; }
       setSetup(r);
       rememberServer(db.server);
-      setSub((p) => ({ ...p, conn_String: r.connectionString, applicationName: r.applicationName, companyName: r.clientName }));
-      setCompany((p) => ({ ...p, connectionString: r.connectionString, companyName: r.clientName }));
+      setSub((p) => ({
+        ...p, conn_String: r.connectionString, applicationName: r.applicationName, companyName: r.clientName,
+        // Prefill from the picked CRM client (if any) — saves retyping contact/GST/location details.
+        ...(crmPick ? {
+          city: crmPick.city ?? p.city, state: crmPick.state ?? p.state, gstin: crmPick.gst ?? p.gstin,
+          email: crmPick.email ?? p.email, mobile: crmPick.phoneNumber ?? p.mobile,
+          address: crmPick.address ?? p.address,
+        } : {}),
+      }));
+      setCompany((p) => ({
+        ...p, connectionString: r.connectionString, companyName: r.clientName,
+        ...(crmPick ? { pan: crmPick.companyPAN ?? p.pan, address1: crmPick.address ?? p.address1, address: crmPick.address ?? p.address } : {}),
+      }));
+      // This CRM client now has a database — stamp it so the picker shows DB Status = Created.
+      if (crmPick) crmApi.markProvisioned(crmPick.customerID, r.clientName, r.databaseName).catch(() => {});
+      setFlash(`Database "${r.databaseName}" successfully created on ${db.server}.`);
       go(2);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -125,6 +163,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       const r = await customersApi.create(sub);
       if (!r.success) { setErr(r.message); return; }
       setCompany((p) => ({ ...p, connectionString: (sub.conn_String as string) ?? p.connectionString, companyName: sub.companyName as string, city: sub.city as string, state: sub.state as string, country: (sub.country as string) ?? "India", email: sub.email as string, gstin: sub.gstin as string, mobileNO: sub.mobile as string, address: sub.address as string, address1: sub.address as string }));
+      setFlash("Subscription details saved successfully.");
       go(3);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -136,6 +175,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       const r = await provisioningApi.saveCompanyMaster(company);
       if (!r.success) { setErr(r.message); return; }
       setBranch((p) => ({ ...p, connectionString: company.connectionString, branchName: company.companyName, mailingName: company.companyName, city: company.city, state: company.state, country: company.country ?? "India", pincode: company.pincode, mobileNo: company.mobileNO, email: company.email, gstin: company.gstin, companyID: r.companyID }));
+      setFlash("Company master saved successfully.");
       go(4);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -147,6 +187,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       const r = await provisioningApi.saveBranchMaster(branch);
       if (!r.success) { setErr(r.message); return; }
       setProd((p) => ({ ...p, connectionString: company.connectionString, productionUnitName: company.productionUnitName || company.companyName, address: company.productionUnitAddress || company.address, city: company.city, state: company.state, gstNo: company.gstin, pincode: company.pincode, country: company.country ?? "India", pan: company.pan }));
+      setFlash("Branch master saved successfully.");
       go(5);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -159,6 +200,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       if (!pu.success) { setErr(pu.message); return; }
       const cs = await provisioningApi.completeSetup({ connectionString: prod.connectionString, city: company.city, state: company.state, country: company.country, companyUserID: sub.companyUserID as string });
       if (!cs.success) { setErr(cs.message); return; }
+      setFlash("Production unit saved successfully.");
       setDone(cs); setStep(6);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -178,9 +220,30 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         placeholder={extra?.allowCustom ? "Select or type…" : "Select…"}
         searchable={extra?.searchable}
         allowTextInput={extra?.allowCustom}
-        allowCustomValues={extra?.allowCustom}
+        allowCustomInput={extra?.allowCustom}
         size="md"
       />
+    </div>
+  );
+  // Server is a free-text combobox (editable input + <datalist> suggestions) so a brand-new
+  // server can be typed. Used servers are remembered in localStorage and re-appear next time.
+  const SC = (label: string, val: string, on: (v: string) => void, options: string[]) => (
+    <div><Label text={label} />
+      <Input
+        type="text"
+        value={val ?? ""}
+        onChange={(e) => on(e.target.value)}
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          if (v) { rememberServer(v); setServers((prev) => (prev.includes(v) ? prev : [...prev, v])); }
+        }}
+        list="pm-server-list"
+        placeholder="Type or pick, e.g. 13.200.122.70,1433"
+        autoComplete="off"
+      />
+      <datalist id="pm-server-list">
+        {options.map((o) => <option key={o} value={o} />)}
+      </datalist>
     </div>
   );
 
@@ -188,7 +251,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   const meta = STEP_META[step];
   return createPortal(
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
 
         {/* premium gradient header + step pills */}
         <div style={{ background: "linear-gradient(100deg,color-mix(in srgb, rgb(var(--color-primary)) 75%, black),rgb(var(--color-primary)) 52%,color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", padding: "15px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -215,6 +278,14 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           <button onClick={onClose} title="Close" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", flexShrink: 0 }}><X size={17} /></button>
         </div>
 
+        {/* Success toast — floats after each step completes, auto-dismisses. */}
+        {flash && (
+          <div style={{ position: "absolute", top: 74, left: "50%", transform: "translateX(-50%)", zIndex: 5, display: "inline-flex", alignItems: "center", gap: 9, background: "#e6f6ec", color: "#166534", border: "1px solid #86e0a8", borderRadius: 999, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, boxShadow: "0 12px 30px -10px rgba(16,161,80,.45)", maxWidth: "90%" }}>
+            <span style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: 999, background: "#12a150", color: "#fff", flexShrink: 0 }}><Check size={13} /></span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{flash}</span>
+          </div>
+        )}
+
         {/* scrollable body */}
         <div style={{ padding: "18px 22px 20px", overflowY: "auto", flex: 1 }}>
           {step <= 5 && meta && (
@@ -232,7 +303,13 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       {step === 1 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px" }}>
           <div style={sect}>Database Setup</div>
-          {S("Server *", db.server, (v) => { setDb((p) => ({ ...p, server: v })); if (v && !servers.includes(v)) { setServers((prev) => [...prev, v]); rememberServer(v); } }, servers, { searchable: true, allowCustom: true })}
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-start" }}>
+            <button type="button" onClick={() => setCrmPickerOpen(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#eef4fb", color: "rgb(var(--color-primary))", border: "1px solid #cdddf1", borderRadius: 9, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              <Users2 size={15} /> {crmPick ? `CRM Client: ${crmPick.companyName}` : "CRM Client"}
+            </button>
+          </div>
+          {SC("Server *", db.server, (v) => setDb((p) => ({ ...p, server: v })), servers)}
           {S("Application *", db.app, (v) => setDb((p) => ({ ...p, app: v })), APP_OPTIONS)}
           {S("Backup Type *", db.backupType, (v) => setDb((p) => ({ ...p, backupType: v })), BACKUP_TYPES)}
           {T("Client Name *", db.clientName, (v) => setDb((p) => ({ ...p, clientName: v })))}
@@ -250,8 +327,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {T("Client Name *", sub.companyName, (v) => setSub((p) => ({ ...p, companyName: v })))}
           {T("Company Code", sub.companyCode, (v) => setSub((p) => ({ ...p, companyCode: v })))}
           {T("GSTIN", sub.gstin, (v) => setSub((p) => ({ ...p, gstin: v })))}
-          {T("City", sub.city, (v) => setSub((p) => ({ ...p, city: v })))}
-          {T("State", sub.state, (v) => setSub((p) => ({ ...p, state: v })))}
+          {S("Country", (sub.country as string) ?? "India", (v) => setSub((p) => ({ ...p, country: v, state: "", city: "" })), countryNames((sub.country as string) || "India"), { searchable: true })}
+          {S("State", (sub.state as string) ?? "", (v) => setSub((p) => ({ ...p, state: v, city: "" })), stateNames((sub.country as string) || "India", sub.state as string), { searchable: true })}
+          {S("City", (sub.city as string) ?? "", (v) => setSub((p) => ({ ...p, city: v })), cityNames((sub.country as string) || "India", sub.state as string, sub.city as string), { searchable: true })}
           {T("Address", sub.address as string, (v) => setSub((p) => ({ ...p, address: v })))}
           {T("Email", sub.email, (v) => setSub((p) => ({ ...p, email: v })), { type: "email" })}
           {T("Mobile", sub.mobile, (v) => setSub((p) => ({ ...p, mobile: v })))}
@@ -269,9 +347,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {T("Company Name *", company.companyName, (v) => setCompany((p) => ({ ...p, companyName: v })))}
           {T("GSTIN", company.gstin, (v) => setCompany((p) => ({ ...p, gstin: v })))}
           {T("Address 1", company.address1, (v) => setCompany((p) => ({ ...p, address1: v })))}
-          {T("City", company.city, (v) => setCompany((p) => ({ ...p, city: v })))}
-          {T("State", company.state, (v) => setCompany((p) => ({ ...p, state: v })))}
-          {T("Country", company.country, (v) => setCompany((p) => ({ ...p, country: v })))}
+          {S("Country", company.country ?? "", (v) => setCompany((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(company.country), { searchable: true })}
+          {S("State", company.state ?? "", (v) => setCompany((p) => ({ ...p, state: v, city: "" })), stateNames(company.country, company.state), { searchable: true })}
+          {S("City", company.city ?? "", (v) => setCompany((p) => ({ ...p, city: v })), cityNames(company.country, company.state, company.city), { searchable: true })}
           {T("Pincode", company.pincode, (v) => setCompany((p) => ({ ...p, pincode: v })))}
           {T("Mobile No", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })))}
           {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })))}
@@ -286,10 +364,10 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {T("Branch ID", branch.branchID, (v) => setBranch((p) => ({ ...p, branchID: Number(v) || 1 })), { type: "number" })}
           {T("Branch Name *", branch.branchName, (v) => setBranch((p) => ({ ...p, branchName: v })))}
           {T("Mailing Name", branch.mailingName, (v) => setBranch((p) => ({ ...p, mailingName: v })))}
-          {T("City", branch.city, (v) => setBranch((p) => ({ ...p, city: v })))}
+          {S("Country", branch.country ?? "", (v) => setBranch((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(branch.country), { searchable: true })}
+          {S("State", branch.state ?? "", (v) => setBranch((p) => ({ ...p, state: v, city: "" })), stateNames(branch.country, branch.state), { searchable: true })}
+          {S("City", branch.city ?? "", (v) => setBranch((p) => ({ ...p, city: v })), cityNames(branch.country, branch.state, branch.city), { searchable: true })}
           {T("District", branch.district, (v) => setBranch((p) => ({ ...p, district: v })))}
-          {T("State", branch.state, (v) => setBranch((p) => ({ ...p, state: v })))}
-          {T("Country", branch.country, (v) => setBranch((p) => ({ ...p, country: v })))}
           {T("Pincode", branch.pincode, (v) => setBranch((p) => ({ ...p, pincode: v })))}
           {T("Mobile No", branch.mobileNo, (v) => setBranch((p) => ({ ...p, mobileNo: v })))}
           {T("Email", branch.email, (v) => setBranch((p) => ({ ...p, email: v })))}
@@ -301,11 +379,11 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px" }}>
           <div style={sect}>Production Unit</div>
           {T("Prod. Unit Name *", prod.productionUnitName, (v) => setProd((p) => ({ ...p, productionUnitName: v })))}
-          {T("City", prod.city, (v) => setProd((p) => ({ ...p, city: v })))}
-          {T("State", prod.state, (v) => setProd((p) => ({ ...p, state: v })))}
+          {S("Country", prod.country ?? "", (v) => setProd((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(prod.country), { searchable: true })}
+          {S("State", prod.state ?? "", (v) => setProd((p) => ({ ...p, state: v, city: "" })), stateNames(prod.country, prod.state), { searchable: true })}
+          {S("City", prod.city ?? "", (v) => setProd((p) => ({ ...p, city: v })), cityNames(prod.country, prod.state, prod.city), { searchable: true })}
           {T("GST No", prod.gstNo, (v) => setProd((p) => ({ ...p, gstNo: v })))}
           {T("Pincode", prod.pincode, (v) => setProd((p) => ({ ...p, pincode: v })))}
-          {T("Country", prod.country, (v) => setProd((p) => ({ ...p, country: v })))}
           {T("PAN", prod.pan, (v) => setProd((p) => ({ ...p, pan: v })))}
           <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Address</label>
             <Input value={prod.address ?? ""} onChange={(e) => setProd((p) => ({ ...p, address: e.target.value }))} /></div>
@@ -372,6 +450,20 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           </div>
         )}
       </div>{/* end modal card */}
+
+      {/* Stop clicks inside the CRM picker (which portals to body but bubbles up the REACT tree)
+          from reaching this wizard's backdrop onClick={onClose} and closing the whole wizard. */}
+      <div onClick={(e) => e.stopPropagation()}>
+        <CrmClientPickerModal
+          isOpen={crmPickerOpen}
+          onClose={() => setCrmPickerOpen(false)}
+          onPick={(c) => {
+            setCrmPick(c);
+            const app = guessApplication(c.indasProduct);
+            setDb((p) => ({ ...p, clientName: c.companyName, ...(app ? { app } : {}) }));
+          }}
+        />
+      </div>
     </div>,
     document.body
   );

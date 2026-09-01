@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Tabs, Badge, Button, Dropdown } from "indas-ui";
+import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 import { Pencil, Building2, MapPin, CreditCard, Cloud, KeyRound, ShieldCheck, Rocket, Activity, FileCheck2, HardHat, X, Save, Wand2, Copy, Check, Eye, Download, FileText, FileDown, FileCode, FileSpreadsheet, CheckCircle2, Mail, type LucideIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { fetchClientTabPermissions, type TabPermMap } from "@/lib/clientTabPermissions";
@@ -127,7 +128,7 @@ const signoffFields = (c: CustomerDetail): [string, string][] => [
   ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
 ];
 
-type FieldKind = "text" | "number" | "date" | "textarea" | "status" | "app" | "bool";
+type FieldKind = "text" | "number" | "date" | "textarea" | "status" | "app" | "bool" | "country" | "state" | "city";
 type FieldOpts = { full?: boolean; mono?: boolean; readOnly?: boolean; viewOnly?: boolean; copy?: boolean };
 
 /** Small ghost icon-button that copies text to the clipboard (✓ feedback for 1.5s). */
@@ -197,6 +198,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   // In-place edit state
   const [editing, setEditing] = useState(false);
   const [f, setF] = useState<SubscriptionSave>({});
+  useLocationData(); // lazily load country/state/city data (kept out of the main bundle)
   const [saving, setSaving] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [msgPopup, setMsgPopup] = useState(false);
@@ -495,6 +497,10 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     // Dropdowns include the current saved value so an edit always pre-selects it (even off-list).
     if (kind === "status") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...STATUS_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
     if (kind === "app") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...APP_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    // Cascading Country → State → City (values stored as names; picking a parent resets children).
+    if (kind === "country") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, country: String(v), state: "", city: "" }))} options={countryNames(fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "state") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, state: String(v), city: "" }))} options={stateNames(f.country, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "city") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set("city", String(v))} options={cityNames(f.country, f.state, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
     if (kind === "date") return box(<DateField value={fv as string | undefined} onChange={(v) => set(key, v)} />);
     if (kind === "textarea") return box(<textarea value={(fv as string) ?? ""} onChange={(e) => set(key, e.target.value)} rows={2} style={fldArea} />);
     if (kind === "bool") return box(
@@ -567,9 +573,9 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
           <SectionCard icon={MapPin} title="Address & Contact" cols={3}>
             {fld("Address", "address", "textarea", { full: true })}
-            {fld("City", "city")}
-            {fld("State", "state")}
-            {fld("Country", "country")}
+            {fld("Country", "country", "country")}
+            {fld("State", "state", "state")}
+            {fld("City", "city", "city")}
             {fld("Email", "email")}
             {fld("Mobile", "mobile")}
             {fld("F-Year", "fYear")}
