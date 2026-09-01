@@ -14,7 +14,11 @@ import { employeeLogin, saveEmployee, getEmployee } from "@/lib/employee";
  *  3. Unmapped employee → HR profile page.
  * No Company Code / Financial Year — just Username + Password. Greeting is time-based.
  */
-const REMEMBER_KEY = "indus360.remember.username";
+// Remember-me stores the username + a base64-OBFUSCATED (not encrypted) password in localStorage
+// so a returning user's credentials are pre-filled. Meant for a trusted personal machine.
+const REMEMBER_KEY = "indus360.remember.creds";
+const encPwd = (s: string) => { try { return btoa(unescape(encodeURIComponent(s))); } catch { return ""; } };
+const decPwd = (s: string) => { try { return decodeURIComponent(escape(atob(s))); } catch { return ""; } };
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,10 +38,17 @@ export default function LoginPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Remembered username.
+  // Pre-fill remembered credentials (username + password) if "Remember me" was used.
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem(REMEMBER_KEY) : null;
-    if (saved) { setEmail(saved); setRemember(true); }
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(REMEMBER_KEY);
+      if (!raw) return;
+      const { u, p } = JSON.parse(raw) as { u?: string; p?: string };
+      if (u) setEmail(u);
+      if (p) setPassword(decPwd(p));
+      setRemember(true);
+    } catch { /* ignore malformed / legacy value */ }
   }, []);
 
   useEffect(() => {
@@ -64,21 +75,25 @@ export default function LoginPage() {
     setBusy(true); setErr(null);
     const em = email.trim();
 
-    if (remember) localStorage.setItem(REMEMBER_KEY, em);
-    else localStorage.removeItem(REMEMBER_KEY);
+    // Forget saved creds immediately if Remember me is off; save them only after a successful login
+    // (so a wrong/mistyped password is never remembered).
+    if (!remember) localStorage.removeItem(REMEMBER_KEY);
+    const rememberCreds = () => {
+      if (remember) localStorage.setItem(REMEMBER_KEY, JSON.stringify({ u: em, p: encPwd(password) }));
+    };
 
     // 1) Employee bridge — mapped employees get a full app session.
     let res = await signIn("credentials", { mode: "employee", email: em, password, redirect: false });
-    if (res?.ok && !res.error) { router.replace("/"); return; }
+    if (res?.ok && !res.error) { rememberCreds(); router.replace("/"); return; }
 
     // 2) Admin (app.Users).
     res = await signIn("credentials", { email: em, password, redirect: false });
-    if (res?.ok && !res.error) { router.replace("/"); return; }
+    if (res?.ok && !res.error) { rememberCreds(); router.replace("/"); return; }
 
     // 3) Valid employee without an app account → HR profile; else bad credentials.
     const r = await employeeLogin(em, password);
     setBusy(false);
-    if (r.success && r.employee) { saveEmployee(r.employee); router.replace("/employee"); }
+    if (r.success && r.employee) { rememberCreds(); saveEmployee(r.employee); router.replace("/employee"); }
     else setErr("Invalid username or password.");
   }
 
