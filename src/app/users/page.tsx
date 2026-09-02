@@ -1,9 +1,9 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Page, StandardModal, Tabs, Badge, Dropdown, useModalAlert } from "indas-ui";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Page, StandardModal, Badge, Button, Dropdown, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon } from "lucide-react";
+import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle } from "lucide-react";
 import { insertImageFile } from "@/lib/imageEmbed";
 // Full-featured grid migrated from the legacy Parkson project (owned source).
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
@@ -46,16 +46,27 @@ const PERMS = [
 type PermKey = typeof PERMS[number]["key"];
 
 // ── Module Authentication matrix ─────────────────────────
-function ModuleMatrix({ userId, onFlash }: { userId: number; onFlash: (m: string) => void }) {
+// Imperative handle so the modal's single footer "Update" can persist the matrix along with the
+// profile — the matrix no longer owns a Save button (all saving happens from the shared footer).
+type ModuleMatrixHandle = { save: (overrideUserId?: number) => Promise<{ success: boolean; message?: string }>; hasRows: boolean };
+
+// `blankPerms` (Create flow) → show the FULL module list but with every checkbox unchecked.
+const ModuleMatrix = forwardRef<ModuleMatrixHandle, { userId: number; blankPerms?: boolean }>(function ModuleMatrix({ userId, blankPerms }, ref) {
   const [rows, setRows] = useState<ModuleAuthRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    usersApi.getModules(userId).then((r) => setRows(r.success ? r.data : [])).catch(() => setRows([])).finally(() => setLoading(false));
-  }, [userId]);
+    usersApi.getModules(userId)
+      .then((r) => {
+        const data = r.success ? r.data : [];
+        setRows(blankPerms
+          ? data.map((m) => ({ ...m, canView: false, canSave: false, canEdit: false, canDelete: false, canPrint: false, canExport: false, canCancel: false }))
+          : data);
+      })
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [userId, blankPerms]);
 
   const setCell = (i: number, k: PermKey, v: boolean) => setRows((p) => p.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   const setRowAll = (i: number, v: boolean) => setRows((p) => p.map((r, idx) => idx === i ? { ...r, canView: v, canSave: v, canEdit: v, canDelete: v, canPrint: v, canExport: v, canCancel: v } : r));
@@ -67,16 +78,16 @@ function ModuleMatrix({ userId, onFlash }: { userId: number; onFlash: (m: string
   const allOn = rows.length > 0 && rows.every(rowAllOn);
   const grantedCount = rows.filter((r) => PERMS.some((p) => r[p.key])).length;
 
-  async function save() {
-    setSaving(true);
-    const r = await usersApi.saveModules(userId, rows.map((m) => ({
+  async function save(overrideUserId?: number): Promise<{ success: boolean; message?: string }> {
+    const r = await usersApi.saveModules(overrideUserId ?? userId, rows.map((m) => ({
       moduleID: m.moduleID, canView: m.canView, canSave: m.canSave, canEdit: m.canEdit,
       canDelete: m.canDelete, canPrint: m.canPrint, canExport: m.canExport, canCancel: m.canCancel,
     })));
-    setSaving(false);
-    if (r.success) { const m = r.message || "Module authority saved."; onFlash(m); setSavedMsg(m); setTimeout(() => setSavedMsg(null), 3000); }
-    else onFlash(r.message || "Save failed.");
+    return { success: r.success, message: r.message };
   }
+  // Expose save() + whether there's anything to save, for the modal's shared footer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useImperativeHandle(ref, () => ({ save, hasRows: rows.length > 0 }), [rows, userId]);
 
   const th: React.CSSProperties = { padding: "9px 8px", fontSize: 11, fontWeight: 700, color: "rgb(var(--fg-muted))", background: "rgb(var(--bg-subtle))", position: "sticky", top: 0, textAlign: "center", whiteSpace: "nowrap" };
   const cbx: React.CSSProperties = { width: 16, height: 16, cursor: "pointer", accentColor: "rgb(var(--color-primary))" };
@@ -90,11 +101,6 @@ function ModuleMatrix({ userId, onFlash }: { userId: number; onFlash: (m: string
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer" }}>
           <input type="checkbox" style={cbx} checked={allOn} onChange={(e) => setAll(e.target.checked)} /> Select everything
         </label>
-        {savedMsg && <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, color: "#1c6b3c", background: "#e6f6ec", border: "1px solid #b7e2c6", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 700 }}>✓ {savedMsg}</span>}
-        <button onClick={save} disabled={saving}
-          style={{ marginLeft: savedMsg ? 10 : "auto", display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.7 : 1 }}>
-          <Save size={15} /> {saving ? "Saving…" : "Save Authority"}
-        </button>
       </div>
 
       <div style={{ border: "1px solid #e6ebf2", borderRadius: 12, overflow: "auto", maxHeight: "52vh" }}>
@@ -134,7 +140,7 @@ function ModuleMatrix({ userId, onFlash }: { userId: number; onFlash: (m: string
       <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))", marginTop: 8 }}>Tip: “Can View” controls whether the module appears in the user’s sidebar.</div>
     </div>
   );
-}
+});
 
 // ── Create / Edit modal ──────────────────────────────────
 const BLANK_USER: UserSave & { employeeCode?: string } = {
@@ -157,6 +163,9 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   const [showSmtpPwd, setShowSmtpPwd] = useState(false);
   const sigRef = useRef<HTMLDivElement>(null);
   const sigExec = (cmd: string, val?: string) => { document.execCommand(cmd, false, val); sigRef.current?.focus(); };
+  const [origEmail, setOrigEmail] = useState("");           // for the Save-As uniqueness guard
+  const moduleRef = useRef<ModuleMatrixHandle>(null);        // lets the footer save the authority matrix too
+  const { showConfirmation, AlertComponent: DeleteAlert } = useModalAlert();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -165,6 +174,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
       usersApi.get(userId).then((r) => {
         if (!r.success) return;
         setHasSmtpPwd(!!r.data.hasSmtpPassword);
+        setOrigEmail(r.data.email ?? "");
         setF({
           userId: r.data.userId, fullName: r.data.fullName, email: r.data.email ?? "", password: "",
           role: r.data.role ?? "", reportingManagerId: r.data.reportingManagerId ?? null, isActive: r.data.isActive, companyId: r.data.companyId,
@@ -178,6 +188,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
       });
     } else {
       setF({ ...BLANK_USER });
+      setOrigEmail("");
     }
   }, [isOpen, userId]);
 
@@ -192,29 +203,80 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  async function saveProfile() {
-    if (!f.fullName.trim() || !f.email.trim()) { setMsg("Full name and email are required."); return; }
-    if (!curId && !f.password?.trim()) { setMsg("Password is required for a new user."); return; }
-    setBusy(true); setMsg(null);
-    const body: UserSave = {
-      userId: curId ?? 0, fullName: f.fullName.trim(), email: f.email.trim(), password: f.password?.trim() || undefined,
-      mobile: f.mobile?.trim() || null,
-      role: f.role || null, reportingManagerId: f.reportingManagerId ?? null, isActive: f.isActive, companyId: f.companyId,
-      emailProvider: f.emailProvider || "SMTP",
-      smtpUsername: f.smtpUsername?.trim() || null, smtpPassword: f.smtpPassword?.trim() || undefined,
-      smtpServer: f.smtpServer?.trim() || null, smtpPort: f.smtpPort?.trim() || null,
-      smtpAuthenticate: f.smtpAuthenticate ?? true, smtpUseSSL: f.smtpUseSSL ?? true,
-      emailSignature: (sigRef.current?.innerHTML ?? f.emailSignature ?? "").trim() || null,
-    };
-    const r = curId ? await usersApi.update(curId, body) : await usersApi.create(body);
-    setBusy(false);
-    if (!r.success) { setMsg(r.message); return; }
+  // Build the save payload from the current form (asNew → a brand-new record, ignoring curId).
+  const buildBody = (asNew: boolean): UserSave => ({
+    userId: asNew ? 0 : (curId ?? 0),
+    fullName: f.fullName.trim(), email: f.email.trim(), password: f.password?.trim() || undefined,
+    mobile: f.mobile?.trim() || null,
+    role: f.role || null, reportingManagerId: f.reportingManagerId ?? null, isActive: f.isActive, companyId: f.companyId,
+    emailProvider: f.emailProvider || "SMTP",
+    smtpUsername: f.smtpUsername?.trim() || null, smtpPassword: f.smtpPassword?.trim() || undefined,
+    smtpServer: f.smtpServer?.trim() || null, smtpPort: f.smtpPort?.trim() || null,
+    smtpAuthenticate: f.smtpAuthenticate ?? true, smtpUseSSL: f.smtpUseSSL ?? true,
+    emailSignature: (sigRef.current?.innerHTML ?? f.emailSignature ?? "").trim() || null,
+  });
+
+  // Persist the user entity (profile + email settings). Returns the user id (new or existing), or null on failure.
+  async function saveUser(): Promise<number | null> {
+    if (!f.fullName.trim() || !f.email.trim()) { setTab("profile"); setMsg("Full name and email are required."); return null; }
+    if (!curId && !f.password?.trim()) { setTab("profile"); setMsg("Password is required for a new user."); return null; }
+    setMsg(null);
+    const r = curId ? await usersApi.update(curId, buildBody(false)) : await usersApi.create(buildBody(true));
+    if (!r.success) { setMsg(r.message); return null; }
     const newId = (r as { userId?: number }).userId;
+    const effectiveId = curId ?? newId ?? null;
     onFlash(curId ? "Saved successfully." : "User created.");
     onSaved();
     if (f.smtpPassword?.trim()) setHasSmtpPwd(true); // password just set → reflect it
     if (!curId && newId) { setCurId(newId); setTab("modules"); } // new user → continue to authority
-    else setSaved("✓ Saved successfully.");
+    return effectiveId;
+  }
+
+  // Footer "Update"/"Save": persist the user, then the module-authority matrix under the same id
+  // (for a brand-new user, `id` is the just-created one, so ticked modules are saved immediately).
+  async function handleSave() {
+    setBusy(true);
+    try {
+      const id = await saveUser();
+      if (id == null) return;
+      if (moduleRef.current?.hasRows) {
+        const mr = await moduleRef.current.save(id);
+        if (!mr.success) { setMsg(mr.message || "Module authority save failed."); return; }
+      }
+      setSaved("✓ Saved successfully.");
+    } finally { setBusy(false); }
+  }
+
+  // Footer "Save As": clone the current form into a NEW user (email must differ; needs a password) —
+  // the module authority is copied to the clone too.
+  async function handleSaveAs() {
+    if (!curId) return;
+    if (!f.email.trim() || f.email.trim().toLowerCase() === origEmail.trim().toLowerCase()) {
+      setTab("profile"); setMsg("Change the Email before Save As — it must be unique for the new user."); return;
+    }
+    if (!f.password?.trim()) { setTab("profile"); setMsg("Set a Password to save this as a new user."); return; }
+    setBusy(true); setMsg(null);
+    try {
+      const r = await usersApi.create(buildBody(true));
+      if (!r.success) { setMsg(r.message); return; }
+      const newId = (r as { userId?: number }).userId;
+      if (newId && moduleRef.current?.hasRows) await moduleRef.current.save(newId); // clone the authority too
+      onFlash("Saved as a new user."); onSaved(); onClose();
+    } finally { setBusy(false); }
+  }
+
+  // Footer "Delete": confirm, then remove the user.
+  function handleDelete() {
+    if (!curId) return;
+    showConfirmation(
+      "Delete User",
+      `Delete "${f.fullName || "this user"}"${f.email ? ` (${f.email})` : ""}? This permanently removes their login and module authority. This cannot be undone.`,
+      async () => {
+        const r = await usersApi.remove(curId);
+        if (r.success) { onFlash(`Employee "${f.fullName}" has been deleted.`); onSaved(); onClose(); }
+        else setMsg(r.message || "Delete failed.");
+      },
+    );
   }
 
   const tabDefs = useMemo(() => [
@@ -226,7 +288,16 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
 
   return (
     <StandardModal isOpen={isOpen} onClose={onClose} title={userId ? `Edit User — ${f.fullName || ""}` : "Create User"}
-      subtitle={f.employeeCode ? `Employee ${f.employeeCode}` : "Indus Command Center user + module authority"} size="xl" showFooter={false}>
+      subtitle={f.employeeCode ? `Employee ${f.employeeCode}` : "Indus Command Center user + module authority"} size="xl"
+      showFooter
+      footerActions={
+        <>
+          {curId != null && <Button variant="action-delete" icon={Trash2} onClick={handleDelete} disabled={busy}>Delete</Button>}
+          <Button variant="action-save" icon={Save} onClick={handleSave} loading={busy}>{curId ? "Update" : "Save"}</Button>
+          {curId != null && <Button variant="action-save-as" icon={Copy} onClick={handleSaveAs} disabled={busy}>Save As</Button>}
+          <Button variant="action-cancel" icon={XCircle} onClick={onClose} disabled={busy}>Cancel</Button>
+        </>
+      }>
       <div style={{ display: "flex", gap: 6, background: "rgb(var(--bg-subtle))", border: "1px solid #e2e8f1", borderRadius: 12, padding: 5 }}>
         {tabDefs.map((t) => {
           const active = tab === t.id;
@@ -271,23 +342,15 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 <input type="checkbox" checked={f.isActive} onChange={(e) => set("isActive", e.target.checked)} style={{ width: 16, height: 16, accentColor: "rgb(var(--color-primary))" }} /> Active (can log in)
               </label>
             </div>
-            <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
-              <button onClick={onClose} style={{ background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-muted))", border: "1px solid #d7deea", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-              <button onClick={saveProfile} disabled={busy}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", opacity: busy ? 0.7 : 1 }}>
-                <Save size={15} /> {busy ? "Saving…" : curId ? "Update User" : "Create User"}
-              </button>
-            </div>
           </div>
         )}
 
-        {tab === "modules" && (
-          curId
-            ? <ModuleMatrix userId={curId} onFlash={onFlash} />
-            : <div style={{ padding: 30, textAlign: "center", opacity: 0.7, fontSize: 13.5 }}>
-                <ShieldCheck size={26} style={{ opacity: 0.4 }} /><div style={{ marginTop: 8 }}>Save the user profile first, then assign module authority.</div>
-              </div>
-        )}
+        {/* Module Authentication — ALWAYS shows the full module list (fresh user → every box unchecked;
+            existing user → their granted boxes ticked). Kept mounted so edits survive tab switches; the
+            footer "Update" persists it with the profile (new user → under the just-created id). */}
+        <div style={{ display: tab === "modules" ? "block" : "none" }}>
+          <ModuleMatrix ref={moduleRef} userId={curId ?? 0} blankPerms={curId == null} />
+        </div>
 
         {tab === "emails" && (
           <div style={{ maxWidth: 960 }}>
@@ -370,17 +433,10 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 style={{ minHeight: 120, maxHeight: 240, overflowY: "auto", padding: "12px 14px", fontSize: 13.5, lineHeight: 1.55, outline: "none", color: "rgb(var(--fg-default))", background: "rgb(var(--bg-surface))" }}
               />
             </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-              <button onClick={onClose} style={{ background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-muted))", border: "1px solid #d7deea", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-              <button onClick={saveProfile} disabled={busy}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", opacity: busy ? 0.7 : 1 }}>
-                <Save size={15} /> {busy ? "Saving…" : "Save Email Settings"}
-              </button>
-            </div>
           </div>
         )}
       </div>
+      <DeleteAlert />
     </StandardModal>
   );
 }

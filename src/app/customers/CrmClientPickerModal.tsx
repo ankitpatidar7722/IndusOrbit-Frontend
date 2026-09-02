@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { StandardModal, Badge, Button } from "indas-ui";
+import { StandardModal, Badge, Button, Tabs } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Check as CheckIcon, FileText } from "lucide-react";
 import { DataGrid } from "@/components/datagrid";
@@ -27,12 +27,19 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
   const [err, setErr] = useState<string | null>(null);
   const [selected, setSelected] = useState<CrmClient[]>([]);
   const [viewing, setViewing] = useState<CrmClient | null>(null);
+  // Pending = client's DB not created yet; Proceed = DB already created (dbStatus === "Created").
+  const [tab, setTab] = useState<"pending" | "proceed">("pending");
 
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true); setErr(null); setSelected([]); setViewing(null);
+    setLoading(true); setErr(null); setSelected([]); setViewing(null); setTab("pending");
     crmApi.clients().then(setRows).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [isOpen]);
+
+  const isCreated = (r: CrmClient) => r.dbStatus === "Created";
+  const pending = useMemo(() => rows.filter((r) => !isCreated(r)), [rows]);
+  const proceed = useMemo(() => rows.filter((r) => isCreated(r)), [rows]);
+  const shown = tab === "proceed" ? proceed : pending;
 
   const columns = useMemo<ColumnDef<CrmClient>[]>(() => [
     { accessorKey: "companyName", header: "Company Name", size: 200, meta: { inputType: "text" } },
@@ -42,7 +49,7 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
     { accessorKey: "email", header: "Email", size: 190, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.email) },
     { accessorKey: "segment", header: "Segment", size: 120, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.segment) },
     { accessorKey: "indasProduct", header: "Indus Product", size: 170, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.indasProduct) },
-    { accessorKey: "assignedToName", header: "Assign To", size: 150, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.assignedToName) },
+    { accessorKey: "assignedToName", header: "Sales Person", size: 150, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.assignedToName) },
     {
       accessorKey: "proposalDocumentName", header: "Proposal Document", size: 260, meta: { inputType: "text" },
       cell: ({ row }) => {
@@ -58,12 +65,6 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
       },
     },
     {
-      accessorKey: "dbStatus", header: "DB Status", size: 120, meta: { inputType: "text" },
-      cell: ({ row }) => row.original.dbStatus === "Created"
-        ? <Badge variant="success">Created</Badge>
-        : <span style={{ opacity: 0.5 }}>—</span>,
-    },
-    {
       id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 70,
       cell: ({ row }) => <Button variant="ghost" size="xs" iconOnly icon={Eye} tooltip="View" onClick={() => setViewing(row.original)} />,
     },
@@ -72,7 +73,19 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
   return (
     <StandardModal isOpen={isOpen} onClose={onClose} title="Pick a CRM Client"
       subtitle="From the internal CRM app's Clients list — check one and Apply to prefill this wizard." size="xl" className="pm-modal-center">
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 320 }}>
+          <Tabs
+            tabs={[
+              { id: "pending", label: `Pending (${pending.length})` },
+              { id: "proceed", label: `Proceed (${proceed.length})` },
+            ]}
+            activeTab={tab}
+            onTabChange={(id) => { setTab(id as "pending" | "proceed"); setSelected([]); }}
+            variant="pill"
+            size="sm"
+          />
+        </div>
         <Button disabled={selected.length !== 1} onClick={() => { if (selected[0]) { onPick(selected[0]); onClose(); } }}>
           <CheckIcon size={15} style={{ marginRight: 6 }} /> Apply
         </Button>
@@ -80,13 +93,13 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
       {err && <div style={{ color: "#c0392b", marginBottom: 12, fontSize: 13 }}>{err}</div>}
       {loading ? <BrandedLoader size="md" text="Loading CRM clients…" /> : (
         <DataGrid<CrmClient>
-          title={`${rows.length} client(s)`}
-          data={rows} columns={columns}
+          title=""
+          data={shown} columns={columns}
           getRowId={(r) => String(r.customerID)}
           onRowSelect={setSelected}
           mainColumns="companyName"
-          // Freeze Proposal Document + DB Status + Action to the right (order matters — rightmost last).
-          rightFrozenColumns={["proposalDocumentName", "dbStatus", "actions"]}
+          // Freeze Proposal Document + Action to the right (order matters — rightmost last).
+          rightFrozenColumns={["proposalDocumentName", "actions"]}
           // Bounded height so the internal grid body scrolls and the pagination bar stays visible
           // inside the modal (default maxHeight is ~full-viewport, which pushed it below the clip).
           maxHeight="52vh"
@@ -120,7 +133,7 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
               <Info label="Segment" value={viewing.segment} />
               <Info label="Company Size" value={viewing.companySize} />
               <Info label="Indus Product" value={viewing.indasProduct} />
-              <Info label="Assign To" value={viewing.assignedToName} />
+              <Info label="Sales Person" value={viewing.assignedToName} />
               <Info label="City" value={viewing.city} />
               <Info label="State" value={viewing.state} />
               <Info label="Country" value={viewing.country} />

@@ -1,8 +1,27 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..d4e9a9d 100644
+index 99c0137..6da3faa 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
-@@ -7691,7 +7691,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
+@@ -3213,7 +3213,8 @@ function SingleSelect({
+           collisionPadding: 16,
+           onOpenAutoFocus: (e) => {
+             e.preventDefault();
+-            setTimeout(() => searchInputRef.current?.focus(), 50);
++            const focusSearch = () => searchInputRef.current?.focus();
++            requestAnimationFrame(() => { focusSearch(); setTimeout(focusSearch, 60); });
+           },
+           children: [
+             /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
+@@ -5669,7 +5670,7 @@ function DatePicker({
+     return returnFormat === "string" ? getLocalDateString(date) : date;
+   };
+   React26__namespace.useEffect(() => {
+-    if (mode === "single" && !value && onChange) {
++    if (false && mode === "single" && !value && onChange) {
+       const now = /* @__PURE__ */ new Date();
+       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+       onChange(today);
+@@ -7691,7 +7692,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
  function useSidebarPreferences() {
    const context = React26.useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -11,7 +30,7 @@ index 99c0137..d4e9a9d 100644
    }
    return context;
  }
-@@ -7940,6 +7940,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -7940,6 +7941,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -23,7 +42,7 @@ index 99c0137..d4e9a9d 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return lucideReact.Gauge;
    } else if (name.includes("sales")) {
-@@ -8052,7 +8057,7 @@ function DynamicSidebar({
+@@ -8052,7 +8058,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);
@@ -33,10 +52,29 @@ index 99c0137..d4e9a9d 100644
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..1196364 100644
+index 920f23c..f759cec 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
-@@ -5632,7 +5632,7 @@ var SidebarPreferencesContext = createContext(void 0);
+@@ -1154,7 +1154,8 @@ function SingleSelect({
+           collisionPadding: 16,
+           onOpenAutoFocus: (e) => {
+             e.preventDefault();
+-            setTimeout(() => searchInputRef.current?.focus(), 50);
++            const focusSearch = () => searchInputRef.current?.focus();
++            requestAnimationFrame(() => { focusSearch(); setTimeout(focusSearch, 60); });
+           },
+           children: [
+             /* @__PURE__ */ jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
+@@ -3610,7 +3611,7 @@ function DatePicker({
+     return returnFormat === "string" ? getLocalDateString(date) : date;
+   };
+   React26.useEffect(() => {
+-    if (mode === "single" && !value && onChange) {
++    if (false && mode === "single" && !value && onChange) {
+       const now = /* @__PURE__ */ new Date();
+       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+       onChange(today);
+@@ -5632,7 +5633,7 @@ var SidebarPreferencesContext = createContext(void 0);
  function useSidebarPreferences() {
    const context = useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -45,7 +83,7 @@ index 920f23c..1196364 100644
    }
    return context;
  }
-@@ -5881,6 +5881,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -5881,6 +5882,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -57,7 +95,7 @@ index 920f23c..1196364 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return Gauge;
    } else if (name.includes("sales")) {
-@@ -5993,7 +5998,7 @@ function DynamicSidebar({
+@@ -5993,7 +5999,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);

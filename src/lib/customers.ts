@@ -25,6 +25,7 @@ export interface CustomerCard {
   toDate?: string | null;
   paymentDueDate?: string | null;
   loginAllowed?: number | null;
+  userLimit?: number | null;
   lastLoginDateTime?: string | null;
   cloudSubscriptionStatus?: string | null;
 }
@@ -45,6 +46,8 @@ export interface CustomerDetail extends CustomerCard {
   cloudFromDate?: string | null;
   cloudToDate?: string | null;
   cloudPaymentDueDate?: string | null;
+  erpSubscriptionPeriod?: string | null;
+  cloudSubscriptionPeriod?: string | null;
 }
 
 export interface MessageFormatDto {
@@ -65,6 +68,26 @@ export interface CustomerStats {
   total: number;
   active: number;
   expired: number;
+}
+
+// Subscription "Exceed Days" — an extension on top of Payment Due, stored in OUR local app DB
+// (never the shared control DB). Payment Due is untouched; the UI shows Exceed Date = Payment Due + days.
+export interface ExceedEntry {
+  active: boolean;
+  days: number;
+}
+export interface ExceedHistoryRow {
+  kind: string;              // 'ERP' | 'Cloud'
+  oldDays: number;
+  newDays: number;
+  changedBy?: number | null;
+  changedByName?: string | null;
+  changedDate: string;
+}
+export interface ClientExceed {
+  erp: ExceedEntry;
+  cloud: ExceedEntry;
+  history: ExceedHistoryRow[];
 }
 
 export type SubscriptionSave = Partial<CustomerDetail> & { originalCompanyUserID?: string };
@@ -103,10 +126,17 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
 }
 
 export const customersApi = {
-  list: () => get<CustomerCard[]>("/api/customers"),
+  // `assignedOnly` → strict Project-Assignment scope (Implementation module): a non-admin sees only
+  // their assigned clients (zero assignments → empty). Default (no flag) keeps /clients' "0 = all".
+  list: (opts?: { assignedOnly?: boolean }) =>
+    get<CustomerCard[]>(`/api/customers${opts?.assignedOnly ? "?scope=assigned" : ""}`),
   stats: () => get<CustomerStats>("/api/customers/stats"),
   detail: (id: string) => get<CustomerDetail>(`/api/customers/${encodeURIComponent(id)}`),
   nextCode: () => get<{ companyUniqueCode: string; maxCompanyUniqueCode: number }>("/api/customers/next-code"),
+  appUrls: () => get<string[]>("/api/customers/app-urls"),
+  getExceed: (code: string) => get<ClientExceed>(`/api/customers/${encodeURIComponent(code)}/exceed`),
+  saveExceed: (code: string, body: { erp?: ExceedEntry; cloud?: ExceedEntry }) =>
+    send<ClientExceed>("POST", `/api/customers/${encodeURIComponent(code)}/exceed`, body),
   create: (body: SubscriptionSave) => send<ApiResult>("POST", "/api/customers", body),
   update: (body: SubscriptionSave) => send<ApiResult>("PUT", "/api/customers", body),
   remove: (body: DeleteRequest) => send<ApiResult>("POST", "/api/customers/delete-with-auth", body),

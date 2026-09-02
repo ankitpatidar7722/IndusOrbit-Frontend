@@ -145,7 +145,9 @@ function EntityFormModal({
       for (const fd of fields) {
         if (!fd.compute) continue;
         const v = fd.compute(prev);
-        if (v === computedRef.current[fd.key]) continue;   // inputs unchanged → leave the field (respect manual edits)
+        // Inputs unchanged → keep a MANUAL value, but still auto-fill an EMPTY computed field
+        // (e.g. Timeline Var Status when the row already has an Actual Start but no status yet).
+        if (v === computedRef.current[fd.key] && String(prev[fd.key] ?? "").trim() !== "") continue;
         computedRef.current[fd.key] = v;
         if (v !== "" && String(prev[fd.key] ?? "") !== v) { if (!changed) { next = { ...prev }; changed = true; } next[fd.key] = v; }
       }
@@ -349,8 +351,10 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   singular?: string;
   // "Send To → Point": creates a Point Management point from the row (Change Requests only).
   sendToPoint?: (code: string, rowId: number) => Promise<{ success: boolean; pointId?: number; product?: string; message?: string }>;
+  // "Send To → Task": append the row to the acting user's TODAY worklog Draft in IndusInternalApp.
+  sendToTask?: (code: string, rowId: number) => Promise<{ success: boolean; message?: string }>;
 }) {
-  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint } = props;
+  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint, sendToTask } = props;
   const { openComposer } = useEmailComposer();
   const [modal, setModal] = useState<{ open: boolean; row: T | null }>({ open: false, row: null });
   const [saving, setSaving] = useState(false);
@@ -358,7 +362,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   const [importing, setImporting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ open: boolean; rows: Record<string, string>[] }>({ open: false, rows: [] });
-  const { showSuccess, showError, AlertComponent } = useModalAlert();
+  const { showSuccess, showError, showConfirmation, AlertComponent } = useModalAlert();
   const singular = props.singular ?? title.replace(/s$/, "");
   const noun = singular.toLowerCase();
 
@@ -389,19 +393,47 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
     } catch (e) { alert(String(e)); } finally { setBusyId(null); }
   };
 
-  // "Send To → Point": create a Point Management point from this row, then mark it pointed.
-  const sendPoint = async (row: T) => {
+  // "Send To → Point": confirm first, then create a Point Management (Bug Tool) point + mark pointed.
+  const sendPoint = (row: T) => {
     if (!sendToPoint) return flag(row, "pointed");
-    setBusyId(row.id);
-    try {
-      const r = await sendToPoint(code, row.id);
-      if (r.success && r.pointId) {
-        showSuccess("Sent to Point Management", `Point created — Ticket #${r.pointId}${r.product ? ` · ${r.product}` : ""}.`, 3500);
-        reload();
-      } else {
-        showError("Could not create point", r.message || "Unknown error.");
+    showConfirmation(
+      "Send to Point Management",
+      "Are you sure you want to send this to Point Management (Bug Tool)? A new point/ticket will be created.",
+      async () => {
+        setBusyId(row.id);
+        try {
+          const r = await sendToPoint(code, row.id);
+          if (r.success && r.pointId) {
+            showSuccess("Sent to Point Management", `Point created — Ticket #${r.pointId}${r.product ? ` · ${r.product}` : ""}.`, 3500);
+            reload();
+          } else {
+            showError("Could not create point", r.message || "Unknown error.");
+          }
+        } catch (e) { showError("Could not create point", String(e)); } finally { setBusyId(null); }
       }
-    } catch (e) { showError("Could not create point", String(e)); } finally { setBusyId(null); }
+    );
+  };
+
+  // "Send To → Task": confirm first, then append this row to the logged-in user's today Draft
+  // worklog (IndusInternalApp).
+  const sendTask = (row: T) => {
+    if (!sendToTask) return flag(row, "tasked");
+    showConfirmation(
+      "Send Task to Internal App",
+      "Are you sure you want to send this Task to Internal App? It will be added to your today's Draft worklog.",
+      async () => {
+        setBusyId(row.id);
+        try {
+          const r = await sendToTask(code, row.id);
+          if (r.success) {
+            showSuccess("Sent to Task", r.message || "Added to today's Draft worklog.", 3500);
+            reload();
+          } else {
+            showError("Could not send to Task", r.message || "Unknown error.");
+          }
+        } catch (e) { showError("Could not send to Task", String(e)); } finally { setBusyId(null); }
+      }
+    );
   };
 
   // ── Excel: download a blank template (headers = form fields; select fields get a dropdown) ──
@@ -510,9 +542,16 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
     showSuccess("Import complete", `${ok} row${ok !== 1 ? "s" : ""} imported${errs.length ? `, ${errs.length} failed` : ""}.`, 2600);
   };
 
-  // "Send To → Email": open the composer prefilled to the client with a formatted summary
-  // of this row (built generically from the grid's columns). On Send, mark the row emailed (✓).
+  // "Send To → Email": confirm first, then open the composer prefilled to the client with a
+  // formatted summary of this row (built generically from the grid's columns). On Send, mark emailed (✓).
   const sendMail = (row: T) => {
+    showConfirmation(
+      "Send Email to Client",
+      "Are you sure you want to send this to the client via Email? The email composer will open for you to review before sending.",
+      () => openMailComposer(row)
+    );
+  };
+  const openMailComposer = (row: T) => {
     // Always open the composer — even when the client has no email on file.
     // If we have one, prefill "To"; otherwise leave it empty for the user to fill.
     const rec = row as unknown as Record<string, unknown>;
@@ -548,7 +587,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
                 : <Button variant="ghost" size="xs" iconOnly icon={Mail} tooltip="Email" disabled={busy} onClick={() => sendMail(r)} />)}
               {send.includes("task") && (r.tasked
                 ? <span style={sentIcon} title="Task sent"><Check size={15} /></span>
-                : <Button variant="ghost" size="xs" iconOnly icon={ListTodo} tooltip="Task" disabled={busy} onClick={() => flag(r, "tasked")} />)}
+                : <Button variant="ghost" size="xs" iconOnly icon={ListTodo} tooltip="Send to Task (Worklog Draft)" disabled={busy} onClick={() => sendTask(r)} />)}
               {send.includes("point") && (r.pointed
                 ? <span style={sentIcon} title="Sent to Point Management"><Check size={15} /></span>
                 : <Button variant="ghost" size="xs" iconOnly icon={Target} tooltip="Send to Point Management" disabled={busy} onClick={() => sendPoint(r)} />)}
@@ -618,7 +657,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           // Fresh, per-grid persisted-view key so code column sizes apply (see persisted-width gotcha).
           persistKey={`tracker-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-v1`}
         />
-        <EntityFormModal open={modal.open} title={`${modal.row ? "Edit" : "New"} ${title.replace(/s$/, "")}`}
+        <EntityFormModal open={modal.open} title={`${modal.row ? "Edit" : "New"} ${singular}`}
           fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit} />
         <ImportPreviewModal open={preview.open} title={title} fields={fields} initialRows={preview.rows}
           onClose={() => setPreview({ open: false, rows: [] })} onImport={doImportRows} />
@@ -632,6 +671,20 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
 const badgeCell = <T extends { status: string }>() =>
   ({ row }: { row: { original: T } }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge>;
 
+/** Actual − Estimated in days (yyyy-MM-dd strings); "" until both dates are set. */
+function milestoneVarianceDays(planned: unknown, actual: unknown): string {
+  const est = String(planned ?? "").slice(0, 10), act = String(actual ?? "").slice(0, 10);
+  if (!est || !act) return "";
+  const d = Math.round((Date.parse(act) - Date.parse(est)) / 86400000);
+  return Number.isFinite(d) ? String(d) : "";
+}
+/** "On Time" when Actual ≤ Estimated, "Delayed" when Actual is later; "" until both dates are set. */
+function milestoneOnTimeStatus(planned: unknown, actual: unknown): string {
+  const est = String(planned ?? "").slice(0, 10), act = String(actual ?? "").slice(0, 10);
+  if (!est || !act) return "";
+  return act > est ? "Delayed" : "On Time";
+}
+
 const MILESTONE_COLS: ColumnDef<Milestone>[] = [
   { accessorKey: "milestoneGroup", header: "Roadmap to Success", size: 150 },
   { accessorKey: "name", header: "Phases", size: 170 },
@@ -641,7 +694,9 @@ const MILESTONE_COLS: ColumnDef<Milestone>[] = [
   { accessorKey: "endDate", header: "End Date", size: 120 },
   { accessorKey: "resPerson", header: "Res. Person (Indus)", size: 150 },
   { accessorKey: "status", header: "Status", size: 120, cell: badgeCell<Milestone>() },
-  { accessorKey: "startDateVariance", header: "Start Var (Days)", size: 120 },
+  // Explicit cell → the grid's auto date-formatter (which triggers because the accessorKey contains
+  // "date") is skipped, so this numeric variance shows as a plain number, not "1 Jan 2000".
+  { accessorKey: "startDateVariance", header: "Start Var (Days)", size: 120, cell: ({ row }) => <span>{row.original.startDateVariance ?? ""}</span> },
   { accessorKey: "scheduledStartStatus", header: "Scheduled Start Status", size: 160 },
   { accessorKey: "remarkStartDelay", header: "Remark-1 (Start Delay)", size: 180 },
   { accessorKey: "timelineVariance", header: "Timeline Var (Days)", size: 130 },
@@ -657,10 +712,12 @@ const MILESTONE_FIELDS: FieldDef[] = [
   { key: "endDate", label: "End Date", type: "date" },
   { key: "resPerson", label: "Res. Person (Indus)" },
   { key: "status", label: "Status", type: "select", options: ["Pending", "In Progress", "Complete", "Delayed", "On Hold"] },
-  { key: "startDateVariance", label: "Start Date Variance (Days)" },
+  // Auto-filled from the dates (still editable): Start Date Variance = Actual − Estimated (days);
+  // Timeline Variance Status = On Time when Actual ≤ Estimated, Delayed when Actual is later.
+  { key: "startDateVariance", label: "Start Date Variance (Days)", compute: (v) => milestoneVarianceDays(v.plannedDate, v.actualDate) },
   { key: "scheduledStartStatus", label: "Scheduled Start Status" },
   { key: "timelineVariance", label: "Timeline Variance (Days)" },
-  { key: "timelineVarianceStatus", label: "Timeline Variance Status" },
+  { key: "timelineVarianceStatus", label: "Timeline Variance Status", compute: (v) => milestoneOnTimeStatus(v.plannedDate, v.actualDate) },
   { key: "remarkStartDelay", label: "Remark-1 (Start Delay)", type: "textarea" },
   { key: "remarkDuration", label: "Remark-2 (Duration)", type: "textarea" },
 ];
@@ -853,17 +910,20 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       {sub === "milestones" && (
         <EntityGrid<Milestone> code={code} title="Milestone Roadmap" rows={data.milestones} columns={MILESTONE_COLS}
           fields={MILESTONE_FIELDS} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "milestone", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addMilestone, update: api.updateMilestone, del: api.deleteMilestone }} canEdit={canEdit} />
       )}
       {sub === "training" && (
         <EntityGrid<TrainingUpdate> code={code} title="Training & Daily Status" singular="Training & Daily Status" rows={data.training} columns={TRAINING_COLS}
           fields={TRAINING_FIELDS} blank={TRAINING_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "training", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addTraining, update: api.updateTraining, del: api.deleteTraining }} canEdit={canEdit} />
       )}
       {sub === "cr" && (
         <EntityGrid<ChangeRequest> code={code} title="Change Requests" rows={data.changeRequests} columns={CR_COLS}
           fields={CR_FIELDS} blank={CR_BLANK} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
           sendToPoint={(cd, id) => api.changeRequestToPoint(cd, id, { clientName: clientName ?? undefined, application: clientApplication ?? undefined })}
+          sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "changerequest", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addChangeRequest, update: api.updateChangeRequest, del: api.deleteChangeRequest }} canEdit={canEdit} />
       )}
     </div>

@@ -115,6 +115,10 @@ export const api = {
   addMilestone: (code: string, b: unknown) => j<Milestone>(`/api/clients/${code}/milestones`, { method: "POST", body: JSON.stringify(b) }),
   updateMilestone: (code: string, id: number, b: unknown) => j<Milestone>(`/api/clients/${code}/milestones/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteMilestone: (code: string, id: number) => j<void>(`/api/clients/${code}/milestones/${id}`, { method: "DELETE" }),
+  // Called after a client's DB is provisioned: stamps Order Date (today + sales person + Complete/On-Time)
+  // and cascades every later phase's Estimated Start from its Task Timeline (skipping Sundays).
+  initRoadmap: (code: string, salesPerson?: string | null) =>
+    j<{ success: boolean }>(`/api/clients/${encodeURIComponent(code)}/milestones/init-roadmap`, { method: "POST", body: JSON.stringify({ salesPerson: salesPerson ?? null }) }),
 
   addTraining: (code: string, b: unknown) => j<TrainingUpdate>(`/api/clients/${code}/training`, { method: "POST", body: JSON.stringify(b) }),
   updateTraining: (code: string, id: number, b: unknown) => j<TrainingUpdate>(`/api/clients/${code}/training/${id}`, { method: "PUT", body: JSON.stringify(b) }),
@@ -129,6 +133,11 @@ export const api = {
   // Send a Change Request to Point Management as a Point → returns the Ticket (Point) id.
   changeRequestToPoint: (code: string, id: number, body?: { clientName?: string; application?: string }) =>
     j<{ success: boolean; pointId?: number; product?: string; message?: string }>(`/api/clients/${code}/changerequests/${id}/to-point`, { method: "POST", body: JSON.stringify(body ?? {}) }),
+
+  // "Send To → Task": append a Tracker row (entity = milestone | training | changerequest) to the
+  // acting user's TODAY Daily Worklog Draft in the internal CRM app (matched by the user's email).
+  trackerRowToWorklog: (code: string, entity: "milestone" | "training" | "changerequest", id: number, body?: { clientName?: string }) =>
+    j<{ success: boolean; message?: string }>(`/api/clients/${code}/tracker/${entity}/${id}/to-worklog`, { method: "POST", body: JSON.stringify(body ?? {}) }),
 
   addSupport: (code: string, b: unknown) => j<SupportLog>(`/api/clients/${code}/support`, { method: "POST", body: JSON.stringify(b) }),
 

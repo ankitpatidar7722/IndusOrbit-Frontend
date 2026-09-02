@@ -10,6 +10,8 @@ import { customersApi, fmtDate, type CustomerCard } from "@/lib/customers";
 import ProvisioningWizard from "@/app/customers/ProvisioningWizard";
 import DeleteCustomerModal from "@/app/customers/DeleteCustomerModal";
 import ClientDetailModal from "./ClientDetailModal";
+import { useSession } from "next-auth/react";
+import { fetchMyModulePerms } from "@/lib/myPermissions";
 
 const APP_LABEL: Record<string, string> = { estimoprime: "Estimoprime", multiunit: "MultiUnit", printudeerp: "PrintudeERP", desktop: "Desktop" };
 const appLabel = (a?: string | null) => (a ? APP_LABEL[a.toLowerCase()] ?? a : "—");
@@ -34,6 +36,11 @@ export default function ClientsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [delTarget, setDelTarget] = useState<CustomerCard | null>(null);
+  // "Create Client Project" is authority-gated by the "Clients" module's CanSave permission
+  // (User Management → Module Authority). Fail-open (true) until we know, so a transient error
+  // never hides it for a legitimate user.
+  const { data: session } = useSession();
+  const [canCreate, setCanCreate] = useState(true);
 
   const reload = () => customersApi.list().then(setRows).catch((e) => setErr(String(e)));
   useEffect(() => {
@@ -45,6 +52,15 @@ export default function ClientsPage() {
     const t = setTimeout(() => setFlash(null), 3500);
     return () => clearTimeout(t);
   }, [flash]);
+
+  // Gate the Create button on the acting user's CanSave for the "Clients" module.
+  useEffect(() => {
+    const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
+    if (!uid) return;
+    fetchMyModulePerms(uid)
+      .then((perms) => { const c = perms["/clients"]; if (c) setCanCreate(c.canSave); })
+      .catch(() => { /* keep fail-open default */ });
+  }, [session]);
 
   // Collapse exact-duplicate rows (same id + code + app) from the control DB.
   const data = useMemo(() => {
@@ -94,12 +110,14 @@ export default function ClientsPage() {
       {err && <div style={{ color: "#c0392b", marginBottom: 12 }}>Load error: <small>{err}</small></div>}
       {flash && <div style={{ background: "#e6f6ec", color: "#1c6b3c", border: "1px solid #b7e2c6", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, fontWeight: 600 }}>✓ {flash}</div>}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <button onClick={() => setWizardOpen(true)}
-          style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
-          <FolderPlus size={15} /> Create Client Project
-        </button>
-      </div>
+      {canCreate && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button onClick={() => setWizardOpen(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
+            <FolderPlus size={15} /> Create Client Project
+          </button>
+        </div>
+      )}
 
       <div style={{ border: "1px solid #a9b6c8", borderRadius: 12, overflow: "hidden", background: "rgb(var(--bg-surface))", boxShadow: "0 1px 3px rgba(16,24,40,.08), 0 8px 24px -18px rgba(16,24,40,.25)" }}>
       <DataGrid<CustomerCard>

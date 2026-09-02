@@ -10,6 +10,7 @@ import {
   type ProductionUnitRequest, type CompleteSetupResponse,
 } from "@/lib/provisioning";
 import { crmApi, type CrmClient } from "@/lib/crm";
+import { api } from "@/lib/api";
 import CrmClientPickerModal from "./CrmClientPickerModal";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 
@@ -151,6 +152,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       }));
       // This CRM client now has a database — stamp it so the picker shows DB Status = Created.
       if (crmPick) crmApi.markProvisioned(crmPick.customerID, r.clientName, r.databaseName).catch(() => {});
+      // Auto-init the implementation roadmap: Order Date = today (Est/Act/End) + sales person + Complete/On-Time,
+      // and every later phase's Estimated Start cascades from its Task Timeline (skipping Sundays).
+      if (sub.companyUniqueCode) api.initRoadmap(String(sub.companyUniqueCode), crmPick?.assignedToName).catch(() => {});
       setFlash(`Database "${r.databaseName}" successfully created on ${db.server}.`);
       go(2);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
