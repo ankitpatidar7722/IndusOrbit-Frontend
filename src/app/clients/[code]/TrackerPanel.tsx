@@ -9,6 +9,7 @@ import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upl
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
 import { usersApi } from "@/lib/users";
+import { fetchUserPermissions } from "@/lib/featurePermissions";
 import { statusVariant } from "@/lib/ui";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 
@@ -21,7 +22,7 @@ type Tracker = {
 type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user";
 // dependsOn: for "submodule" — the key of the "module" field it cascades from.
 // compute: derives this field's value from the other form values (read-only, auto-filled) — e.g. Days = To − From.
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string };
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; locked?: boolean };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -171,9 +172,12 @@ function EntityFormModal({
         {fields.map((fd) => {
           const val = (f[fd.key] as string) ?? "";
           const span = fd.full || fd.type === "textarea" ? { gridColumn: "1 / -1" } : undefined;
+          // Per-field lock: this field is view-only for users without the authority, while the
+          // rest of the form stays editable. (Whole-form readOnly already disables everything.)
+          const fieldLocked = !!fd.locked && !readOnly;
           return (
-            <div key={fd.key} style={span}>
-              <label style={labelStyle}>{fd.label}</label>
+            <div key={fd.key} style={{ ...span, ...(fieldLocked ? { pointerEvents: "none", opacity: 0.55 } : {}) }}>
+              <label style={labelStyle}>{fd.label}{fieldLocked && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>🔒 view only</span>}</label>
               {fd.compute ? (
                 <input type="text" value={val} onChange={(e) => set(fd.key, e.target.value)}
                   title="Auto-calculated from the dates — you can override it" style={inputStyle} />
@@ -380,10 +384,27 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       showSuccess("Success", `${singular} ${editing ? "updated" : "created"} successfully.`, 2200);
     } catch (e) { showError("Save Failed", String(e)); } finally { setSaving(false); }
   };
-  const doDelete = async (row: T) => {
-    setBusyId(row.id);
-    try { await apiFns.del(code, row.id); reload(); showSuccess("Deleted", `${singular} deleted successfully.`, 2200); }
-    catch (e) { showError("Delete Failed", String(e)); } finally { setBusyId(null); }
+  const doDelete = (row: T) => {
+    // A Change Request that's already been pushed to Point Management (Bug Tool) is linked to a LIVE
+    // point/ticket. Block deletion here so the linked ticket isn't orphaned — the user must remove
+    // the point from the Point Management tool first, then delete it from the Tracker.
+    const r = row as T & { pointed?: boolean; pointID?: number | null };
+    if (r.pointed || r.pointID) {
+      showError(
+        "Remove from Point Management first",
+        `This ${noun} has already been sent to Point Management (Bug Tool)${r.pointID ? ` as Ticket #${r.pointID}` : ""}. To delete it here, please first delete the linked point from the Point Management tool — then you can delete this ${noun}.`,
+      );
+      return;
+    }
+    showConfirmation(
+      `Delete ${singular}`,
+      `Are you sure you want to delete this ${noun}? This action cannot be undone.`,
+      async () => {
+        setBusyId(row.id);
+        try { await apiFns.del(code, row.id); reload(); showSuccess("Deleted", `${singular} deleted successfully.`, 2200); }
+        catch (e) { showError("Delete Failed", String(e)); } finally { setBusyId(null); }
+      },
+    );
   };
   const flag = async (row: T, kind: "emailed" | "tasked" | "pointed") => {
     setBusyId(row.id);
@@ -604,11 +625,9 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       showView: true, showEdit: canEdit, showDelete: canEdit,
       mode: "buttons",
       primaryActions: ["view", "edit", "delete"],
-      confirmDelete: true,
-      deleteConfirmation: {
-        title: `Delete ${singular}`,
-        description: `Are you sure you want to delete this ${noun}? This action cannot be undone.`,
-      },
+      // doDelete() handles its own confirmation (and the "sent to Point Management" block), so the
+      // grid's built-in confirm dialog is turned off to avoid a double prompt.
+      confirmDelete: false,
     }));
     return [...columns, ...extra];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -845,6 +864,19 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 3000); return () => clearTimeout(t); }, [flash]);
 
+  // Roadmap-column authority: only granted users may edit Phases / Task Timeline / Estimated Start.
+  const { data: session } = useSession();
+  const [canEditRoadmap, setCanEditRoadmap] = useState(false);
+  useEffect(() => {
+    const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
+    if (!uid) return; // default (false) already denies until we know
+    fetchUserPermissions(uid).then((p) => setCanEditRoadmap(p.has("milestone.editRoadmapColumns"))).catch(() => {});
+  }, [session]);
+  const milestoneFields = useMemo(
+    () => MILESTONE_FIELDS.map((fd) => (["name", "taskTimeline", "plannedDate"].includes(fd.key) ? { ...fd, locked: !canEditRoadmap } : fd)),
+    [canEditRoadmap],
+  );
+
   if (err) return <div style={{ color: "#c0392b" }}>{err}</div>;
   if (!data) return <div style={{ padding: 24, textAlign: "center", opacity: 0.6 }}>Loading…</div>;
 
@@ -909,7 +941,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       </div>
       {sub === "milestones" && (
         <EntityGrid<Milestone> code={code} title="Milestone Roadmap" rows={data.milestones} columns={MILESTONE_COLS}
-          fields={MILESTONE_FIELDS} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={milestoneFields} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "milestone", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addMilestone, update: api.updateMilestone, del: api.deleteMilestone }} canEdit={canEdit} />
       )}

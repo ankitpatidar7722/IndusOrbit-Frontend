@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { StandardModal, Badge, Button, Tabs } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Check as CheckIcon, FileText } from "lucide-react";
 import { DataGrid } from "@/components/datagrid";
 import BrandedLoader from "@/components/BrandedLoader";
 import { crmApi, type CrmClient } from "@/lib/crm";
+import { fetchUserPermissions } from "@/lib/featurePermissions";
 
 const statusVariant = (s?: string | null): "success" | "warning" | "info" | "secondary" => {
   const x = (s || "").toLowerCase();
@@ -29,6 +31,9 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
   const [viewing, setViewing] = useState<CrmClient | null>(null);
   // Pending = client's DB not created yet; Proceed = DB already created (dbStatus === "Created").
   const [tab, setTab] = useState<"pending" | "proceed">("pending");
+  // "Proposal Document" column is an opt-in feature permission (default hidden).
+  const { data: session } = useSession();
+  const [showProposal, setShowProposal] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,12 +41,19 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
     crmApi.clients().then(setRows).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, [isOpen]);
 
+  useEffect(() => {
+    const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
+    if (!uid) { setShowProposal(false); return; }
+    fetchUserPermissions(uid).then((perms) => setShowProposal(perms.has("crm.proposalDocumentColumn"))).catch(() => {});
+  }, [session]);
+
   const isCreated = (r: CrmClient) => r.dbStatus === "Created";
   const pending = useMemo(() => rows.filter((r) => !isCreated(r)), [rows]);
   const proceed = useMemo(() => rows.filter((r) => isCreated(r)), [rows]);
   const shown = tab === "proceed" ? proceed : pending;
 
-  const columns = useMemo<ColumnDef<CrmClient>[]>(() => [
+  const columns = useMemo<ColumnDef<CrmClient>[]>(() => {
+    const cols: ColumnDef<CrmClient>[] = [
     { accessorKey: "companyName", header: "Company Name", size: 200, meta: { inputType: "text" } },
     { accessorKey: "contactPersonName", header: "Contact Name", size: 170, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.contactPersonName) },
     { accessorKey: "address", header: "Address", size: 200, meta: { inputType: "text" }, cell: ({ row }) => dash(row.original.address) },
@@ -68,7 +80,10 @@ export default function CrmClientPickerModal({ isOpen, onClose, onPick }: {
       id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 70,
       cell: ({ row }) => <Button variant="ghost" size="xs" iconOnly icon={Eye} tooltip="View" onClick={() => setViewing(row.original)} />,
     },
-  ], []);
+    ];
+    // "Proposal Document" is opt-in — drop it unless the acting user has been granted the permission.
+    return showProposal ? cols : cols.filter((c) => (c as { accessorKey?: string }).accessorKey !== "proposalDocumentName");
+  }, [showProposal]);
 
   return (
     <StandardModal isOpen={isOpen} onClose={onClose} title="Pick a CRM Client"

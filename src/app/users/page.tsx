@@ -3,7 +3,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { Page, StandardModal, Badge, Button, Dropdown, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle } from "lucide-react";
+import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
+import { PERMISSION_CATALOG } from "@/lib/featurePermissions";
 import { insertImageFile } from "@/lib/imageEmbed";
 // Full-featured grid migrated from the legacy Parkson project (owned source).
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
@@ -158,19 +159,21 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   const [f, setF] = useState<UserSave & { employeeCode?: string }>({ ...BLANK_USER });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
   const [hasSmtpPwd, setHasSmtpPwd] = useState(false);
   const [showSmtpPwd, setShowSmtpPwd] = useState(false);
   const sigRef = useRef<HTMLDivElement>(null);
   const sigExec = (cmd: string, val?: string) => { document.execCommand(cmd, false, val); sigRef.current?.focus(); };
   const [origEmail, setOrigEmail] = useState("");           // for the Save-As uniqueness guard
   const moduleRef = useRef<ModuleMatrixHandle>(null);        // lets the footer save the authority matrix too
-  const { showConfirmation, AlertComponent: DeleteAlert } = useModalAlert();
+  const { showConfirmation, showSuccess, showError, AlertComponent: DeleteAlert } = useModalAlert();
+  const [permKeys, setPermKeys] = useState<string[]>([]);    // granted feature-permission keys (opt-in)
+  const togglePerm = (k: string) => setPermKeys((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
   useEffect(() => {
     if (!isOpen) return;
-    setTab("profile"); setMsg(null); setSaved(null); setCurId(userId); setShowSmtpPwd(false); setHasSmtpPwd(false);
+    setTab("profile"); setMsg(null); setCurId(userId); setShowSmtpPwd(false); setHasSmtpPwd(false); setPermKeys([]);
     if (userId) {
+      usersApi.getPermissions(userId).then((r) => setPermKeys(r.success ? r.data : [])).catch(() => {});
       usersApi.get(userId).then((r) => {
         if (!r.success) return;
         setHasSmtpPwd(!!r.data.hasSmtpPassword);
@@ -192,7 +195,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
     }
   }, [isOpen, userId]);
 
-  const set = (k: keyof (UserSave & { employeeCode?: string }), v: unknown) => { setSaved(null); setF((p) => ({ ...p, [k]: v })); };
+  const set = (k: keyof (UserSave & { employeeCode?: string }), v: unknown) => setF((p) => ({ ...p, [k]: v }));
 
   // fill the contentEditable signature editor from state whenever the Emails tab mounts
   // (edits are synced back to f.emailSignature on input, so switching tabs is lossless)
@@ -225,7 +228,8 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
     if (!r.success) { setMsg(r.message); return null; }
     const newId = (r as { userId?: number }).userId;
     const effectiveId = curId ?? newId ?? null;
-    onFlash(curId ? "Saved successfully." : "User created.");
+    // Success feedback is shown by handleSave() via the modal's showSuccess component (not a
+    // page-root toast that would sit behind this modal). Just refresh the grid here.
     onSaved();
     if (f.smtpPassword?.trim()) setHasSmtpPwd(true); // password just set → reflect it
     if (!curId && newId) { setCurId(newId); setTab("modules"); } // new user → continue to authority
@@ -236,14 +240,23 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   // (for a brand-new user, `id` is the just-created one, so ticked modules are saved immediately).
   async function handleSave() {
     setBusy(true);
+    const wasUpdate = curId != null;   // capture before saveUser() assigns curId for a brand-new user
     try {
       const id = await saveUser();
       if (id == null) return;
       if (moduleRef.current?.hasRows) {
         const mr = await moduleRef.current.save(id);
-        if (!mr.success) { setMsg(mr.message || "Module authority save failed."); return; }
+        if (!mr.success) { showError("Save failed", mr.message || "Module authority save failed."); return; }
       }
-      setSaved("✓ Saved successfully.");
+      await usersApi.savePermissions(id, permKeys); // opt-in feature permissions
+      if (wasUpdate) {
+        // Update → close the modal and land back on the grid, with a success toast on the page.
+        onFlash("User updated successfully.");
+        onClose();
+      } else {
+        // New user → keep the modal open on the Module Authentication tab so authority can be set.
+        showSuccess("User Created", "New user created successfully. Set module authority, then click Update.", 3500);
+      }
     } finally { setBusy(false); }
   }
 
@@ -261,6 +274,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
       if (!r.success) { setMsg(r.message); return; }
       const newId = (r as { userId?: number }).userId;
       if (newId && moduleRef.current?.hasRows) await moduleRef.current.save(newId); // clone the authority too
+      if (newId) await usersApi.savePermissions(newId, permKeys);                    // and the feature permissions
       onFlash("Saved as a new user."); onSaved(); onClose();
     } finally { setBusy(false); }
   }
@@ -303,7 +317,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
           const active = tab === t.id;
           const Icon = t.icon;
           return (
-            <button key={t.id} type="button" onClick={() => { setSaved(null); setTab(t.id); }}
+            <button key={t.id} type="button" onClick={() => setTab(t.id)}
               style={{
                 flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
                 padding: "11px 12px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 700,
@@ -318,11 +332,11 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
         })}
       </div>
       {msg && <div style={{ color: "#c0392b", fontSize: 12.5, marginTop: 10 }}>{msg}</div>}
-      {saved && <div style={{ marginTop: 10, background: "#e6f6ec", color: "#1c6b3c", border: "1px solid #b7e2c6", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 600 }}>{saved}</div>}
 
       <div style={{ marginTop: 16 }}>
         {tab === "profile" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
             <div><label style={fldLabel}>Full Name *</label><input value={f.fullName} onChange={(e) => set("fullName", e.target.value)} style={fldInput} placeholder="Employee name" /></div>
             <div><label style={fldLabel}>Email *</label><input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
             <div><label style={fldLabel}>Mobile No</label><input value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
@@ -341,6 +355,33 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
               <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer" }}>
                 <input type="checkbox" checked={f.isActive} onChange={(e) => set("isActive", e.target.checked)} style={{ width: 16, height: 16, accentColor: "rgb(var(--color-primary))" }} /> Active (can log in)
               </label>
+            </div>
+            </div>
+
+            {/* ── User Permissions — opt-in feature toggles (off by default; granted per user) ── */}
+            <div style={{ border: "1px solid #e2e8f1", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgb(var(--bg-subtle))", borderBottom: "1px solid #e6eaf0" }}>
+                <KeyRound size={14} style={{ color: "rgb(var(--color-primary))" }} />
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgb(var(--fg-default))", letterSpacing: 0.4, textTransform: "uppercase" }}>User Permissions</span>
+                <span style={{ fontSize: 11, color: "rgb(var(--fg-muted))", marginLeft: 4 }}>Off by default — turn on to grant this user the feature.</span>
+              </div>
+              <div style={{ padding: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 9 }}>
+                  {PERMISSION_CATALOG.flatMap((g) => g.perms).map((p) => {
+                    const on = permKeys.includes(p.key);
+                    return (
+                      <button key={p.key} type="button" onClick={() => togglePerm(p.key)} title={p.label}
+                        style={{ width: "100%", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 600, textAlign: "left", lineHeight: 1.25, transition: "all .12s",
+                          border: `1px solid ${on ? "rgb(var(--color-primary))" : "#d2dae7"}`,
+                          background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 12%, transparent)" : "rgb(var(--bg-surface))",
+                          color: on ? "rgb(var(--color-primary))" : "rgb(var(--fg-muted))" }}>
+                        <span style={{ flexShrink: 0, display: "inline-flex" }}>{on ? <CheckCircle2 size={15} /> : <Circle size={15} style={{ opacity: 0.45 }} />}</span>
+                        <span style={{ minWidth: 0 }}>{p.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -448,19 +489,17 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-
+  const [statusTab, setStatusTab] = useState<"Active" | "Inactive">("Active"); // left tabs: Active-only / Inactive-only
   const reload = useCallback(() => usersApi.list().then((r) => setRows(r.success ? r.data : [])).catch(() => setRows([])), []);
   useEffect(() => { reload().finally(() => setLoading(false)); usersApi.lookups().then((r) => r.success && setLookups(r.data)).catch(() => {}); }, [reload]);
-  useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 3500); return () => clearTimeout(t); }, [flash]);
 
-  const { showError, AlertComponent } = useModalAlert();
+  const { showSuccess, showError, AlertComponent } = useModalAlert();
   const openCreate = () => { setEditId(null); setModalOpen(true); };
   const openEdit = (id: number) => { setEditId(id); setModalOpen(true); };
   // The grid's action column shows its own delete-confirm dialog, then calls this.
   const performDelete = async (u: UserListRow) => {
     const r = await usersApi.remove(u.userId);
-    if (r.success) { setFlash(`Employee "${u.fullName}" has been deleted.`); reload(); }
+    if (r.success) { showSuccess("User Deleted", `Employee "${u.fullName}" has been deleted.`, 3000); reload(); }
     else { showError("Delete failed", r.message || `Could not delete "${u.fullName}". Please try again.`); }
   };
 
@@ -502,6 +541,14 @@ export default function UsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], []);
 
+  // Left Active/Inactive tabs — split the list by isActive (each tab shows only its own; counts on the tab).
+  const activeCount = useMemo(() => rows.filter((u) => u.isActive).length, [rows]);
+  const inactiveCount = rows.length - activeCount;
+  const filteredRows = useMemo(
+    () => rows.filter((u) => (statusTab === "Active" ? u.isActive : !u.isActive)),
+    [rows, statusTab],
+  );
+
   if (loading) return <BrandedLoader size="lg" text="Loading users…" />;
 
   return (
@@ -513,19 +560,45 @@ export default function UsersPage() {
         <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>User Master</h1>
       </div>
 
-      {flash && <div style={{ position: "fixed", top: 74, right: 24, zIndex: 10000, background: "#e6f6ec", color: "#1c6b3c", border: "1px solid #b7e2c6", borderRadius: 10, padding: "12px 18px", fontSize: 13.5, fontWeight: 600, boxShadow: "0 14px 34px -10px rgba(16,24,40,.3)", display: "flex", alignItems: "center", gap: 8 }}>✓ {flash}</div>}
+      {/* ── Active / Inactive tabs (left) + Create User (right) ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "inline-flex", background: "rgb(var(--bg-subtle))", border: "1px solid #e2e8f1", borderRadius: 11, padding: 4, gap: 4 }}>
+          {([
+            { key: "Active", count: activeCount, dot: "#1c8a4a", fg: "#1c8a4a", badgeBg: "#e6f6ec", badgeBd: "#b7e2c6" },
+            { key: "Inactive", count: inactiveCount, dot: "#c0392b", fg: "#c0392b", badgeBg: "#fdecec", badgeBd: "#f4c9c9" },
+          ] as const).map((tb) => {
+            const on = statusTab === tb.key;
+            return (
+              <button key={tb.key} type="button" onClick={() => setStatusTab(tb.key)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 18px", borderRadius: 8, border: "none", cursor: "pointer",
+                  fontSize: 13.5, fontWeight: 700, transition: "background .15s, color .15s",
+                  background: on ? "rgb(var(--bg-surface))" : "transparent",
+                  color: on ? tb.fg : "#67758a",
+                  boxShadow: on ? "0 2px 8px -3px rgba(0,0,0,.2), inset 0 0 0 1px #e0e7f1" : "none",
+                }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: tb.dot, opacity: on ? 1 : 0.45, flexShrink: 0 }} />
+                {tb.key}
+                <span style={{
+                  fontSize: 11.5, fontWeight: 700, minWidth: 22, textAlign: "center", padding: "1px 8px", borderRadius: 999,
+                  background: on ? tb.badgeBg : "rgb(var(--bg-surface))", color: on ? tb.fg : "#8b97a8", border: `1px solid ${on ? tb.badgeBd : "#e2e8f1"}`,
+                }}>{tb.count}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
           <UserPlus size={15} /> Create User
         </button>
       </div>
 
       <DataGrid<UserListRow>
-        data={rows}
+        key={statusTab}
+        data={filteredRows}
         columns={columns}
         getRowId={(r) => String(r.userId)}
-        title="Users"
+        title={statusTab === "Active" ? "Active Users" : "Inactive Users"}
         mainColumns="fullName"
         enableRowSelection
         rowSelectionMode="multi"
@@ -544,7 +617,7 @@ export default function UsersPage() {
       <UserFormModal userId={editId} isOpen={modalOpen} lookups={lookups}
         onClose={() => setModalOpen(false)}
         onSaved={() => reload()}
-        onFlash={(m) => setFlash(m)} />
+        onFlash={(m) => showSuccess("Success", m, 3000)} />
       <AlertComponent />
     </Page>
   );

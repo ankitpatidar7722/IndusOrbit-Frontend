@@ -11,7 +11,7 @@ import ProvisioningWizard from "@/app/customers/ProvisioningWizard";
 import DeleteCustomerModal from "@/app/customers/DeleteCustomerModal";
 import ClientDetailModal from "./ClientDetailModal";
 import { useSession } from "next-auth/react";
-import { fetchMyModulePerms } from "@/lib/myPermissions";
+import { fetchUserPermissions } from "@/lib/featurePermissions";
 
 const APP_LABEL: Record<string, string> = { estimoprime: "Estimoprime", multiunit: "MultiUnit", printudeerp: "PrintudeERP", desktop: "Desktop" };
 const appLabel = (a?: string | null) => (a ? APP_LABEL[a.toLowerCase()] ?? a : "—");
@@ -36,11 +36,11 @@ export default function ClientsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [delTarget, setDelTarget] = useState<CustomerCard | null>(null);
-  // "Create Client Project" is authority-gated by the "Clients" module's CanSave permission
-  // (User Management → Module Authority). Fail-open (true) until we know, so a transient error
-  // never hides it for a legitimate user.
+  // "Create Client Project" + row Delete are opt-in feature permissions (User Management →
+  // User Profile → User Permissions). Default DENIED (hidden) until the key is granted.
   const { data: session } = useSession();
-  const [canCreate, setCanCreate] = useState(true);
+  const [canCreate, setCanCreate] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
 
   const reload = () => customersApi.list().then(setRows).catch((e) => setErr(String(e)));
   useEffect(() => {
@@ -53,13 +53,13 @@ export default function ClientsPage() {
     return () => clearTimeout(t);
   }, [flash]);
 
-  // Gate the Create button on the acting user's CanSave for the "Clients" module.
+  // Gate the Create button + row Delete on the acting user's granted feature permissions.
   useEffect(() => {
     const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
     if (!uid) return;
-    fetchMyModulePerms(uid)
-      .then((perms) => { const c = perms["/clients"]; if (c) setCanCreate(c.canSave); })
-      .catch(() => { /* keep fail-open default */ });
+    fetchUserPermissions(uid)
+      .then((perms) => { setCanCreate(perms.has("clients.createProject")); setCanDelete(perms.has("clients.deleteProject")); })
+      .catch(() => { /* keep opt-in default (denied) */ });
   }, [session]);
 
   // Collapse exact-duplicate rows (same id + code + app) from the control DB.
@@ -90,11 +90,10 @@ export default function ClientsPage() {
       onView: openDetail,
       onEdit: openDetail,
       onDelete: (c) => setDelTarget(c),
-      showView: true, showEdit: true, showDelete: true,
-      mode: "buttons", primaryActions: ["view", "edit", "delete"],
+      showView: true, showEdit: true, showDelete: canDelete,
+      mode: "buttons", primaryActions: canDelete ? ["view", "edit", "delete"] : ["view", "edit"],
     }), size: 96, minSize: 96 },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], []);
+  ], [canDelete]);
 
   if (loading) return <BrandedLoader size="lg" text="Loading clients…" />;
 
