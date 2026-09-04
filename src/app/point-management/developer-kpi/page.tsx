@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Page, StatsGrid, StatsCard, Input, Dropdown } from "indas-ui";
+import { Page, StatsGrid, StatsCard, Dropdown, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button } from "indas-ui";
+import { Layers, FolderOpen, CheckSquare, AlarmClock, XCircle } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import { PmGuard } from "../PmGuard";
 import { usePmContext } from "../PmContext";
-import { STATUS_CARDS, pointColumns, lblStyle, clearBtnStyle, gridFeatures, PmHeader } from "../shared";
+import { STATUS_CARDS, STATUS_COLORS, PIPELINE, pointColumns, lblStyle, clearBtnStyle, gridFeatures, PmHeader } from "../shared";
 import { pmApi, type AdminDashboardStats, type PointGridRow, type PmCustomer } from "@/lib/tms";
 
 function DeveloperKpi({ devId }: { devId: number }) {
@@ -48,6 +49,21 @@ function DeveloperKpi({ devId }: { devId: number }) {
 
   const columns = useMemo(() => pointColumns(), []);
 
+  // ── Chart data derived from the same stats object ──
+  const donutData = useMemo(() => {
+    if (!stats) return [];
+    return STATUS_CARDS
+      .filter((c) => STATUS_COLORS[c.key] && (stats[c.key] ?? 0) > 0)
+      .map((c) => ({ name: c.label, value: Number(stats[c.key] ?? 0), color: STATUS_COLORS[c.key] }));
+  }, [stats]);
+
+  const barData = useMemo(() => {
+    if (!stats) return [];
+    return PIPELINE.map((k) => ({ stage: STATUS_CARDS.find((c) => c.key === k)?.label ?? k, count: Number(stats[k] ?? 0) }));
+  }, [stats]);
+
+  const closedPct = stats && stats.total ? Math.round((Number(stats.closed) / Number(stats.total)) * 100) : 0;
+
   if (loading) return <BrandedLoader size="lg" text="Loading your KPIs…" />;
 
   return (
@@ -55,9 +71,16 @@ function DeveloperKpi({ devId }: { devId: number }) {
       <PmHeader page="developer-kpi" />
       {err && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err}</small></div>}
 
+      {/* Filters — DatePicker rendered outside a <label> so its calendar popover opens cleanly */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
-        <label style={lblStyle}>From <DateField value={from} onChange={setFrom} style={{ width: 150 }} /></label>
-        <label style={lblStyle}>To <DateField value={to} onChange={setTo} style={{ width: 150 }} /></label>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={lblStyle}>From</span>
+          <DateField value={from} onChange={setFrom} style={{ width: 160 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={lblStyle}>To</span>
+          <DateField value={to} onChange={setTo} style={{ width: 160 }} />
+        </div>
         <div style={{ width: 200 }}>
           <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
@@ -67,6 +90,30 @@ function DeveloperKpi({ devId }: { devId: number }) {
         )}
       </div>
 
+      {/* ── Hero KPIs ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
+        <Kpi title="Total Points" value={stats?.total ?? 0} icon={Layers} accent="primary" subtitle="in this view" />
+        <Kpi title="Open" value={stats?.open ?? 0} icon={FolderOpen} accent="info" subtitle="not yet closed" />
+        <Kpi title="Closed" value={stats?.closed ?? 0} icon={CheckSquare} accent="success" badge={`${closedPct}%`} badgeLabel="of total" />
+        <Kpi title="Delayed" value={stats?.delayed ?? 0} icon={AlarmClock} accent="error" subtitle="past expected date" />
+      </div>
+
+      {/* ── Charts ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 20 }}>
+        <ChartCard title="Status Distribution" description="Where your points currently sit">
+          {donutData.length > 0
+            ? <DonutChart data={donutData} height={300} showLegend centerLabel="Total" centerValue={String(stats?.total ?? 0)} />
+            : <div style={{ height: 300, display: "grid", placeItems: "center", color: "rgb(var(--fg-muted))" }}>No points in this view</div>}
+        </ChartCard>
+        <ChartCard title="Workflow Pipeline" description="Points at each stage of the delivery flow">
+          <BarChart data={barData} xKey="stage" series={[{ key: "count", name: "Points", color: "#3b6fb5" }]} height={300} horizontal showGrid />
+        </ChartCard>
+      </div>
+
+      {/* ── Drill-down: click a status to open its points ── */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))", letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 10 }}>
+        Breakdown — click a status to view its points
+      </div>
       <StatsGrid columns={4}>
         {STATUS_CARDS.map((c) => {
           const clickable = !!c.status;
@@ -80,17 +127,22 @@ function DeveloperKpi({ devId }: { devId: number }) {
         })}
       </StatsGrid>
 
-      {activeStatus && (
-        <div style={{ marginTop: 22 }}>
-          <DataGrid
-            title={`${activeStatus === "All" ? "All" : activeStatus} points`}
-            data={rows} columns={columns} loading={gridLoading}
-            getRowId={(r) => String(r.pointID)}
-            mainColumns="customerName"
-            {...gridFeatures}
-          />
-        </div>
-      )}
+      <StandardModal
+        isOpen={activeStatus != null}
+        onClose={() => setActiveStatus(null)}
+        title={`${activeStatus === "All" ? "All" : activeStatus} points`}
+        size="xl"
+        showFooter
+        footerActions={<Button variant="action-cancel" icon={XCircle} onClick={() => setActiveStatus(null)}>Close</Button>}
+      >
+        <DataGrid
+          title={`${rows.length} point${rows.length === 1 ? "" : "s"}`}
+          data={rows} columns={columns} loading={gridLoading}
+          getRowId={(r) => String(r.pointID)}
+          mainColumns="customerName"
+          {...gridFeatures}
+        />
+      </StandardModal>
     </Page>
   );
 }

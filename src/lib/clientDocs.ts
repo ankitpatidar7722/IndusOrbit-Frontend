@@ -82,4 +82,33 @@ export const clientDocsApi = {
       savedAt?: string;
     }>;
   },
+
+  /** Render the given (current, possibly-unsaved) document HTML to a clean PDF via the server
+   *  (headless print, no browser date/title/URL). Returns a Blob, or null if the server has no
+   *  renderer (caller falls back to window.print()). */
+  renderPdfFromHtml: async (htmlContent: string): Promise<Blob | null> => {
+    try {
+      const res = await fetch(`${BASE}/api/client-documents/render-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...userIdHeader() },
+        body: JSON.stringify({ htmlContent }),
+        cache: "no-store",
+      });
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      return buf.byteLength ? new Blob([buf], { type: "application/pdf" }) : null;
+    } catch { return null; }
+  },
+
+  /** Record that the finalized document was emailed to the client — bumps the send revision
+   *  so the Sign-Off Version increments (1.0 → 1.1 → …) on the next open. Best-effort. */
+  markSent: async (clientCode: string, docType: ClientDocType): Promise<void> => {
+    try {
+      await fetch(`${BASE}/api/client-documents/${encodeURIComponent(clientCode)}/${docType}/mark-sent`, {
+        method: "POST",
+        headers: { ...userIdHeader() },
+        cache: "no-store",
+      });
+    } catch { /* non-critical — version just won't bump this send */ }
+  },
 };

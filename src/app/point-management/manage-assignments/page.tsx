@@ -54,7 +54,7 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
   }
 
   const columns = useMemo<ColumnDef<AssignmentRow>[]>(() => [
-    { accessorKey: "pointID", header: "ID", size: 70 },
+    { accessorKey: "pointID", header: "Ticket ID", size: 90 },
     { accessorKey: "assignedToName", header: "Assign To", size: 150, cell: ({ row }) => dash(row.original.assignedToName) },
     { accessorKey: "assignedByName", header: "Assign By", size: 150, cell: ({ row }) => dash(row.original.assignedByName) },
     { accessorKey: "assignDate", header: "Assign Date", size: 150, cell: ({ row }) => fmtDate(row.original.assignDate) },
@@ -67,7 +67,7 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
     { accessorKey: "module", header: "Module", size: 150, cell: ({ row }) => dash(row.original.module) },
     { accessorKey: "subModule", header: "Sub Module", size: 160, cell: ({ row }) => dash(row.original.subModule) },
     {
-      id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 190,
+      id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 240,
       cell: ({ row }) => (
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
           <Button size="sm" variant="action-edit" icon={UserCog} onClick={() => { setReassignFor(row.original); setNewDev(""); }} disabled={busy}>

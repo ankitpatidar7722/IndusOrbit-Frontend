@@ -236,3 +236,10 @@ body { font-family: var(--font-family-base) !important; }
   justify-content: center;
   text-align: center;
 }
+
+/* Buttons show the pointer (hand) cursor on hover — indas-ui's Button doesn't set it by default.
+   Scoped to ENABLED controls so disabled ones keep their default cursor. */
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}

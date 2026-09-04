@@ -28,6 +28,12 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { key: "milestone.editRoadmapColumns", label: "Can Edit RoadMap Column" },
     ],
   },
+  {
+    category: "Sign-Off",
+    perms: [
+      { key: "signoff.editTemplate", label: "Can Edit Signoff Template" },
+    ],
+  },
 ];
 
 /** Every permission key in the catalog (for select-all / validation). */

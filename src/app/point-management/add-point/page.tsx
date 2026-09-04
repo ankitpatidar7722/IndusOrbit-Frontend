@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Page, Card, CardContent, Textarea, Button, Dropdown } from "indas-ui";
+import { Page, Card, CardContent, Textarea, Input, Button, Dropdown } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { Plus, Check, Paperclip, X } from "lucide-react";
 import { PmGuard } from "../PmGuard";
@@ -38,6 +38,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
 
   const [module, setModule] = useState("");
   const [subModule, setSubModule] = useState("");
+  const [title, setTitle] = useState("");           // optional — backend auto-fills from description if blank
   const [description, setDescription] = useState("");
   const [customerName, setCustomerName] = useState("");         // selected /clients company
   const [productID, setProductID] = useState<number | "">("");  // auto-mapped from the client's application
@@ -93,6 +94,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
     try {
       const uploader = reportedByID || reportedById;
       const { pointId } = await pmApi.addPoint({
+        title: title.trim() || undefined,
         description: description.trim(),
         module: module || undefined, subModule: subModule || undefined,
         customerID: 0, customerName, productID: Number(productID), reportedByID: uploader,
@@ -111,7 +113,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
       }
       // Point was created but some attachments failed — stay so the user sees it + can retry.
       setMsg({ text: `Point created, but ${attachFail} attachment(s) failed to upload.`, ok: false });
-      setModule(""); setSubModule(""); setDescription(""); setCustomerName(""); setProductID(""); setComplexity("");
+      setTitle(""); setModule(""); setSubModule(""); setDescription(""); setCustomerName(""); setProductID(""); setComplexity("");
       setCategory("Bug"); setPriority("Medium"); setReportedByID(reportedById); setFiles([]);
     } catch (e) {
       setMsg({ text: String(e), ok: false });
@@ -134,6 +136,11 @@ function AddPoint({ reportedById }: { reportedById: number }) {
               {msg.ok && <Check size={16} />} {msg.text}
             </div>
           )}
+          <div style={{ marginBottom: 16 }}>
+            <Field label="Title">
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="" />
+            </Field>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <Field label="Product *">
               <Dropdown value={String(productID || "")} onValueChange={(v) => pickProduct(v ? Number(v) : "")}
@@ -147,12 +154,12 @@ function AddPoint({ reportedById }: { reportedById: number }) {
             </Field>
             <Field label="Module *">
               <Dropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
-                options={heads.map((h) => ({ value: h, label: h }))} placeholder="— select —" searchable size="md" />
+                options={heads.map((h) => ({ value: h, label: h }))} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
             </Field>
             <Field label="Sub Module">
               <Dropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
                 options={subsFor(module).map((n) => ({ value: n, label: n }))}
-                placeholder={module ? "— select —" : "Select a module first"} searchable size="md" disabled={!module} />
+                placeholder={module ? "Select or type…" : "Select a module first"} searchable allowTextInput allowCustomInput size="md" disabled={!module} />
             </Field>
             <Field label="Category">
               <Dropdown value={category} onValueChange={(v) => setCategory(String(v))}

@@ -6,7 +6,7 @@ import { DataGrid } from "@/components/datagrid";
 import { GitMerge, RotateCcw } from "lucide-react";
 import { PmGuard } from "../PmGuard";
 import { usePmContext } from "../PmContext";
-import { pointColumns, gridFeatures, PmHeader } from "../shared";
+import { pointColumns, openDrawerColumn, gridFeatures, PmHeader } from "../shared";
 import { usePointDrawer, usePointIdFromUrl, PointDrawer, actionIcon as ic } from "../PointDrawer";
 import { pmApi, type PointGridRow } from "@/lib/tms";
 
@@ -23,14 +23,14 @@ function MergeCode({ uid }: { uid: number }) {
 
   const drawer = usePointDrawer(reload);
   usePointIdFromUrl(drawer.open);
-  const columns = useMemo(() => pointColumns(), []);
+  const columns = useMemo(() => [...pointColumns(), openDrawerColumn<PointGridRow>((id) => drawer.open(id))], [drawer]);
   if (loading) return <BrandedLoader size="lg" text="Loading merge queue…" />;
 
   const d = drawer.detail; const s = d?.status ?? ""; const rk = drawer.remark; const dis = drawer.busy;
   const actions = d && s === "PendingMerge" && (
     <>
-      <Button onClick={() => drawer.act(() => pmApi.mergeApprove(d.pointID, uid, rk))} disabled={dis}><GitMerge size={15} style={ic} /> Approve → QC</Button>
-      <Button variant="destructive" onClick={() => drawer.act(() => pmApi.mergeReopen(d.pointID, uid, rk))} disabled={dis}><RotateCcw size={15} style={ic} /> Reopen for Dev</Button>
+      <Button variant="action-save" onClick={() => drawer.act(() => pmApi.mergeApprove(d.pointID, uid, rk))} disabled={dis}><GitMerge size={15} style={ic} /> Approve → QC</Button>
+      <Button variant="action-delete" onClick={() => drawer.act(() => pmApi.mergeReopen(d.pointID, uid, rk))} disabled={dis}><RotateCcw size={15} style={ic} /> Reopen for Dev</Button>
     </>
   );
 
@@ -39,7 +39,7 @@ function MergeCode({ uid }: { uid: number }) {
       <PmHeader page="merge" />
       {(err || drawer.err) && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err || drawer.err}</small></div>}
       <DataGrid title={`${rows.length} awaiting merge`} data={rows} columns={columns} getRowId={(r) => String(r.pointID)}
-        onRowClick={(r) => drawer.open(r.pointID)} mainColumns="customerName" {...gridFeatures} />
+        onRowClick={(r) => drawer.open(r.pointID)} mainColumns="customerName" rightFrozenColumns={["actions"]} {...gridFeatures} />
       <PointDrawer drawer={drawer} actions={actions} uploaderId={uid} />
     </Page>
   );

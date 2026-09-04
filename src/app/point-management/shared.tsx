@@ -1,11 +1,11 @@
 "use client";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
-import { Badge, Button } from "indas-ui";
+import { Badge, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "indas-ui";
 import {
   Layers, Inbox, UserCheck, Play, CheckCircle2, LifeBuoy, ShieldCheck, GitMerge,
   FlaskConical, TestTube2, ClipboardCheck, RotateCcw, PauseCircle, XCircle, CheckSquare, AlarmClock, FolderOpen,
-  LayoutDashboard, Code2, TrendingUp, ClipboardList, PlusCircle, UserPlus, UserCog, BadgeCheck, Clock, Activity, Users, Building2, Pencil,
+  LayoutDashboard, Code2, TrendingUp, ClipboardList, PlusCircle, UserPlus, UserCog, BadgeCheck, Clock, Activity, Users, Building2, Edit,
 } from "lucide-react";
 import { statusVariant, priorityVariant, fmtDate, fmtDateTime, type AdminDashboardStats, type PointGridRow, type TimeReportRow } from "@/lib/tms";
 
@@ -47,10 +47,23 @@ export const STATUS_CARDS: CardDef[] = [
   { key: "open", label: "Open", icon: FolderOpen },
 ];
 
+/** Distinct colour per workflow status — shared by the KPI dashboards' donut/legend. */
+export const STATUS_COLORS: Record<string, string> = {
+  queue: "#64748b", assigned: "#3b82f6", inProgress: "#6366f1", devCompleted: "#10b981",
+  pendingSupport: "#f59e0b", supportVerified: "#14b8a6", pendingMerge: "#8b5cf6",
+  pendingQC: "#0ea5e9", inTesting: "#a855f7", testingCompleted: "#22c55e",
+  reOpened: "#f97316", hold: "#eab308", reject: "#ef4444", closed: "#334155",
+};
+/** Delivery pipeline stages in flow order (for the KPI dashboards' bar chart). */
+export const PIPELINE: (keyof AdminDashboardStats)[] = [
+  "queue", "assigned", "inProgress", "devCompleted", "pendingSupport", "supportVerified", "pendingMerge", "closed",
+];
+
 /** Standard point-grid columns used by admin / KPI / manage / reports grids. */
 export function pointColumns(extra?: ColumnDef<PointGridRow>[]): ColumnDef<PointGridRow>[] {
   return [
-    { accessorKey: "pointID", header: "ID", size: 70 },
+    { accessorKey: "pointID", header: "Ticket ID", size: 90 },
+    { accessorKey: "title", header: "Title", size: 200, cell: ({ row }) => row.original.title || "—" },
     { accessorKey: "module", header: "Module", cell: ({ row }) => row.original.module ?? "—" },
     { accessorKey: "subModule", header: "Sub Module", cell: ({ row }) => row.original.subModule ?? "—" },
     { accessorKey: "customerName", header: "Customer", cell: ({ row }) => row.original.customerName ?? "—" },
@@ -65,12 +78,32 @@ export function pointColumns(extra?: ColumnDef<PointGridRow>[]): ColumnDef<Point
   ];
 }
 
+/** A right-side "Action" column with a single Edit icon that opens the point drawer — lets a row be
+ *  opened with ONE click (no double-click). Same flat icon + hover + Tooltip look as the /users grid. */
+export function openDrawerColumn<T extends { pointID: number }>(onOpen: (id: number) => void): ColumnDef<T> {
+  return {
+    id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 90,
+    cell: ({ row }) => (
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+          <button type="button" aria-label="Open"
+            onClick={(e) => { e.stopPropagation(); onOpen(row.original.pointID); }}
+            className="p-1 rounded transition-colors text-[rgb(var(--fg-default))] hover:text-[rgb(var(--color-info))] hover:bg-[rgb(var(--color-info-subtle))]">
+            <Edit className="h-4 w-4" />
+          </button>
+        </TooltipTrigger><TooltipContent>Open</TooltipContent></Tooltip></TooltipProvider>
+      </div>
+    ),
+  };
+}
+
 /** Full Manage-Points column set (shared by Manage Points + Verify Tickets). Append a page-specific
  *  actions column after these. */
 export function managePointColumns(): ColumnDef<PointGridRow>[] {
   const dash = (v?: string | null) => (v && String(v).trim() ? v : "—");
   return [
-    { accessorKey: "pointID", header: "ID", size: 70 },
+    { accessorKey: "pointID", header: "Ticket ID", size: 90 },
+    { accessorKey: "title", header: "Title", size: 200, cell: ({ row }) => dash(row.original.title) },
     { accessorKey: "customerName", header: "Customer", size: 160, cell: ({ row }) => dash(row.original.customerName) },
     { accessorKey: "reportedByName", header: "Reported By", size: 150, cell: ({ row }) => dash(row.original.reportedByName) },
     { accessorKey: "assignedToName", header: "Assign To", size: 150, cell: ({ row }) => dash(row.original.assignedToName) },
@@ -89,8 +122,9 @@ export function managePointColumns(): ColumnDef<PointGridRow>[] {
 /** Developer Dashboard columns — mirrors the original TMS DashboardDeveloper.aspx grid exactly
  *  (Ticket ID/Title/Module/Description/Customer/Product/Assigned By/Reported By/Category/Priority/
  *  Status/Created On/Expected Date/Est/Total/Pause/Delay/To-Do Date/Audio/Actions), including a
- *  Title column — this page alone keeps Title (verified 1:1 against the TMS source) even though
- *  every other Point Management form/grid dropped it. `onEdit` opens the point action drawer. */
+ *  Title column (verified 1:1 against the TMS source). Title is also shown across the other point
+ *  grids + the Add Point form again (optional there — auto-filled from the description if blank).
+ *  `onEdit` opens the point action drawer. */
 export function developerColumns(onEdit: (pointId: number) => void): ColumnDef<PointGridRow>[] {
   const dash = (v?: string | null) => (v && String(v).trim() ? v : "—");
   return [
@@ -129,17 +163,14 @@ export function developerColumns(onEdit: (pointId: number) => void): ColumnDef<P
           : <span style={{ opacity: 0.4 }}>—</span>;
       },
     },
-    {
-      id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 70,
-      cell: ({ row }) => <Button variant="ghost" size="xs" iconOnly icon={Pencil} tooltip="Point Actions" onClick={() => onEdit(row.original.pointID)} />,
-    },
+    openDrawerColumn<PointGridRow>(onEdit),
   ];
 }
 
 /** Columns for the Time / Customer-Progress report grids. */
 export function reportColumns(): ColumnDef<TimeReportRow>[] {
   return [
-    { accessorKey: "pointID", header: "ID", size: 70 },
+    { accessorKey: "pointID", header: "Ticket ID", size: 90 },
     { accessorKey: "customer", header: "Customer", cell: ({ row }) => row.original.customer ?? "—" },
     { accessorKey: "product", header: "Product", cell: ({ row }) => row.original.product ?? "—" },
     { accessorKey: "module", header: "Module / Summary", cell: ({ row }) => row.original.module ?? "—" },
@@ -183,7 +214,7 @@ export const gridFeatures = {
  */
 export const PM_HEADERS: Record<string, { title: string; icon: LucideIcon }> = {
   "admin-dashboard":    { title: "Admin Dashboard",        icon: LayoutDashboard },
-  "developer":          { title: "Developer Dashboard",    icon: Code2 },
+  "developer":          { title: "Developer Task",         icon: Code2 },
   "developer-kpi":      { title: "My KPI Dashboard",       icon: TrendingUp },
   "tester":             { title: "Tester Dashboard",       icon: TestTube2 },
   "manage-points":      { title: "Manage Points",          icon: ClipboardList },

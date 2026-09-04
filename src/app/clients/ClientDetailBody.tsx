@@ -9,7 +9,8 @@ import { clientDocsApi, type ClientDocType, type ClientDocMeta } from "@/lib/cli
 import EmailHistoryCard from "@/components/email/EmailHistoryCard";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import type { EmailAttachmentBase64 } from "@/lib/email";
-import { customersApi, fmtDate, type CustomerDetail, type SubscriptionSave, type ClientExceed, type ExceedHistoryRow } from "@/lib/customers";
+import { customersApi, fmtDate, type CustomerDetail, type SubscriptionSave, type ClientExceed, type ExceedHistoryRow, type SignoffData } from "@/lib/customers";
+import { fetchUserPermissions } from "@/lib/featurePermissions";
 import { subscriptionVariant } from "@/lib/ui";
 import { ModuleSettingsTab, ModuleGroupsTab, NewModuleTab } from "@/app/customers/ModuleManagerModal";
 import MessageFormatPopup from "@/app/customers/MessageFormatPopup";
@@ -83,19 +84,31 @@ function reflectFormState(doc: Document) {
 function cleanDocHtml(w: Window): string {
   reflectFormState(w.document);
   const root = w.document.documentElement.cloneNode(true) as HTMLElement;
-  root.querySelectorAll(".indus-toolbar, .toolbar, script").forEach((e) => e.remove());
-  root.querySelectorAll(".sheet").forEach((s) => s.removeAttribute("contenteditable"));
+  root.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, script").forEach((e) => e.remove());
+  // Strip ALL contenteditable (the sheet + any template-lock islands) so the saved HTML is clean
+  // and the per-user lock is re-applied fresh on the next open (never baked into the document).
+  root.querySelectorAll("[contenteditable]").forEach((s) => s.removeAttribute("contenteditable"));
   return "<!doctype html>\n" + root.outerHTML;
 }
 
 /** Inject the in-window action bar (Save in edit mode + Print + Close) and set the sheet's
  *  editability. Removes the template's own toolbar so there's exactly one. */
-function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLButtonElement) => void) {
+function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLButtonElement) => void, lockTemplate = false) {
   const doc = w.document;
   doc.querySelectorAll(".indus-toolbar, .toolbar").forEach((e) => e.remove());
   doc.querySelectorAll(".sheet").forEach((s) => {
     if (mode === "edit") s.setAttribute("contenteditable", "true"); else s.removeAttribute("contenteditable");
   });
+  // Template authority: regular users may fill DATA but NOT edit the FIXED template. Editable only
+  // with "Can Edit Signoff Template". Locks section/point headings, sub-headings, column headers,
+  // field labels, instructional text, S.N. + module names/departments (§3), S.N. + deliverable /
+  // go-live-checklist items (§4), S.N. + report names (§5), §7 declaration statements, §9 feedback
+  // evaluation-area names, letterhead & footer. Data cells (td.fill, user-name/signature) and form
+  // controls stay editable. (§9 rating checkboxes are display-only for EVERYONE, via CSS pointer-events.)
+  if (mode === "edit" && lockTemplate) {
+    const FIXED = "h2.sec, h3.sub, tr.h td, th, td.k, p.note, .cover-title, .prep, .conf, .toc td, .lh, .foot, .mod td:nth-child(1), .mod td:nth-child(2), .mod td:nth-child(3), .lkcells td, .lkcol2 td:nth-child(1), .lkcol2 td:nth-child(2), .lkcol12 td:nth-child(1), .lkcol12 td:nth-child(2), .rate td.area, .sig td";
+    doc.querySelectorAll(FIXED).forEach((el) => el.setAttribute("contenteditable", "false"));
+  }
   const style = doc.createElement("style");
   style.textContent = "@media print{.indus-toolbar{display:none !important;}}";
   doc.head?.appendChild(style);
@@ -115,18 +128,136 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     saveBtn.onclick = () => onSave(saveBtn);
     bar.appendChild(saveBtn);
   }
-  bar.appendChild(mk("🖨️  Print / Save as PDF", "#0a4f55", () => w.print()));
+  // Print / Save as PDF → render the current doc to a CLEAN server PDF (no browser date/title/URL
+  // headers). The viewer tab is opened SYNCHRONOUSLY (within the click gesture) so it isn't
+  // popup-blocked, then navigated to the PDF once ready. If the popup is blocked the PDF is
+  // downloaded instead; if the server has no renderer it falls back to the browser's own print.
+  const printBtn = mk("🖨️  Print / Save as PDF", "#0a4f55", () => {});
+  printBtn.onclick = async () => {
+    const orig = printBtn.textContent;
+    printBtn.disabled = true; printBtn.textContent = "⏳  Preparing…";
+    let pv: Window | null = null;
+    try { pv = w.open("", "_blank"); } catch { pv = null; }
+    if (pv) { try { pv.document.write('<!doctype html><meta charset="utf-8"><title>PDF</title><body style="margin:0;font:14px \'Segoe UI\',system-ui,sans-serif;display:grid;place-items:center;height:100vh;color:#5b6b73">Preparing clean PDF…</body>'); } catch { /* */ } }
+    try {
+      const blob = await clientDocsApi.renderPdfFromHtml(cleanDocHtml(w));
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        if (pv) { pv.location.href = url; }
+        else { const a = document.createElement("a"); a.href = url; a.download = "SignOff.pdf"; document.body.appendChild(a); a.click(); a.remove(); }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        if (pv) { try { pv.close(); } catch { /* */ } }
+        w.print(); // no server renderer → browser print
+      }
+    } catch {
+      if (pv) { try { pv.close(); } catch { /* */ } }
+      try { w.print(); } catch { /* window closed */ }
+    } finally { try { printBtn.textContent = orig; printBtn.disabled = false; } catch { /* */ } }
+  };
+  bar.appendChild(printBtn);
   bar.appendChild(mk("✕  Close", "#5b6b73", () => w.close()));
   doc.body.insertBefore(bar, doc.body.firstChild);
+
+  // Keep §7 "Accepted Go-Live Date" in sync with §2 "Go-Live Date" while editing.
+  if (mode === "edit") {
+    const goLive = doc.getElementById("goLiveDate") as HTMLInputElement | null;
+    const accepted = doc.getElementById("acceptedGoLiveDate") as HTMLInputElement | null;
+    if (goLive && accepted) {
+      const sync = () => { accepted.value = goLive.value; };
+      goLive.addEventListener("change", sync);
+      goLive.addEventListener("input", sync);
+    }
+    // §7 "Authorized Representative" mirrors §2 "Customer SPOC Person" as it's typed.
+    const spoc = doc.getElementById("spocCell");
+    const authRep = doc.getElementById("authRepCell");
+    if (spoc && authRep) {
+      const syncRep = () => {
+        const val = (spoc.textContent || "").trim();
+        const target = authRep.querySelector(".af");
+        if (target) target.textContent = val; else authRep.textContent = val;
+      };
+      spoc.addEventListener("input", syncRep);
+    }
+
+    // §6 Pending Items Register — a "+ Add Row" control (top-right of the table) so the user can
+    // add as many pending-item rows as needed. Data operation → available to everyone. The button
+    // is removed on save and hidden in print; the added rows are kept.
+    const pt = doc.getElementById("pendingTable") as HTMLTableElement | null;
+    if (pt && !doc.querySelector(".indus-addrow")) {
+      const wrap = doc.createElement("div");
+      wrap.className = "indus-addrow";
+      wrap.setAttribute("style", "text-align:right; margin:2px 0 4px;");
+      wrap.setAttribute("contenteditable", "false");
+      const btn = doc.createElement("button");
+      btn.type = "button";
+      btn.textContent = "＋ Add Row";
+      btn.setAttribute("style", "cursor:pointer; border:none; border-radius:5px; padding:4px 12px; font:600 11px 'Segoe UI',system-ui,sans-serif; color:#fff; background:#0f6a72;");
+      btn.onclick = () => {
+        const sn = [...pt.rows].filter((r) => !r.classList.contains("h")).length + 1;
+        const tr = pt.insertRow(-1);
+        tr.innerHTML =
+          `<td class="c">${sn}</td><td class="fill"></td><td class="fill"></td>` +
+          `<td class="fill"><input type="date" class="pd"></td>` +
+          `<td class="fill"><select class="sc"><option value=""></option><option>Urgent</option><option>Normal</option></select></td>` +
+          `<td class="fill"><select class="sc"><option value=""></option><option>In Progress</option><option>Not Required</option><option>Completed</option><option>Pending</option></select></td>` +
+          `<td class="fill"></td><td class="fill"></td>`;
+      };
+      wrap.appendChild(btn);
+      pt.parentNode?.insertBefore(wrap, pt);
+    }
+
+    // Protect form controls from DELETION: users may tick/untick checkboxes, radios and use the
+    // date/dropdown pickers, but Backspace/Delete must NOT remove them from the editable document.
+    const sheetEl = doc.querySelector(".sheet") as HTMLElement | null;
+    sheetEl?.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      const sel = doc.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const r = sel.getRangeAt(0);
+      const isCtrl = (node: Node | null): boolean =>
+        !!node && node.nodeType === 1 &&
+        (!!(node as Element).matches?.("input, select") || !!(node as Element).querySelector?.("input, select"));
+      if (!r.collapsed) {
+        if (r.cloneContents().querySelector("input, select")) e.preventDefault();
+        return;
+      }
+      const c = r.startContainer, o = r.startOffset;
+      const target: Node | null = e.key === "Backspace"
+        ? (c.nodeType === 1 ? c.childNodes[o - 1] : (o === 0 ? c.previousSibling : null))
+        : (c.nodeType === 1 ? c.childNodes[o] : (o >= (c.textContent?.length ?? 0) ? c.nextSibling : null));
+      if (isCtrl(target)) e.preventDefault();
+    });
+  }
 }
 const kickoffFields = (c: CustomerDetail): [string, string][] => [
   ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
   ["gstin", c.gstin ?? ""], ["email", c.email ?? ""], ["mobile", c.mobile ?? ""],
   ["contact", c.mobile ?? ""], ["consultant", ""], ["segment", ""],
 ];
-const signoffFields = (c: CustomerDetail): [string, string][] => [
-  ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
-];
+/** Sign-Off placeholders. When live auto-fill data `d` is available (fetched on open) the fields
+ *  come from there; otherwise falls back to the client's own companyName/address/city so the
+ *  document still opens meaningfully. */
+const signoffFields = (c: CustomerDetail, d?: SignoffData | null): [string, string][] => {
+  const g = (v?: string | null) => (v ?? "").toString();
+  return [
+    ["documentCode", g(d?.documentCode)],
+    ["version", g(d?.version) || "1.0"],
+    ["documentDate", g(d?.documentDate)],
+    ["erpProduct", g(d?.erpProduct)],
+    ["companyName", g(d?.companyName) || (c.companyName ?? "")],
+    ["address", g(d?.address) || (c.address ?? "")],
+    ["city", g(d?.city) || (c.city ?? "")],
+    ["projectStartDate", g(d?.projectStartDate)],
+    ["goLiveDate", g(d?.goLiveDate)],
+    ["projectCompletionDate", g(d?.projectCompletionDate)],
+    ["contactPerson", g(d?.contactPerson)],
+    ["implEngineer", g(d?.implementationEngineer)],
+    ["implEngineerMobile", g(d?.implementationEngineerMobile)],
+    ["implHead", g(d?.implementationHead) || "Mahesh Patidar"],
+    ["supportEmail", g(d?.supportEmail) || "maheshpatidar.indusanalytics@gmail.com"],
+  ];
+};
 
 type FieldKind = "text" | "number" | "date" | "textarea" | "status" | "app" | "bool" | "country" | "state" | "city" | "appurl";
 type FieldOpts = { full?: boolean; mono?: boolean; readOnly?: boolean; viewOnly?: boolean; copy?: boolean; narrow?: boolean; span?: number };
@@ -204,6 +335,8 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   const { data: session } = useSession();
   const { openComposer } = useEmailComposer();
   const [c, setC] = useState<CustomerDetail | null>(null);
+  // Authority to edit the FIXED Sign-Off template (headings/labels). Regular users can only fill data.
+  const [canEditSignoffTemplate, setCanEditSignoffTemplate] = useState(false);
   // lockTab (e.g. "tracker") pins this to a single tab and hides the tab-bar — used by the
   // Implementation Process pages that render just one section for a picked client.
   const [tab, setTab] = useState(lockTab ?? "company");
@@ -265,6 +398,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   useEffect(() => {
     const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
     fetchClientTabPermissions(uid).then(setPerms);
+    fetchUserPermissions(uid).then((p) => setCanEditSignoffTemplate(p.has("signoff.editTemplate"))).catch(() => {});
   }, [session]);
   // If the active tab isn't viewable for this user, jump to the first viewable tab.
   // (Skipped when lockTab is set — the route is single-tab and its own guard controls access.)
@@ -373,8 +507,32 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
   const fetchFilledTemplate = async (docType: ClientDocType): Promise<string> => {
     const res = await fetch(docType === "SignOff" ? "/signoff.html" : "/kickoff.html", { cache: "no-store" });
-    const html = await res.text();
-    return fillTemplate(html, docType === "SignOff" ? signoffFields(c) : kickoffFields(c));
+    let html = await res.text();
+    if (docType !== "SignOff") return fillTemplate(html, kickoffFields(c));
+
+    // Sign-Off: fetch the live auto-fill data (control DB + client DB + app DB). Degrade
+    // gracefully — if the backend or client DB is unreachable, open with the client fallback.
+    let data: SignoffData | null = null;
+    try {
+      const r = await customersApi.signoffData(c.companyUserID);
+      if (r?.success) data = r.data;
+    } catch { /* unreachable — document still opens with client fallback fields */ }
+
+    html = fillTemplate(html, signoffFields(c, data));
+    // Tick the "In Scope" checkbox for each module present in the client's ModuleMaster.
+    for (const m of data?.inScopeModules ?? [])
+      html = html.split(`data-module="${m}">`).join(`data-module="${m}" checked>`);
+    // Default the Go-Live / Project Completion / Accepted Go-Live date pickers to today
+    // (ISO yyyy-mm-dd for <input type="date">). The user can change them; §7 stays in sync with §2.
+    const nd = new Date();
+    const todayIso = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
+    html = html
+      .replace('id="documentDate">', `id="documentDate" value="${todayIso}">`)
+      .replace('id="projectStartDate">', `id="projectStartDate" value="${data?.projectStartDateIso ?? ""}">`)
+      .replace('id="goLiveDate">', `id="goLiveDate" value="${todayIso}">`)
+      .replace('id="projCompletionDate">', `id="projCompletionDate" value="${todayIso}">`)
+      .replace('id="acceptedGoLiveDate">', `id="acceptedGoLiveDate" value="${todayIso}">`);
+    return html;
   };
 
   const saveFromWindow = async (w: Window, docType: ClientDocType, btn: HTMLButtonElement) => {
@@ -432,7 +590,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       try { w.document.open(); w.document.write(html); w.document.close(); } catch { /* */ }
       setTimeout(() => {
         try {
-          injectDocToolbar(w, mode, mode === "edit" ? (btn) => saveFromWindow(w, docType, btn) : undefined);
+          injectDocToolbar(w, mode, mode === "edit" ? (btn) => saveFromWindow(w, docType, btn) : undefined, docType === "SignOff" && !canEditSignoffTemplate);
           w.focus();
         } catch { /* window closed */ }
       }, 0);
@@ -453,10 +611,27 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     } catch (e) { setFlash("Download failed: " + e); }
   };
 
-  /** Download as PDF: open the saved document and trigger the print dialog. The document's
-   *  own A4 print styling makes "Save as PDF" (the default print destination) produce a clean,
-   *  vector, multi-page PDF — far better quality than client-side HTML→PDF rasterizing. */
-  const downloadPdf = (docType: ClientDocType) => {
+  /** Download as PDF. Prefers the SERVER-rendered PDF (headless print with
+   *  `--print-to-pdf-no-header`) → a clean file with NO browser date / title / URL headers,
+   *  downloaded directly. Falls back to opening the saved doc + the browser's "Save as PDF"
+   *  only when the server has no renderer available. */
+  const downloadPdf = async (docType: ClientDocType) => {
+    setFlash("Preparing PDF…");
+    const pdf = await clientDocsApi.pdf(docClientCode, docType);
+    if (pdf) {
+      try {
+        const bytes = Uint8Array.from(atob(pdf.base64), (ch) => ch.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        const a = document.createElement("a");
+        a.href = url; a.download = `${docType}-${docClientCode}.pdf`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        setFlash(null);
+        return;
+      } catch { /* fall through to the browser-print path below */ }
+    }
+    // Fallback: open the saved doc and use the browser's "Save as PDF" (may show browser headers).
+    setFlash(null);
     const w = window.open("", "_blank");
     if (!w) { alert("Please allow pop-ups to download the PDF."); return; }
     try {
@@ -464,17 +639,15 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       w.document.write('<!doctype html><meta charset="utf-8"><title>Preparing PDF…</title><body style="margin:0;font:14px \'Segoe UI\',system-ui,sans-serif;color:#556;display:grid;place-items:center;height:100vh">Preparing PDF… (choose <b>&nbsp;Save as PDF&nbsp;</b> in the print dialog)</body>');
       w.document.close();
     } catch { /* ignore */ }
-    (async () => {
-      try {
-        const r = await clientDocsApi.get(docClientCode, docType);
-        if (!r?.success || !r.data) { try { w.close(); } catch { /* */ } setFlash("No saved document to download."); return; }
-        w.document.open(); w.document.write(r.data.htmlContent); w.document.close();
-        setTimeout(() => { try { w.focus(); w.print(); } catch { /* */ } }, 500);
-      } catch (e) {
-        try { w.close(); } catch { /* */ }
-        setFlash("PDF download failed: " + e);
-      }
-    })();
+    try {
+      const r = await clientDocsApi.get(docClientCode, docType);
+      if (!r?.success || !r.data) { try { w.close(); } catch { /* */ } setFlash("No saved document to download."); return; }
+      w.document.open(); w.document.write(r.data.htmlContent); w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch { /* */ } }, 500);
+    } catch (e) {
+      try { w.close(); } catch { /* */ }
+      setFlash("PDF download failed: " + e);
+    }
   };
 
   /** Email the finalized Kick-Off / Sign-Off document to the client (opens the composer to review + send). */
@@ -502,7 +675,12 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         body: `Dear ${client},\n\nPlease find attached the ${label} document for your reference. Kindly review and let us know if any changes are required.\n\nRegards,\n${me}`,
         attachments: [attachment],
         context: { clientCode: docClientCode, clientName: c.companyName ?? undefined, module: label },
-        onSent: () => setFlash(`${label} document emailed to the client.`),
+        onSent: () => {
+          setFlash(`${label} document emailed to the client.`);
+          // Email actually sent → bump the send revision so the Sign-Off Version
+          // increments (1.0 → 1.1 → …) the next time this document is opened.
+          void clientDocsApi.markSent(docClientCode, docType).then(refreshDocMeta);
+        },
       });
     } catch (e) {
       setFlash("Could not prepare the email: " + e);

@@ -79,6 +79,7 @@ export interface PointGridRow {
   sortOrder?: number | null;
   audioFilePath?: string | null;
   trackerChangeRequestId?: number | null;   // set once this point has been sent to a client Tracker
+  adminRemark?: string | null;              // reject reason (shown in Verify Tickets → Un-Active)
 }
 
 export interface PointFilter {
@@ -200,9 +201,13 @@ export const pmApi = {
 
   // create + triage
   addPoint: (b: NewPoint) => send<{ pointId: number }>("POST", "/api/point-management/points", b),
+  // Edit / delete a Queue-status point (Manage Points). Backend blocks non-Queue points (ok=false + message).
+  updatePoint: (id: number, b: NewPoint) => send<{ ok: boolean; message?: string }>("PUT", `/api/point-management/points/${id}`, b),
+  deletePoint: (id: number) => send<{ ok: boolean; message?: string }>("DELETE", `/api/point-management/points/${id}`),
   verificationQueue: (vs = 0) => get<PointGridRow[]>(`/api/point-management/points/verification?vs=${vs}`),
   markVerified: (id: number) => send<{ ok: boolean }>("POST", `/api/point-management/points/${id}/verify`),
   markUnActive: (id: number, adminRemark: string) => send<{ ok: boolean }>("POST", `/api/point-management/points/${id}/unactive`, { adminRemark }),
+  reactivate: (id: number) => send<{ ok: boolean }>("POST", `/api/point-management/points/${id}/reactivate`),
   closePoint: (id: number) => send<{ ok: boolean; message?: string }>("POST", `/api/point-management/points/${id}/close`, {}),
   sendToTracker: (id: number) => send<{ success: boolean; crId?: number; clientCode?: string; alreadyLinked?: boolean; message?: string }>("POST", `/api/point-management/points/${id}/send-to-tracker`, {}),
 

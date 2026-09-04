@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Page, Button, StandardModal, Textarea, useModalAlert } from "indas-ui";
 import { DataGrid } from "@/components/datagrid";
-import { Check, X } from "lucide-react";
+import { Check, X, RotateCcw } from "lucide-react";
 import { PmGuard } from "../PmGuard";
 import { gridFeatures, PmHeader, managePointColumns } from "../shared";
 import { pmApi, type PointGridRow } from "@/lib/tms";
@@ -46,6 +46,16 @@ function VerifyTickets() {
     } catch (e) { showError("Reject failed", String(e)); }
     finally { setBusy(null); }
   }
+  // Undo an accidental Un-Active — move the point back to the Active (pending verification) queue.
+  async function reactivate(id: number) {
+    setBusy(id);
+    try {
+      await pmApi.reactivate(id);
+      setRows((r) => r.filter((x) => x.pointID !== id));
+      showSuccess("Activated", `Ticket #${id} moved back to Active (pending verification).`, 3000);
+    } catch (e) { showError("Activate failed", String(e)); }
+    finally { setBusy(null); }
+  }
 
   const columns = useMemo<ColumnDef<PointGridRow>[]>(() => {
     // Same columns as Manage Points…
@@ -61,6 +71,22 @@ function VerifyTickets() {
             </Button>
             <Button size="sm" variant="action-delete" icon={X} onClick={() => { setRejectFor(row.original); setRemark(""); }} disabled={busy === row.original.pointID}>
               Reject
+            </Button>
+          </div>
+        ),
+      });
+    } else if (tab === 2) {
+      // Un-Active tab: show the reject Reason (AdminRemark), and let an accidental un-active be restored.
+      base.push({
+        accessorKey: "adminRemark", header: "Reason", size: 260,
+        cell: ({ row }) => { const v = (row.original.adminRemark ?? "").trim(); return v ? v : "—"; },
+      });
+      base.push({
+        id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 140,
+        cell: ({ row }) => (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <Button size="sm" variant="action-save" icon={RotateCcw} onClick={() => reactivate(row.original.pointID)} disabled={busy === row.original.pointID}>
+              Activate
             </Button>
           </div>
         ),
@@ -90,7 +116,7 @@ function VerifyTickets() {
         data={rows} columns={columns} loading={loading}
         getRowId={(r) => String(r.pointID)}
         mainColumns="description"
-        rightFrozenColumns={tab === 0 ? ["actions"] : []}
+        rightFrozenColumns={["actions"]}
         {...gridFeatures}
       />
 

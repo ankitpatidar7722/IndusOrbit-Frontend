@@ -48,13 +48,13 @@ function DeveloperDashboard({ devId, isAdmin }: { devId: number; isAdmin: boolea
   const actions = d && (
     <>
       {(s === "Assigned" || s === "ReOpened" || s === "Hold") &&
-        <Button onClick={() => drawer.act(() => pmApi.startTimer(d.pointID, devId))} disabled={dis}><Play size={15} style={ic} /> Start</Button>}
+        <Button variant="action-save" onClick={() => drawer.act(() => pmApi.startTimer(d.pointID, devId))} disabled={dis}><Play size={15} style={ic} /> Start</Button>}
       {s === "In Progress" && !d.isDeveloperPaused &&
         <Button variant="action-secondary" onClick={() => drawer.act(() => pmApi.pauseTimer(d.pointID, devId))} disabled={dis}><Pause size={15} style={ic} /> Pause</Button>}
       {s === "In Progress" && d.isDeveloperPaused &&
         <Button onClick={() => drawer.act(() => pmApi.resumeTimer(d.pointID, devId))} disabled={dis}><Play size={15} style={ic} /> Resume</Button>}
       {s === "In Progress" &&
-        <Button onClick={() => drawer.act(() => pmApi.completeTimer(d.pointID, devId))} disabled={dis}><Square size={15} style={ic} /> Complete</Button>}
+        <Button variant="action-save" onClick={() => drawer.act(() => pmApi.completeTimer(d.pointID, devId))} disabled={dis}><Square size={15} style={ic} /> Complete</Button>}
       {s === "DevCompleted" &&
         <Button onClick={() => drawer.act(() => pmApi.sendToSupport(d.pointID, devId, rk))} disabled={dis}><CheckCircle2 size={15} style={ic} /> Send to Support</Button>}
       {s === "SupportVerified" &&
@@ -62,7 +62,7 @@ function DeveloperDashboard({ devId, isAdmin }: { devId: number; isAdmin: boolea
       {(s === "In Progress" || s === "Assigned" || s === "ReOpened") && (
         <>
           <Button variant="action-secondary" onClick={() => drawer.act(() => pmApi.setPointStatus(d.pointID, devId, "Hold", rk))} disabled={dis}><PauseCircle size={15} style={ic} /> Hold</Button>
-          <Button variant="destructive" onClick={() => drawer.act(() => pmApi.setPointStatus(d.pointID, devId, "Reject", rk))} disabled={dis}><XCircle size={15} style={ic} /> Reject</Button>
+          <Button variant="action-delete" onClick={() => drawer.act(() => pmApi.setPointStatus(d.pointID, devId, "Reject", rk))} disabled={dis}><XCircle size={15} style={ic} /> Reject</Button>
         </>
       )}
     </>

@@ -106,6 +106,16 @@ export interface ApiResult {
   message: string;
 }
 
+/** Live auto-fill values for the client Sign-Off document (backend gathers from control DB,
+ *  the client's product DB and the app DB). Any unavailable field comes back as "". */
+export interface SignoffData {
+  documentCode: string; version: string; documentDate: string; erpProduct: string;
+  companyName: string; address: string; city: string;
+  projectStartDate: string; projectStartDateIso: string; goLiveDate: string; projectCompletionDate: string;
+  contactPerson: string; implementationEngineer: string; implementationEngineerMobile: string;
+  implementationHead: string; supportEmail: string; inScopeModules: string[];
+}
+
 async function get<T>(path: string): Promise<T> {
   // Send UserID so the backend can scope the client list by Project Assignment (non-admins
   // see only their assigned projects; admins see all).
@@ -140,6 +150,9 @@ export const customersApi = {
   create: (body: SubscriptionSave) => send<ApiResult>("POST", "/api/customers", body),
   update: (body: SubscriptionSave) => send<ApiResult>("PUT", "/api/customers", body),
   remove: (body: DeleteRequest) => send<ApiResult>("POST", "/api/customers/delete-with-auth", body),
+  /** Live Sign-Off auto-fill data for a client (keyed by control-DB CompanyUserID). */
+  signoffData: (companyUserId: string) =>
+    get<{ success: boolean; data: SignoffData }>(`/api/signoff-data/${encodeURIComponent(companyUserId)}`),
 };
 
 interface MessageFormatListResponse { success: boolean; message: string; data: MessageFormatDto[]; }
