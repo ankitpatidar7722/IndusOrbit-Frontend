@@ -20,12 +20,12 @@
   .lh .hd{ text-align:right; font-size:10px; color:var(--muted); }
   .lh .hd b{ color:var(--teal-d); }
   .cover-title{ text-align:center; margin:44px 0 4px; }
-  .cover-title .p{ font-size:16px; letter-spacing:2.5px; color:var(--teal); font-weight:700; }
+  .cover-title .p{ font-size:17px; letter-spacing:2.5px; color:var(--teal); font-weight:700; }
   .cover-title .t{ font-size:21px; font-weight:800; color:var(--ink); margin-top:6px; letter-spacing:.3px; }
   .cover-rule{ height:3px; width:120px; background:var(--teal); margin:12px auto 18px; border-radius:2px; }
   .prep{ text-align:center; color:var(--muted); font-size:10.5px; line-height:1.7; margin-top:6px; margin-bottom:26px; }
   .prep b{ color:var(--ink); }
-  .conf{ text-align:center; margin-top:10px; font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:#9aa7ac; }
+  .conf{ text-align:center; margin-top:10px; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); font-weight:600; }
   h2.sec{ font-size:12.5px; font-weight:800; color:#fff; background:var(--teal);
     padding:6px 10px; border-radius:4px; margin:22px 0 10px; letter-spacing:.3px; }
   h3.sub{ font-size:11px; font-weight:700; color:var(--teal-d); margin:14px 0 6px;
@@ -81,6 +81,8 @@
     .lh{ break-inside:avoid; padding-top:2px; }
     .foot{ margin-top:4px; }
     .indus-addrow{ display:none !important; }   /* the "+ Add Row" control never prints */
+    .indus-delcol, .indus-delcell{ display:none !important; }   /* per-row Delete (✕) control never prints */
+    .indus-msctl{ display:none !important; }   /* Support Email multi-select control; only the picked text (.ms-display) prints */
     /* Print: dropdowns + date pickers show only their value as plain text — no box, arrow or calendar icon */
     select.sc{ -webkit-appearance:none; -moz-appearance:none; appearance:none; border:0; background:none; padding:0; color:var(--ink); max-width:none; text-indent:0; }
     select.sc::-ms-expand{ display:none; }
@@ -91,7 +93,9 @@
     table:not(.frame) tr, .sig-row{ page-break-inside:avoid; }
     .sig-block{ break-inside:avoid; page-break-inside:avoid; }   /* keep Authorized Signatures grid + bottom signatures together */
     h2.sec{ page-break-after:avoid; }
-    @page{ size:A4; margin:11mm 12mm; }
+    @page{ size:A4; margin:11mm 12mm;
+      @bottom-right{ content:"Page " counter(page) " of " counter(pages); font:600 9px Arial, sans-serif; color:#64748b; }
+    }
   }
 </style>
 </head>
@@ -112,7 +116,7 @@
 
   <!-- Running footer — repeats on every printed page (Word footer text) -->
   <tfoot><tr><td class="frame-cell">
-    <div class="foot"><b>Indas Analytics LLP</b> &nbsp;|&nbsp; wecare@indasanalytics.in</div>
+    <div class="foot"><b>Indas Analytics Pvt. Ltd.</b> &nbsp;|&nbsp; wecare@indasanalytics.in</div>
   </td></tr></tfoot>
 
   <tbody><tr><td class="frame-cell">
@@ -127,7 +131,7 @@
   <div class="prep">Prepared by <b>Indas Analytics Pvt. Ltd.</b><br>Plot No. 50, Vishwadarshan, PU/4 Commercial, A.B. Road, Indore</div>
 
   <h3 class="sub lg">Purpose</h3>
-  <p class="note">This booklet records the completion of ERP configuration, user training, practical sessions, agreed deliverables, go-live readiness, operational handover and final project closure for INDAS PRINT ERP. It is intended to be completed jointly by the customer and Indas Analytics LLP at the end of implementation.</p>
+  <p class="note">This booklet records the completion of <b>ERP configuration, user training, practical sessions, agreed deliverables, go-live readiness, operational handover</b> and final project closure for INDAS PRINT ERP. It is intended to be completed jointly by the customer and Indas Analytics Pvt. Ltd. at the end of implementation.</p>
 
   <h3 class="sub lg">Document Contents</h3>
   <table class="toc">
@@ -157,7 +161,7 @@
     <tr><td class="k">Customer Address</td><td class="fill" colspan="3"><span class="af">[[address]]</span>, <span class="af">[[city]]</span></td></tr>
     <tr><td class="k">Project Start Date</td><td class="fill"><input type="date" class="pd" id="projectStartDate"></td><td class="k">Go-Live Date</td><td class="fill"><input type="date" class="pd" id="goLiveDate"></td></tr>
     <tr><td class="k">Project Completion Date</td><td class="fill"><input type="date" class="pd" id="projCompletionDate"></td><td class="k">Customer SPOC Person</td><td class="fill" id="spocCell"><span class="af">[[contactPerson]]</span></td></tr>
-    <tr><td class="k">Implementation Engineer</td><td class="fill"><span class="af">[[implEngineer]]</span></td><td class="k">Implementation Head</td><td class="fill"><span class="af">[[implHead]]</span></td></tr>
+    <tr><td class="k">Implementation Engineer</td><td class="fill" id="implEngCell"><span class="af">[[implEngineer]]</span></td><td class="k">Implementation Head</td><td class="fill"><span class="af">[[implHead]]</span></td></tr>
   </table>
 
   <!-- ── 3. Implementation Scope ── -->
@@ -295,10 +299,10 @@
   <p class="note">Following go-live, support will be provided by Indas Analytics through phone and email on a priority basis, subject to the applicable support agreement and agreed commercial terms. The customer should share clear issue details, screenshots, transaction references and business impact to enable timely assistance.</p>
   <table class="two">
     <tr><td class="k">Support Organization</td><td>Indas Analytics Pvt. Ltd.</td></tr>
-    <tr><td class="k">Support Email</td><td class="fill"><span class="af">[[supportEmail]]</span></td></tr>
+    <tr><td class="k">Support Email</td><td class="fill" id="supportEmailCell"><span class="af">[[supportEmail]]</span></td></tr>
     <tr><td class="k">Support Mode</td><td>Phone and Email – Priority Basis</td></tr>
-    <tr><td class="k">Support SPOC</td><td class="fill"><span class="af">[[implEngineer]]</span></td></tr>
-    <tr><td class="k">Escalation Contact</td><td class="fill"><span class="af">[[implEngineerMobile]]</span></td></tr>
+    <tr><td class="k">Support SPOC</td><td class="fill" id="supportSpocCell"><span class="af">[[implEngineer]]</span></td></tr>
+    <tr><td class="k">Support Contact</td><td class="fill" id="supportContactCell"><span class="af">[[implEngineerMobile]]</span></td></tr>
   </table>
 
   <!-- ── 9. Customer Feedback ── -->
@@ -351,5 +355,26 @@
   </table>
 
 </div>
+<script>
+/* Mobile: the A4 sheet (210mm ≈ 794px) is wider than a phone, so scale it to fit the screen
+   width (fit-to-width, like viewing a PDF). No effect on desktop / PDF render (> 820px). */
+(function () {
+  function fit() {
+    var sheet = document.querySelector('.sheet');
+    if (!sheet) return;
+    var vw = document.documentElement.clientWidth || window.innerWidth;  // clientWidth = true layout width
+    if (vw > 820) { sheet.style.transform = ''; sheet.style.marginBottom = ''; document.body.style.overflowX = ''; return; }
+    var natural = 794;
+    var scale = Math.min(1, (vw - 8) / natural);
+    sheet.style.transformOrigin = 'top left';
+    sheet.style.transform = 'scale(' + scale + ')';
+    sheet.style.marginBottom = -(sheet.offsetHeight * (1 - scale)) + 'px';
+    document.body.style.overflowX = 'hidden';
+  }
+  window.addEventListener('load', fit);
+  window.addEventListener('resize', fit);
+  setTimeout(fit, 50);
+})();
+</script>
 </body>
 </html>

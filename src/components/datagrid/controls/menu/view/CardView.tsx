@@ -21,6 +21,9 @@ interface CardViewProps<TData> {
   isLoading?: boolean
   cardSize?: CardSize
   circularCheckboxes?: boolean
+  /** Restrict the card to these columns (by accessorKey/id), in this order. First two become the
+   *  card title + subtitle; the rest render as label:value rows. Omit → auto (first N columns). */
+  cardColumns?: string[]
 }
 
 const sizeConfig = {
@@ -84,6 +87,7 @@ export function CardView<TData>({
   isLoading = false,
   cardSize = 'normal',
   circularCheckboxes = false,
+  cardColumns,
 }: CardViewProps<TData>) {
   const { t } = useLanguage()
   const cfg = sizeConfig[cardSize]
@@ -92,7 +96,16 @@ export function CardView<TData>({
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const isSelected = useCallback((item: TData) => {
-    return selectedRows.some(selected => (selected as any).id === (item as any).id)
+    // Match by object reference first (selectedRows are the same row.original refs as `data`).
+    // Fall back to `id` ONLY when both ids exist — otherwise rows without an `.id` field
+    // (points use pointID, clients use companyUserID, …) all compared undefined===undefined
+    // and every card showed selected once any one was picked.
+    return selectedRows.some((selected) => {
+      if (selected === item) return true
+      const sid = (selected as any).id
+      const iid = (item as any).id
+      return sid != null && iid != null && sid === iid
+    })
   }, [selectedRows])
 
   const handleCardClick = useCallback((item: TData) => {
@@ -194,15 +207,18 @@ export function CardView<TData>({
     [columns]
   )
 
-  // Display columns — exclude select and actions
-  const displayColumns = useMemo(() =>
-    columns.filter(col =>
-      col.id !== 'select' &&
-      col.id !== 'actions' &&
-      (col as any).accessorKey !== 'actions'
-    ).slice(0, cfg.fields),
-    [columns, cfg.fields]
-  )
+  // Display columns — exclude select and actions. When `cardColumns` is given, show exactly those
+  // (by accessorKey/id), in that order; otherwise fall back to the first N real columns.
+  const displayColumns = useMemo(() => {
+    const usable = columns.filter(col =>
+      col.id !== 'select' && col.id !== 'actions' && (col as any).accessorKey !== 'actions'
+    )
+    if (cardColumns && cardColumns.length) {
+      const key = (c: ColumnDef<TData>) => ((c as any).accessorKey as string) || (c.id as string)
+      return cardColumns.map(k => usable.find(c => key(c) === k)).filter(Boolean) as ColumnDef<TData>[]
+    }
+    return usable.slice(0, cfg.fields)
+  }, [columns, cfg.fields, cardColumns])
 
 
   if (isLoading) {
@@ -249,7 +265,7 @@ export function CardView<TData>({
                   transition={{ duration: 0.12, delay: Math.min(index * 0.015, 0.15) }}
                   className="group/card outline-none"
                   tabIndex={-1}
-                  onClick={() => setFocusedIndex(index)}
+                  onClick={() => { setFocusedIndex(index); handleCardClick(item); }}
                   onDoubleClick={() => handleCardClick(item)}
                 >
                   <div className={`
@@ -284,19 +300,20 @@ export function CardView<TData>({
 
                         {/* Title + subtitle */}
                         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-                          <p className={`${cfg.titleText} font-semibold text-[rgb(var(--fg-default))] truncate leading-tight`}>
+                          <p className={`${cfg.titleText} font-semibold text-[rgb(var(--fg-default))] truncate leading-tight min-w-0`}>
                             {displayColumns.length > 0 && getDisplayValue(item, (displayColumns[0] as any).accessorKey as string)}
                           </p>
                           {displayColumns.length > 1 && (
-                            <p className={`${cfg.subtitleText} text-[rgb(var(--color-primary))] font-medium truncate flex-shrink-0`}>
+                            <p className={`${cfg.subtitleText} text-[rgb(var(--color-primary))] font-medium truncate min-w-0`}>
                               {getDisplayValue(item, (displayColumns[1] as any).accessorKey as string)}
                             </p>
                           )}
                         </div>
 
-                        {/* Actions — render the actual actions column cell if available */}
+                        {/* Actions — always visible (mobile has no hover, so the opacity-on-hover
+                            trick would leave the View/Edit buttons untappable on touch). */}
                         <div
-                          className="flex-shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150"
+                          className="flex-shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {actionsColumn && (actionsColumn as any).cell?.({
@@ -312,6 +329,9 @@ export function CardView<TData>({
                         <div className="mt-2 pt-2 border-t border-[rgb(var(--bd-default))]/40 space-y-1">
                           {displayColumns.slice(2).map((column) => {
                             const fieldKey = (column as any).accessorKey as string
+                            // Skip empty fields — a card full of "—" rows looks sparse/unpolished on mobile.
+                            const raw = (item as any)[fieldKey]
+                            if (raw == null || (typeof raw !== "boolean" && String(raw).trim() === "")) return null
                             const fieldValue = getDisplayValue(item, fieldKey)
                             const fieldLabel = getFieldLabel(column)
 

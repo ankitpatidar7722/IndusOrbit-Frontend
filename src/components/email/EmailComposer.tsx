@@ -26,37 +26,101 @@ const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center"
 const tbtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 28, border: "1px solid #e2e7ef", background: "rgb(var(--bg-surface))", borderRadius: 7, cursor: "pointer", color: "#334" };
 const rowLabel: React.CSSProperties = { width: 44, fontSize: 12, fontWeight: 700, color: "rgb(var(--fg-muted))", flexShrink: 0, paddingTop: 8 };
 
-/** A To/Cc/Bcc field: validated email chips + free text. */
-function ChipField({ value, onChange }: { value: EmailAddress[]; onChange: (v: EmailAddress[]) => void }) {
+/** A To/Cc/Bcc field: validated email chips + free text, with Gmail-style autocomplete of
+ *  previously-emailed addresses (passed in via `suggestions`). */
+function ChipField({ value, onChange, suggestions = [] }: { value: EmailAddress[]; onChange: (v: EmailAddress[]) => void; suggestions?: EmailAddress[] }) {
   const [text, setText] = useState("");
-  const commit = (raw: string) => {
-    const email = raw.trim().replace(/[,;]+$/, "").trim();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  const commit = (rawEmail: string, name?: string) => {
+    const email = rawEmail.trim().replace(/[,;]+$/, "").trim();
     if (!email) return;
     if (!EMAIL_RE.test(email)) return; // ignore invalid; user sees it not chip-ify
-    if (value.some((v) => v.email.toLowerCase() === email.toLowerCase())) { setText(""); return; }
-    onChange([...value, { email }]);
-    setText("");
+    if (value.some((v) => v.email.toLowerCase() === email.toLowerCase())) { setText(""); setOpen(false); return; }
+    onChange([...value, name ? { email, name } : { email }]);
+    setText(""); setOpen(false); setActive(0);
   };
+
+  // Gmail-style matches: previously-emailed addresses containing what's typed, minus already-added ones.
+  const q = text.trim().toLowerCase();
+  const added = new Set(value.map((v) => v.email.toLowerCase()));
+  const matches = q
+    ? suggestions
+        .filter((s) => !added.has(s.email.toLowerCase()))
+        .filter((s) => s.email.toLowerCase().includes(q) || (s.name || "").toLowerCase().includes(q))
+        .slice(0, 8)
+    : [];
+  const showDrop = open && matches.length > 0;
+
+  // close the dropdown on an outside click
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (ev: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(ev.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
   return (
-    <div style={{ ...input, display: "flex", flexWrap: "wrap", gap: 6, padding: 6, minHeight: 38 }}>
-      {value.map((a) => (
-        <span key={a.email} style={chip}>
-          {a.name ? `${a.name} <${a.email}>` : a.email}
-          <button onClick={() => onChange(value.filter((x) => x.email !== a.email))} style={{ border: "none", background: "transparent", cursor: "pointer", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center" }}><X size={12} /></button>
-        </span>
-      ))}
-      <input
-        value={text}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v.endsWith(",") || v.endsWith(";")) commit(v);
-          else setText(v);
-        }}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(text); } else if (e.key === "Backspace" && !text && value.length) onChange(value.slice(0, -1)); }}
-        onBlur={() => commit(text)}
-        placeholder={value.length ? "" : "name@example.com"}
-        style={{ flex: 1, minWidth: 140, border: "none", outline: "none", fontSize: 13.5, background: "transparent" }}
-      />
+    <div ref={boxRef} style={{ position: "relative" }}>
+      <div style={{ ...input, display: "flex", flexWrap: "wrap", gap: 6, padding: 6, minHeight: 38 }}>
+        {value.map((a) => (
+          <span key={a.email} style={chip}>
+            {a.name ? `${a.name} <${a.email}>` : a.email}
+            <button onClick={() => onChange(value.filter((x) => x.email !== a.email))} style={{ border: "none", background: "transparent", cursor: "pointer", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center" }}><X size={12} /></button>
+          </span>
+        ))}
+        <input
+          value={text}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v.endsWith(",") || v.endsWith(";")) commit(v);
+            else { setText(v); setOpen(true); setActive(0); }
+          }}
+          onKeyDown={(e) => {
+            if (showDrop && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+              e.preventDefault();
+              setActive((i) => e.key === "ArrowDown" ? (i + 1) % matches.length : (i - 1 + matches.length) % matches.length);
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              if (showDrop && matches[active]) commit(matches[active].email, matches[active].name);
+              else commit(text);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            } else if (e.key === "Backspace" && !text && value.length) {
+              onChange(value.slice(0, -1));
+            }
+          }}
+          onFocus={() => { if (text) setOpen(true); }}
+          onBlur={() => commit(text)}
+          placeholder={value.length ? "" : "name@example.com"}
+          style={{ flex: 1, minWidth: 140, border: "none", outline: "none", fontSize: 13.5, background: "transparent" }}
+        />
+      </div>
+
+      {showDrop && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 40, marginTop: 4, background: "rgb(var(--bg-surface))", border: "1px solid #d6dbe3", borderRadius: 8, boxShadow: "0 10px 28px -8px rgba(0,0,0,.28)", overflow: "hidden", maxHeight: 264, overflowY: "auto" }}>
+          {matches.map((s, i) => (
+            <button
+              key={s.email}
+              type="button"
+              // onMouseDown (not onClick) + preventDefault so the input doesn't blur before we commit.
+              onMouseDown={(e) => { e.preventDefault(); commit(s.email, s.name); }}
+              onMouseEnter={() => setActive(i)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: "none", cursor: "pointer", textAlign: "left", background: i === active ? "rgb(var(--bg-subtle))" : "transparent" }}
+            >
+              <span style={{ width: 26, height: 26, borderRadius: 999, background: "rgb(var(--color-primary))", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                {(s.name || s.email).trim().charAt(0).toUpperCase() || "?"}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                {s.name && <div style={{ fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-default))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>}
+                <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.email}</div>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -69,6 +133,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
   const [to, setTo] = useState<EmailAddress[]>([]);
   const [cc, setCc] = useState<EmailAddress[]>([]);
   const [bcc, setBcc] = useState<EmailAddress[]>([]);
+  const [suggestions, setSuggestions] = useState<EmailAddress[]>([]); // Gmail-style recipient autocomplete source
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState("");
@@ -104,6 +169,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
     setTvars({});
     setIncludeSig(true);
     templatesApi.list().then((list) => setTemplates(list.length ? list : SYSTEM_EMAIL_TEMPLATES)).catch(() => {});
+    emailApi.recipients().then(setSuggestions).catch(() => {}); // company-wide past recipients (all senders) for autocomplete
     // set body after the editor mounts, then append the saved signature (if any)
     setTimeout(() => {
       const editor = editorRef.current;
@@ -244,14 +310,14 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
           {/* To + Cc/Bcc toggles */}
           <div style={{ display: "flex", gap: 8 }}>
             <div style={rowLabel}>To</div>
-            <div style={{ flex: 1 }}><ChipField value={to} onChange={setTo} /></div>
+            <div style={{ flex: 1 }}><ChipField value={to} onChange={setTo} suggestions={suggestions} /></div>
             <div style={{ display: "flex", gap: 6, paddingTop: 8 }}>
               {!showCc && <button onClick={() => setShowCc(true)} style={{ ...tbtn, width: "auto", padding: "0 8px", fontSize: 12, fontWeight: 700 }}>Cc</button>}
               {!showBcc && <button onClick={() => setShowBcc(true)} style={{ ...tbtn, width: "auto", padding: "0 8px", fontSize: 12, fontWeight: 700 }}>Bcc</button>}
             </div>
           </div>
-          {showCc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Cc</div><div style={{ flex: 1 }}><ChipField value={cc} onChange={setCc} /></div></div>}
-          {showBcc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Bcc</div><div style={{ flex: 1 }}><ChipField value={bcc} onChange={setBcc} /></div></div>}
+          {showCc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Cc</div><div style={{ flex: 1 }}><ChipField value={cc} onChange={setCc} suggestions={suggestions} /></div></div>}
+          {showBcc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Bcc</div><div style={{ flex: 1 }}><ChipField value={bcc} onChange={setBcc} suggestions={suggestions} /></div></div>}
 
           {/* Template picker */}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

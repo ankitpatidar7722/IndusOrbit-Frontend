@@ -117,8 +117,8 @@
   <h2 class="sec">1. DOCUMENT CONTROL &amp; PROJECT INFORMATION</h2>
   <table class="two">
     <tr><td class="k">Document Name</td><td>INDAS ERP Implementation Kick-off &amp; Project Initiation</td></tr>
-    <tr><td class="k">Document Code</td><td>IA-ERP-KO-001</td></tr>
-    <tr><td class="k">Version</td><td>1.0</td></tr>
+    <tr><td class="k">Document Code</td><td class="fill"><span class="af">[[documentCode]]</span></td></tr>
+    <tr><td class="k">Version</td><td class="fill"><span class="af">[[version]]</span></td></tr>
     <tr><td class="k">Prepared By</td><td>Indas Analytics LLP</td></tr>
     <tr><td class="k">Approved By</td><td class="fill"></td></tr>
     <tr><td class="k">Kick-Off Date</td><td class="fill"></td></tr>
@@ -334,5 +334,25 @@
   <div class="conf" style="margin-top:16px">Confidential — Indas Analytics LLP</div>
 
 </div>
+<script>
+/* Mobile: scale the A4 sheet to fit the phone width (fit-to-width). No effect > 820px. */
+(function () {
+  function fit() {
+    var sheet = document.querySelector('.sheet');
+    if (!sheet) return;
+    var vw = document.documentElement.clientWidth || window.innerWidth;  // clientWidth = true layout width
+    if (vw > 820) { sheet.style.transform = ''; sheet.style.marginBottom = ''; document.body.style.overflowX = ''; return; }
+    var natural = 794;
+    var scale = Math.min(1, (vw - 8) / natural);
+    sheet.style.transformOrigin = 'top left';
+    sheet.style.transform = 'scale(' + scale + ')';
+    sheet.style.marginBottom = -(sheet.offsetHeight * (1 - scale)) + 'px';
+    document.body.style.overflowX = 'hidden';
+  }
+  window.addEventListener('load', fit);
+  window.addEventListener('resize', fit);
+  setTimeout(fit, 50);
+})();
+</script>
 </body>
 </html>

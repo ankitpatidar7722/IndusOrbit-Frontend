@@ -63,7 +63,7 @@ export default function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setQ(""); }} />
-          <div className="absolute right-0 top-11 z-50 w-[28rem] max-w-[calc(100vw-1rem)] bg-[rgb(var(--bg-surface))] rounded-2xl shadow-2xl border border-[rgb(var(--bd-default))] overflow-hidden">
+          <div className="header-popover absolute right-0 top-11 z-50 w-[28rem] max-w-[calc(100vw-1rem)] bg-[rgb(var(--bg-surface))] rounded-2xl shadow-2xl border border-[rgb(var(--bd-default))] overflow-hidden">
             {/* Header: title + search + settings */}
             <div className="px-5 pt-5 pb-0 bg-[rgb(var(--bg-surface))]">
               <div className="flex items-center gap-3 mb-4">

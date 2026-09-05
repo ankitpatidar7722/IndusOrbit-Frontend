@@ -83,6 +83,7 @@ function DeveloperDashboard({ devId, isAdmin }: { devId: number; isAdmin: boolea
         getRowId={(r) => String(r.pointID)}
         onRowClick={(r) => drawer.open(r.pointID)}
         mainColumns="description"
+        cardColumns={["pointID", "customerName", "reportedByName", "status"]}
         rightFrozenColumns={["actions"]}
         {...gridFeatures}
       />

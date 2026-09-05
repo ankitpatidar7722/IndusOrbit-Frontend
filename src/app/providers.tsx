@@ -14,6 +14,9 @@ import { EmailComposerProvider } from "@/components/email/EmailComposerProvider"
 import { MessagingPanelProvider } from "@/components/messaging/MessagingPanelProvider";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationToaster from "@/components/NotificationToaster";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import MobileNav from "@/components/MobileNav";
+import BottomNav from "@/components/BottomNav";
 
 /**
  * Renders the app shell (with the DB-driven sidebar) only when authenticated.
@@ -57,12 +60,15 @@ function Shell({ children }: { children: React.ReactNode }) {
       <EmailComposerProvider>
         <MessagingPanelProvider>
           <div className="app-frame" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+            <MobileNav companyId={u.CompanyID} userId={u.UserID} />
             <TopHeader />
             <div style={{ flex: 1, minHeight: 0 }}>
               <AppShell sidebar={{ companyId: u.CompanyID, userId: u.UserID }}>
                 {children}
               </AppShell>
             </div>
+            {/* Native-app bottom navigation — mobile only (hidden ≥ lg via CSS). */}
+            <BottomNav />
           </div>
           <NotificationToaster />
         </MessagingPanelProvider>
@@ -75,6 +81,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
+      <ServiceWorkerRegister />
       <ThemeProvider defaultTheme={{ variant: "default", mode: "light" }} enableSystem>
         <QueryProvider>
           <DeviceProvider>

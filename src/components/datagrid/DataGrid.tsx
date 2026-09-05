@@ -82,8 +82,11 @@ import {
   XCircle,
   Layers,
   RefreshCw,
+  Save,
+  RotateCcw,
 } from 'lucide-react'
 
+import { getCurrentUserId } from '@/lib/currentUser'
 import { Button } from 'indas-ui'
 import { Input } from 'indas-ui'
 import { Checkbox } from 'indas-ui'
@@ -254,6 +257,7 @@ export interface DataGridProps<TData> {
   defaultSortOrder?: 'asc' | 'desc' // Sort order for initial sort (default: 'asc')
   initialColumnVisibility?: Record<string, boolean> // Initial column visibility state (e.g., { DepartmentSequenceNo: false })
   persistKey?: string // When set, view prefs (column show/hide, order, width, sort) persist to localStorage under this key
+  enableSavedLayout?: boolean // Show per-user "Save Layout" / "Reset Layout" buttons (default true) — persists column width/order/visibility per logged-in user
   enableSearch?: boolean
   enableFiltering?: boolean
   enableColumnVisibility?: boolean
@@ -289,6 +293,7 @@ export interface DataGridProps<TData> {
   rowHeight?: number
   // Baccha Search props
   mainColumns?: string // Comma-separated list of main column keys for Baccha Search
+  cardColumns?: string[] // Mobile card view: show only these columns (accessorKey/id), in order
   enableBacchaSearch?: boolean
   searchType?: 'advanced' | 'new' // Search UI type: 'advanced' = current inline, 'new' = top header modal style. If not specified, uses user preference
   // NEW: Pagination props
@@ -376,6 +381,7 @@ export function DataGrid<TData>({
   defaultSortOrder = 'asc',
   initialColumnVisibility,
   persistKey,
+  enableSavedLayout = true,
   enableSearch = true,
   enableFiltering = true,
   enableColumnVisibility = true,
@@ -401,6 +407,7 @@ export function DataGrid<TData>({
   rowHeight = 24.75,
   // Baccha Search props
   mainColumns,
+  cardColumns,
   enableBacchaSearch = true,
   searchType,
   // NEW: Pagination props
@@ -456,7 +463,11 @@ export function DataGrid<TData>({
     for (let i = 0; i < ids.length; i++) hash = ((hash << 5) + hash + ids.charCodeAt(i)) | 0
     return `${pathname || 'route'}:${(hash >>> 0).toString(36)}`
   }, [initialColumns, pathname])
-  const persistStorageKey = `datagrid-view:${persistKey || autoPersistKey}`
+  // Namespace the saved-view key with the logged-in user's id so each user only ever sees THEIR
+  // OWN saved layout (per-user, even on a shared browser). getCurrentUserId() is set synchronously
+  // in the app Shell's render before any grid mounts, so it's available here on first render.
+  const layoutUserKey = getCurrentUserId() ?? 'anon'
+  const persistStorageKey = `datagrid-view:u${layoutUserKey}:${persistKey || autoPersistKey}`
   const savedView = useMemo(() => {
     if (!persistStorageKey || typeof window === 'undefined') return null
     try {
@@ -1032,7 +1043,17 @@ export function DataGrid<TData>({
   const [settingsInitialTab, setSettingsInitialTab] = useState<'filters' | 'columns' | 'sort'>('filters')
   const [currentView, setCurrentView] = useState<'grid' | 'chart' | 'cards'>('grid')
 
+  // Mobile ergonomics: auto-switch to the card view on phones (a wide table is unusable there),
+  // and back to the grid on larger screens — but stop auto-switching once the user manually
+  // picks a view, so their choice is always respected.
+  const userChoseViewRef = useRef(false)
+  useEffect(() => {
+    if (userChoseViewRef.current) return
+    setCurrentView(isMobile ? 'cards' : 'grid')
+  }, [isMobile])
+
   const handleViewChange = useCallback((view: 'grid' | 'chart' | 'cards') => {
+    userChoseViewRef.current = true
     setCurrentView(view)
   }, [])
 
@@ -1053,19 +1074,35 @@ export function DataGrid<TData>({
     () => columns.map((col: any) => col.id || col.accessorKey).filter(Boolean),
     [columns]
   )
-  useEffect(() => {
+  // Explicit per-user layout Save / Reset (the two toolbar buttons). "Layout" = column show/hide,
+  // order and width (plus the current sort). Persisted under the USER-scoped persistStorageKey, so
+  // only the user who saved it ever sees it. (Replaces the previous save-on-every-change effect —
+  // now the user decides when to save, and can reset back to the grid's defaults.)
+  const [layoutFlash, setLayoutFlash] = useState<'' | 'saved' | 'reset'>('')
+  const saveLayout = useCallback(() => {
     if (!persistStorageKey || typeof window === 'undefined') return
     try {
       window.localStorage.setItem(persistStorageKey, JSON.stringify({
-        columnVisibility,
-        columnSizing,
-        sorting,
-        columnOrder: columnOrderIds,
+        columnVisibility, columnSizing, sorting, columnOrder: columnOrderIds,
       }))
+      setLayoutFlash('saved'); window.setTimeout(() => setLayoutFlash(''), 1600)
     } catch {
-      // localStorage unavailable (private mode / quota) — view just won't persist
+      // localStorage unavailable (private mode / quota) — layout just won't persist
     }
   }, [persistStorageKey, columnVisibility, columnSizing, sorting, columnOrderIds])
+
+  const resetLayout = useCallback(() => {
+    if (typeof window !== 'undefined' && persistStorageKey) {
+      try { window.localStorage.removeItem(persistStorageKey) } catch { /* ignore */ }
+    }
+    // Back to the grid's default column layout (widths from the column defs, default visibility/order).
+    const defaultSizing: ColumnSizingState = {}
+    columns.forEach((col: any) => { if (col.id && col.size !== undefined) defaultSizing[col.id] = col.size })
+    setColumnSizing(defaultSizing)
+    setColumnVisibility(initialColumnVisibility || {})
+    setColumnOrderState(null)
+    setLayoutFlash('reset'); window.setTimeout(() => setLayoutFlash(''), 1600)
+  }, [persistStorageKey, columns, initialColumnVisibility])
 
   // Track selected rows during search - now handled by useDataGridSearch hook
 
@@ -1999,6 +2036,37 @@ export function DataGrid<TData>({
                               {totalActiveFilters > 0 ? `Filters (${totalActiveFilters} active)` : 'Filters'}
                             </TooltipContent>
                           </Tooltip>
+                          {enableSavedLayout && !isMobile && (
+                            <>
+                              <div className="w-px h-4 bg-[rgb(var(--bd-default))]" />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={saveLayout}
+                                    className="flex items-center gap-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--color-primary))] transition-colors"
+                                  >
+                                    <Save className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline text-xs">{layoutFlash === 'saved' ? 'Saved ✓' : 'Save Layout'}</span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Save this column layout (width / order / show-hide) — only you see it</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={resetLayout}
+                                    className="flex items-center gap-1 text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg-default))] transition-colors"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline text-xs">{layoutFlash === 'reset' ? 'Reset ✓' : 'Reset'}</span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Reset to the default column layout</TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
                           {compactHeader && (
                             <>
                               <div className="w-px h-4 bg-[rgb(var(--bd-default))]" />
@@ -2867,18 +2935,21 @@ export function DataGrid<TData>({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Card View — compact on auto-switch (mobile), normal when user-selected */}
+              {/* Card View — compact on auto-switch (mobile), normal when user-selected.
+                  Feed the PAGINATED rows (getRowModel), not the full filtered set, so a large
+                  grid (thousands of rows) renders only one page of cards on mobile — fast. */}
               <CardView
-                data={table.getFilteredRowModel().rows.map(row => row.original)}
+                data={table.getRowModel().rows.map(row => row.original)}
                 columns={columns}
                 onRowClick={onRowClick}
                 selectedRows={selectedRows}
                 cardSize="compact"
+                cardColumns={cardColumns}
                 circularCheckboxes={circularCheckboxes}
                 onRowSelect={(item, selected) => {
-                  const rowIndex = table.getFilteredRowModel().rows.findIndex(row => row.original === item)
+                  const rowIndex = table.getRowModel().rows.findIndex(row => row.original === item)
                   if (rowIndex !== -1) {
-                    table.getFilteredRowModel().rows[rowIndex].toggleSelected(selected)
+                    table.getRowModel().rows[rowIndex].toggleSelected(selected)
                   }
                 }}
               />
@@ -2934,8 +3005,8 @@ export function DataGrid<TData>({
         />
       )}
 
-      {/* Pagination Controls */}
-      {enablePagination && currentView === 'grid' && (
+      {/* Pagination Controls — shown for both the table and the card view (cards are paginated too). */}
+      {enablePagination && (currentView === 'grid' || currentView === 'cards') && (
         <PaginationControls
           pageIndex={table.getState().pagination.pageIndex}
           pageSize={table.getState().pagination.pageSize}

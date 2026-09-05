@@ -336,7 +336,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
       <div style={{ marginTop: 16 }}>
         {tab === "profile" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
+            <div className="form-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
             <div><label style={fldLabel}>Full Name *</label><input value={f.fullName} onChange={(e) => set("fullName", e.target.value)} style={fldInput} placeholder="Employee name" /></div>
             <div><label style={fldLabel}>Email *</label><input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
             <div><label style={fldLabel}>Mobile No</label><input value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
@@ -366,7 +366,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 <span style={{ fontSize: 11, color: "rgb(var(--fg-muted))", marginLeft: 4 }}>Off by default — turn on to grant this user the feature.</span>
               </div>
               <div style={{ padding: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 9 }}>
+                <div className="perm-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 9 }}>
                   {PERMISSION_CATALOG.flatMap((g) => g.perms).map((p) => {
                     const on = permKeys.includes(p.key);
                     return (
@@ -416,7 +416,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 18px" }}>
+            <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 18px" }}>
               <div><label style={fldLabel}>SMTP Username</label><input value={f.smtpUsername ?? ""} onChange={(e) => set("smtpUsername", e.target.value)} style={fldInput} placeholder="you@gmail.com" autoComplete="off" /></div>
               <div><label style={fldLabel}>SMTP Password</label>
                 <div style={{ position: "relative" }}>
@@ -598,6 +598,7 @@ export default function UsersPage() {
         data={filteredRows}
         columns={columns}
         getRowId={(r) => String(r.userId)}
+        onRowClick={(u) => openEdit(u.userId)}
         title={statusTab === "Active" ? "Active Users" : "Inactive Users"}
         mainColumns="fullName"
         enableRowSelection

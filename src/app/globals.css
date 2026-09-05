@@ -243,3 +243,238 @@ button:not(:disabled):not([aria-disabled="true"]),
 [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
 }
+
+/* ============================ Mobile / PWA responsive polish ============================ */
+/* The short header title only shows on phones (see the media query below). */
+.topbar-title-short { display: none; }
+
+@media (max-width: 640px) {
+  /* Header: drop the long title + greeting, show the short "Indus 360", tighten spacing so the
+     toggle + action icons never overflow on a narrow phone. */
+  .app-topbar { gap: 8px; padding: 0 10px; }
+  .app-topbar .topbar-title,
+  .app-topbar .topbar-greeting { display: none; }
+  .app-topbar .topbar-title-short { display: block; }
+
+  /* Never let the whole app scroll sideways on a phone (grids already switch to cards on mobile). */
+  .app-frame { max-width: 100vw; overflow-x: hidden; }
+
+  /* Every modal/dialog fits the phone: pinned just BELOW the header and just ABOVE the bottom nav,
+     8px side margins, and scrolls internally if taller. No overlap with the header or bottom nav. */
+  [role="dialog"] {
+    position: fixed !important;
+    top: 62px !important;
+    bottom: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 132px) !important;   /* header (~58) + bottom nav (~66) + margins */
+    transform: none !important;
+  }
+}
+
+/* ---- Mobile sidebar drawer (our own — see MobileNav.tsx; AppShell's built-in drawer can't be
+   opened programmatically). Hidden ≥ lg; slides in when the `mobi-nav-open` body class is set. ---- */
+.mobile-nav-backdrop { display: none; }
+.mobile-drawer { display: none; }
+
+@media (max-width: 1023px) {
+  .mobile-drawer {
+    display: block;
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 82vw;
+    max-width: 300px;
+    background: rgb(var(--color-primary-hover));   /* same navy as the desktop sidebar */
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 60;
+    overflow-y: auto;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.28);
+  }
+  body.mobi-nav-open .mobile-drawer { transform: translateX(0); }
+
+  body.mobi-nav-open .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 55;                /* under the drawer (60), over everything else */
+  }
+}
+
+/* Drawer contents (navy, white text — matches the desktop sidebar). */
+.mobile-drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 12px; color: #fff; font-size: 15px; font-weight: 800; letter-spacing: 0.3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.mobile-drawer-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border: none; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
+}
+.mobile-drawer-nav { padding: 8px 10px 24px; }
+.mobile-nav-group { margin-top: 14px; }
+.mobile-nav-group-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5); padding: 0 12px; margin-bottom: 5px;
+}
+.mobile-nav-link {
+  display: block; width: 100%; text-align: left;
+  padding: 11px 12px; margin: 2px 0; border: none; border-radius: 9px;
+  background: transparent; color: rgba(255, 255, 255, 0.9);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.12s;
+}
+.mobile-nav-link:hover { background: rgba(255, 255, 255, 0.08); }
+.mobile-nav-link[data-active="true"] { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.mobile-nav-empty { color: rgba(255, 255, 255, 0.7); font-size: 13px; padding: 16px 12px; }
+
+/* ---- Native-app bottom navigation bar (mobile only) ---- */
+.bottom-nav { display: none; }
+
+@media (max-width: 1023px) {
+  .bottom-nav {
+    display: flex;
+    flex-shrink: 0;
+    align-items: stretch;
+    background: rgb(var(--bg-surface));
+    border-top: 1px solid rgba(120, 130, 150, 0.22);
+    box-shadow: 0 -2px 10px rgba(16, 24, 40, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);   /* clears the iPhone home-bar */
+    z-index: 45;
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 7px 0 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgb(var(--fg-muted));
+    transition: color 0.15s;
+  }
+  .bottom-nav-item[data-active="true"] { color: rgb(var(--color-primary)); }
+  .bottom-nav-icon { position: relative; display: inline-flex; }
+  .bottom-nav-badge {
+    position: absolute; top: -6px; right: -9px;
+    min-width: 15px; height: 15px; padding: 0 4px;
+    border-radius: 8px; background: #ef4444; color: #fff;
+    font-size: 9px; font-weight: 700; line-height: 15px; text-align: center;
+  }
+
+  /* Header declutter on phones: hide icons that now live in the bottom nav. */
+  .hide-on-mobile { display: none !important; }
+
+  /* Header popovers (email menu, notifications bell) are anchored right:0 to their icon, which
+     pushes a wide panel off the LEFT edge on a phone. Pin them to the viewport instead — a
+     near-full-width panel just below the header, fully on-screen. */
+  .header-popover {
+    position: fixed !important;
+    top: 62px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 140px) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Multi-column form grids inside modals stack to a single column on phones (fields aren't cramped). */
+  .form-grid-2, .form-grid-3 { grid-template-columns: 1fr !important; }
+  /* User-permission chips: 6 columns cram on a phone → 1 full-width column (labels fully readable). */
+  .perm-grid { grid-template-columns: 1fr !important; }
+  /* Ticket-detail info cards / metrics: 4 columns cram on a phone → 2 readable columns. */
+  .pd-grid-4 { grid-template-columns: 1fr 1fr !important; }
+
+  /* Catch-all: ANY 2-/3-column grid inside a modal stacks to one column on phones, so every
+     create/edit data-entry form is readable. Scoped to [role="dialog"] + mobile only, so the
+     desktop web app is completely unchanged. */
+  [role="dialog"] [style*="1fr 1fr"],
+  [role="dialog"] [style*="repeat(2"],
+  [role="dialog"] [style*="repeat(3"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tab rows that don't fit a phone's width scroll sideways (swipe) with FULL labels, instead of
+     compressing each tab to 1/N width and truncating (e.g. "Change Request" → "Change").
+     Add `scroll-tabs` to the tabs wrapper. */
+  .scroll-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .scroll-tabs::-webkit-scrollbar { display: none; }
+  .scroll-tabs > * { width: max-content !important; min-width: 100%; }
+  .scroll-tabs button { flex: 0 0 auto !important; white-space: nowrap !important; overflow: visible !important; }
+  .scroll-tabs button * { max-width: none !important; overflow: visible !important; text-overflow: clip !important; white-space: nowrap !important; }
+}
+
+/* ---- Email page: Gmail-like on phones (folder rail → drawer via hamburger, full-width list,
+   Compose floating action button). Desktop keeps the two-pane layout unchanged. ---- */
+.email-menu-btn { display: none; }
+.email-fab { display: none; }
+
+@media (max-width: 640px) {
+  .email-rail {
+    position: fixed !important;
+    top: 0; bottom: 0; left: 0;
+    width: 250px !important;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.28);
+  }
+  .email-rail.email-rail-open { transform: translateX(0); }
+  .email-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 55; }
+  .email-menu-btn { display: inline-flex !important; }
+  .email-search { width: 100% !important; max-width: 190px; }
+  .email-fab {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: fixed; right: 16px; bottom: 84px;   /* above the bottom nav */
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgb(var(--color-primary)); color: #fff; border: none; cursor: pointer;
+    box-shadow: 0 8px 20px -6px rgba(31, 69, 118, 0.6); z-index: 50;
+  }
+}
+
+/* ---- Project Assignment (master-detail): one pane at a time on phones. Users list full-width;
+   pick a user → the projects/clients panel takes over (with a back button). Desktop = two-pane. ---- */
+.pa-back { display: none; }
+
+@media (max-width: 900px) {
+  .pa-wrap { gap: 0 !important; }
+  .pa-users, .pa-projects { width: 100% !important; flex: 1 1 100% !important; }
+  /* no user selected → show the users list, hide the projects panel */
+  .pa-projects { display: none !important; }
+  .pa-users { display: flex !important; }
+  /* a user is selected → hide the users list, show the projects panel + its back button */
+  .pa-wrap.pa-has-user .pa-users { display: none !important; }
+  .pa-wrap.pa-has-user .pa-projects { display: flex !important; }
+  .pa-back { display: inline-flex !important; }
+}
+
+@media (max-width: 640px) {
+  /* Simplify the detail header + toolbar on phones so nothing crowds/cuts. */
+  .pa-detail-badge { display: none !important; }         /* the "X of Y assigned" chip — de-clutter */
+  .pa-toolbar { flex-wrap: wrap !important; }             /* filter + select-all + clear wrap below search */
+  .pa-toolbar > div:first-child { flex: 1 1 100% !important; }  /* search takes its own full-width row */
+}
+
+/* Manage Points filters on phones: Status + Customer in one row, From + To in the next
+   (each item ~50% width so the flex-wrap row breaks 2-per-line). Desktop row unchanged. */
+@media (max-width: 640px) {
+  .mp-filters > div,
+  .mp-filters > label {
+    flex: 1 1 calc(50% - 6px) !important;
+    width: auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+  .mp-filters > label { display: inline-flex !important; align-items: center; gap: 6px; }
+  .mp-filters > label > * { flex: 1; width: 100% !important; min-width: 0 !important; }
+}

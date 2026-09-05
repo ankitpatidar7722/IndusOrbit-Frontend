@@ -121,9 +121,9 @@ export default function ProjectAssignmentPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "stretch" }}>
+      <div className={`pa-wrap${selUser ? " pa-has-user" : ""}`} style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "stretch" }}>
         {/* ── Users panel ── */}
-        <div style={{ ...panel, width: 340, flexShrink: 0 }}>
+        <div className="pa-users" style={{ ...panel, width: 340, flexShrink: 0 }}>
           <div style={panelHead}>
             <UsersIcon size={16} style={{ color: "rgb(var(--color-primary))" }} />
             <span style={{ fontWeight: 700, fontSize: 14 }}>Users</span>
@@ -152,7 +152,7 @@ export default function ProjectAssignmentPage() {
         </div>
 
         {/* ── Projects panel ── */}
-        <div style={{ ...panel, flex: 1, minWidth: 0 }}>
+        <div className="pa-projects" style={{ ...panel, flex: 1, minWidth: 0 }}>
           {!selUser ? (
             <div style={{ display: "grid", placeItems: "center", flex: 1, minHeight: 380 }}>
               <div style={{ textAlign: "center", maxWidth: 360 }}>
@@ -165,13 +165,17 @@ export default function ProjectAssignmentPage() {
             <>
               {/* header */}
               <div style={{ ...panelHead, gap: 12 }}>
+                <button className="pa-back" onClick={() => setSelUser(null)} title="Back to users" aria-label="Back to users"
+                  style={{ display: "none", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f1", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", cursor: "pointer", flexShrink: 0 }}>
+                  <ChevronDown size={18} style={{ transform: "rotate(90deg)" }} />
+                </button>
                 <span style={{ width: 30, height: 30, borderRadius: 8, background: avatarBg(selUser.fullName), color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>{initials(selUser.fullName)}</span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 800, fontSize: 14.5, color: "rgb(var(--fg-default))", lineHeight: 1.15 }}>{selUser.fullName}</div>
                   <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))" }}>{selUser.role || selUser.email}</div>
                 </div>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-                  <Badge variant="info">{selected.size} of {projects.length} assigned</Badge>
+                  <span className="pa-detail-badge"><Badge variant="info">{selected.size} of {projects.length} assigned</Badge></span>
                   <button onClick={save} disabled={!dirty || saving}
                     style={{ display: "inline-flex", alignItems: "center", gap: 7, background: dirty ? "rgb(var(--color-primary))" : "#cbd3df", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 700, cursor: dirty && !saving ? "pointer" : "default" }}>
                     <Save size={15} /> {saving ? "Saving…" : "Save"}
@@ -180,7 +184,7 @@ export default function ProjectAssignmentPage() {
               </div>
 
               {/* toolbar */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderBottom: "1px solid #eef1f6" }}>
+              <div className="pa-toolbar" style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderBottom: "1px solid #eef1f6" }}>
                 <div style={{ flex: 1, minWidth: 0 }}><SearchBox value={projQ} onChange={setProjQ} placeholder="Search projects by name, code, or app…" /></div>
                 <ProductFilter selected={productFilter} onChange={setProductFilter} />
                 <button onClick={selectAllFiltered} style={linkBtn}><CheckSquare size={14} /> Select all{(projQ || productFilter.size) ? " (filtered)" : ""}</button>

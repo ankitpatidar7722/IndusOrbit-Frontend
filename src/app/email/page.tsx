@@ -5,7 +5,7 @@ import { Badge, Button, StandardModal } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import {
   Mail, Inbox, Star, Send, Archive, Trash2, RefreshCw, Search, Paperclip,
-  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText,
+  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText, Menu,
 } from "lucide-react";
 import { mailApi, mailTime, attachmentUrl, type MailMessage, type MailListResult, type MailFolder } from "@/lib/mail";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
@@ -46,6 +46,7 @@ export default function EmailPage() {
   const { openComposer } = useEmailComposer();
 
   const [folder, setFolder] = useState<MailFolder>("inbox");
+  const [foldersOpen, setFoldersOpen] = useState(false);   // mobile folder drawer
   const [showTemplates, setShowTemplates] = useState(false);
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<MailListResult | null>(null);
@@ -113,9 +114,11 @@ export default function EmailPage() {
   if (!userEmail) return <BrandedLoader size="lg" text="Loading your mailbox…" />;
 
   return (
-    <div style={{ display: "flex", gap: 0, height: "calc(100vh - 150px)", minHeight: 520, border: `1px solid ${T.bd}`, borderRadius: 14, overflow: "hidden", background: T.surface }}>
-      {/* ── Folder rail ── */}
-      <div style={{ width: 210, flexShrink: 0, borderRight: `1px solid ${T.bd}`, background: T.subtle, display: "flex", flexDirection: "column", padding: "14px 12px" }}>
+    <div style={{ display: "flex", gap: 0, height: "calc(100vh - 150px)", minHeight: 520, border: `1px solid ${T.bd}`, borderRadius: 14, overflow: "hidden", background: T.surface, position: "relative" }}>
+      {/* Backdrop behind the folder drawer (mobile only, shown via CSS when open) */}
+      {foldersOpen && <div className="email-backdrop" onClick={() => setFoldersOpen(false)} />}
+      {/* ── Folder rail (becomes a slide-in drawer on mobile) ── */}
+      <div className={`email-rail${foldersOpen ? " email-rail-open" : ""}`} style={{ width: 210, flexShrink: 0, borderRight: `1px solid ${T.bd}`, background: T.subtle, display: "flex", flexDirection: "column", padding: "14px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 6px 12px", color: T.fg }}>
           <Mail size={18} style={{ color: T.primary }} />
           <span style={{ fontSize: 15, fontWeight: 800 }}>Email</span>
@@ -127,7 +130,7 @@ export default function EmailPage() {
             const Icon = f.icon;
             const badge = f.id === "inbox" ? (result?.unreadCount ?? 0) : 0;
             return (
-              <button key={f.id} onClick={() => { setShowTemplates(false); selectFolder(f.id); }}
+              <button key={f.id} onClick={() => { setShowTemplates(false); selectFolder(f.id); setFoldersOpen(false); }}
                 style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 11px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: active ? 700 : 600, textAlign: "left", background: active ? T.surface : "transparent", color: active ? T.primary : T.muted, boxShadow: active ? `inset 0 0 0 1px ${T.bd}` : "none" }}>
                 <Icon size={16} /> <span style={{ flex: 1 }}>{f.label}</span>
                 {badge > 0 && <Badge variant="info">{badge}</Badge>}
@@ -135,7 +138,7 @@ export default function EmailPage() {
             );
           })}
           <div style={{ height: 1, background: T.bd, margin: "8px 4px" }} />
-          <button onClick={() => setShowTemplates(true)}
+          <button onClick={() => { setShowTemplates(true); setFoldersOpen(false); }}
             style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 11px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: showTemplates ? 700 : 600, textAlign: "left", background: showTemplates ? T.surface : "transparent", color: showTemplates ? T.primary : T.muted, boxShadow: showTemplates ? `inset 0 0 0 1px ${T.bd}` : "none" }}>
             <FileText size={16} /> <span style={{ flex: 1 }}>Templates</span>
           </button>
@@ -147,9 +150,14 @@ export default function EmailPage() {
         {showTemplates ? <TemplatesManager /> : (<>
         {/* header */}
         <div style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${T.bd}`, display: "flex", alignItems: "center", gap: 14, padding: "0 16px" }}>
+          {/* Hamburger — opens the folder drawer (mobile only) */}
+          <button className="email-menu-btn" onClick={() => setFoldersOpen(true)} title="Folders" aria-label="Folders"
+            style={{ display: "none", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: `1px solid ${T.bd}`, background: T.surface, color: T.fg, cursor: "pointer", flexShrink: 0 }}>
+            <Menu size={18} />
+          </button>
           <h1 style={{ fontSize: 16, fontWeight: 700, color: T.fg, margin: 0 }}>{folderLabel}</h1>
           <div style={{ flex: 1 }} />
-          <div style={{ position: "relative", width: 260 }}>
+          <div className="email-search" style={{ position: "relative", width: 260 }}>
             <Search size={15} style={{ position: "absolute", left: 11, top: 10, color: T.muted }} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search emails…"
               style={{ width: "100%", height: 36, padding: "0 12px 0 34px", fontSize: 13, border: `1px solid ${T.bd}`, borderRadius: 9, background: T.surface, color: T.fg, outline: "none", boxSizing: "border-box" }} />
@@ -220,6 +228,13 @@ export default function EmailPage() {
           onReply={() => reply(viewing)} onForward={() => forward(viewing)}
           onArchive={async () => { await mailApi.update(viewing.id, { email: userEmail, folder, isArchived: true }); setViewing(null); reload(); }}
           onDelete={async () => { await mailApi.remove(userEmail, folder, viewing.id); setViewing(null); reload(); }} />
+      )}
+
+      {/* Compose floating action button — mobile only (shown via CSS) */}
+      {!showTemplates && (
+        <button className="email-fab" onClick={() => openComposer({ onSent: () => reload() })} title="Compose" aria-label="Compose">
+          <Pencil size={22} />
+        </button>
       )}
     </div>
   );

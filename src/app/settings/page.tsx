@@ -7,13 +7,14 @@ import { Card, CardContent, Switch, Input, useModalAlert, ThemeContext } from "i
 import {
   User, Bell, Settings as SettingsIcon, ArrowLeft, LogOut, Eye, EyeOff, KeyRound, Camera, X,
   CircleUser, PenLine, Mail, Server, Cloud, Zap, CheckCircle2, Database, Type, RotateCcw,
-  Palette, Save, Loader2, Trash2, Check,
+  Palette, Save, Loader2, Trash2, Check, Smartphone,
 } from "lucide-react";
 import { usersApi, photoUrl, type UserDetail } from "@/lib/users";
 import { emailApi } from "@/lib/email";
 import ImageCropModal from "@/components/ImageCropModal";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { MessageSquare } from "lucide-react";
+import { BOTTOM_NAV_CATALOG, DEFAULT_BOTTOM_NAV, MAX_BOTTOM_NAV, loadBottomNav, saveBottomNav } from "@/lib/bottomNav";
 
 /* ─── palette ─── */
 const NAVY = "rgb(var(--color-primary))";
@@ -75,7 +76,15 @@ export default function SettingsPage() {
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const themeCtx = useContext(ThemeContext);
 
-  const [tab, setTab] = useState<"profile" | "notifications" | "preferences">("profile");
+  const [tab, setTab] = useState<"profile" | "notifications" | "preferences" | "bottomnav">("profile");
+  // Bottom Navbar (mobile): the user's chosen shortcut keys (max 4). Persisted per-user in localStorage.
+  const [navKeys, setNavKeys] = useState<string[]>(DEFAULT_BOTTOM_NAV);
+  useEffect(() => { setNavKeys(loadBottomNav(userId)); }, [userId]);
+  const toggleNavKey = (key: string) => setNavKeys((prev) => {
+    if (prev.includes(key)) return prev.filter((k) => k !== key);
+    if (prev.length >= MAX_BOTTOM_NAV) return prev;   // cap at 4 (a 5th "Menu" is always shown)
+    return [...prev, key];
+  });
 
   /* ── profile ── */
   const [detail, setDetail] = useState<UserDetail | null>(null);
@@ -212,6 +221,7 @@ export default function SettingsPage() {
     { id: "profile" as const, label: "Profile", icon: User },
     { id: "notifications" as const, label: "Notifications", icon: Bell },
     { id: "preferences" as const, label: "Preferences", icon: SettingsIcon },
+    { id: "bottomnav" as const, label: "Bottom Navbar", icon: Smartphone },
   ], []);
 
   const fontScale = themeCtx?.theme.fontScale ?? 100;
@@ -454,6 +464,45 @@ export default function SettingsPage() {
                 <button onClick={clearData} style={{ ...ghostBtn, color: "#c0392b", borderColor: "#eec4c4" }}><Trash2 size={15} /> Clear</button>
               </Row>
             </div>
+          )}
+
+          {tab === "bottomnav" && (
+            <Card style={cardStyle}>
+              <CardContent style={{ padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15.5, fontWeight: 700, color: "rgb(var(--fg-default))", marginBottom: 4 }}>
+                  <Smartphone size={17} /> Bottom Navbar
+                </div>
+                <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", marginBottom: 16 }}>
+                  Choose up to {MAX_BOTTOM_NAV} shortcuts for the mobile bottom bar (tap to add / remove).
+                  A <b>Menu</b> button (opens the full sidebar) is always shown. <b>{navKeys.length}/{MAX_BOTTOM_NAV}</b> selected.
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+                  {BOTTOM_NAV_CATALOG.map((it) => {
+                    const on = navKeys.includes(it.key);
+                    const full = !on && navKeys.length >= MAX_BOTTOM_NAV;
+                    const Icon = it.icon;
+                    return (
+                      <button key={it.key} type="button" onClick={() => { if (!full) toggleNavKey(it.key); }} disabled={full}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: 11, cursor: full ? "not-allowed" : "pointer", textAlign: "left",
+                          border: `1.5px solid ${on ? NAVY : "#d7deea"}`,
+                          background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 10%, transparent)" : "rgb(var(--bg-surface))",
+                          color: on ? NAVY : "rgb(var(--fg-muted))", opacity: full ? 0.45 : 1 }}>
+                        <Icon size={18} style={{ flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{it.label}</span>
+                        {on && <Check size={16} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                  <button onClick={() => { saveBottomNav(userId, navKeys); showSuccess("Saved", "Bottom navbar updated.", 2000); }}
+                    disabled={navKeys.length === 0} style={{ ...primaryBtn, opacity: navKeys.length ? 1 : 0.6 }}>
+                    <Save size={15} /> Save
+                  </button>
+                  <button onClick={() => setNavKeys(DEFAULT_BOTTOM_NAV)} style={ghostBtn}><RotateCcw size={15} /> Reset to default</button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

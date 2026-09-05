@@ -121,6 +121,9 @@ export const emailApi = {
     const qs = p.toString();
     return j<EmailHistoryItem[]>(`/api/email/history${qs ? `?${qs}` : ""}`);
   },
+  /** Distinct addresses this user has emailed before → Gmail-style recipient autocomplete. */
+  recipients: (forEmail?: string) =>
+    j<EmailAddress[]>(`/api/email/recipients${forEmail ? `?forEmail=${encodeURIComponent(forEmail)}` : ""}`),
 };
 
 /** Read a File as base64 (strips the data: prefix) for attachment upload. */

@@ -68,7 +68,7 @@ export function PointDrawer({ drawer, actions, uploaderId }: { drawer: Drawer; a
       isOpen={openId !== null}
       onClose={close}
       title={detail ? `Ticket #${detail.pointID}` : "Loading…"}
-      subtitle={detail ? [detail.customerName, detail.productName, detail.priority ? `Priority ${detail.priority}` : null, detail.complexity ? `Complexity ${detail.complexity}` : null].filter(Boolean).join("  ·  ") : ""}
+      subtitle=""
       badge={detail ? { label: detail.isDeveloperPaused ? `${detail.status} · Paused` : detail.status, variant: headerBadgeVariant(detail.status) } : undefined}
       size="lg"
       className="pm-modal-center"
@@ -83,7 +83,7 @@ export function PointDrawer({ drawer, actions, uploaderId }: { drawer: Drawer; a
           </div>
 
           {/* Detail cards — 4 per row; Description spans full width on the third row. */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 12 }}>
+          <div className="pd-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 12 }}>
             <InfoCard label="Customer" value={detail.customerName} />
             <InfoCard label="Product" value={detail.productName} />
             <InfoCard label="Module" value={detail.module} />
@@ -100,7 +100,7 @@ export function PointDrawer({ drawer, actions, uploaderId }: { drawer: Drawer; a
           </div>
 
           {/* Time metrics (work tracker) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
+          <div className="pd-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 12 }}>
             <Metric label="Estimate" value={fmtMins(detail.expectedMinutes)} />
             <Metric label="Time spent" value={fmtMins(detail.totalTimeSpent)} />
             <Metric label="Paused" value={fmtMins(detail.pauseTimeMinutes)} />

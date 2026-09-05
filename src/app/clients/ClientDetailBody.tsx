@@ -5,7 +5,7 @@ import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/loca
 import { Pencil, Building2, MapPin, CreditCard, Cloud, KeyRound, ShieldCheck, Rocket, Activity, FileCheck2, HardHat, X, Save, Wand2, Copy, Check, Eye, Download, FileText, FileDown, FileCode, FileSpreadsheet, CheckCircle2, Mail, History, type LucideIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { fetchClientTabPermissions, type TabPermMap } from "@/lib/clientTabPermissions";
-import { clientDocsApi, type ClientDocType, type ClientDocMeta } from "@/lib/clientDocs";
+import { clientDocsApi, type ClientDocType, type ClientDocMeta, type ClientDocHistoryItem } from "@/lib/clientDocs";
 import EmailHistoryCard from "@/components/email/EmailHistoryCard";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import type { EmailAttachmentBase64 } from "@/lib/email";
@@ -54,6 +54,14 @@ const toDateInput = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : "
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] || ch));
 
+/** "05 Sep 2026, 3:57 PM" for the document Save/Email audit history. */
+const fmtHistoryDate = (v?: string | null) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+};
+
 /** Fill the template's <span class="af">[[key]]</span> placeholders with escaped values. */
 function fillTemplate(html: string, fields: [string, string][]): string {
   let out = html;
@@ -84,11 +92,60 @@ function reflectFormState(doc: Document) {
 function cleanDocHtml(w: Window): string {
   reflectFormState(w.document);
   const root = w.document.documentElement.cloneNode(true) as HTMLElement;
-  root.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, script").forEach((e) => e.remove());
+  root.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, .indus-delcol, .indus-delcell, .indus-msctl, script").forEach((e) => e.remove());
+  // Replace <input type="date"> with plain DD-MM-YYYY text. Native date inputs render in the
+  // browser's locale (MM/DD/YYYY on the print server), so we bake the value as fixed DD-MM-YYYY
+  // text — consistent on print/PDF regardless of machine locale. Operates on the clone only, so
+  // the live editing window keeps its pickers.
+  root.querySelectorAll('input[type="date"]').forEach((el) => {
+    const inp = el as HTMLInputElement;
+    const iso = inp.getAttribute("value") || "";
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    const span = w.document.createElement("span");
+    if (inp.className) span.className = inp.className;
+    if (inp.id) span.id = inp.id;
+    span.textContent = m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+    inp.replaceWith(span);
+  });
   // Strip ALL contenteditable (the sheet + any template-lock islands) so the saved HTML is clean
   // and the per-user lock is re-applied fresh on the next open (never baked into the document).
   root.querySelectorAll("[contenteditable]").forEach((s) => s.removeAttribute("contenteditable"));
+  // Drop the embedded name→mobile lookup map (only needed live, for the §8 Support Contact sync).
+  root.querySelectorAll("[data-mobiles]").forEach((s) => s.removeAttribute("data-mobiles"));
   return "<!doctype html>\n" + root.outerHTML;
+}
+
+/** Patch the Sign-Off document Version wherever it appears (running header + §1 "Document Version"
+ *  row) so a reopened saved doc reflects the current send revision instead of the value baked in at
+ *  save time. fillTemplate replaces each `<span class="af">[[…]]</span>` with plain text, so the
+ *  saved version is a bare text node — we locate it structurally (never by a marker class). */
+function patchDocVersion(doc: Document, version: string) {
+  // "Document Version" (Sign-Off) / "Version" (Kick-Off) row — set the value cell (an .af span if
+  // present, else its plain text).
+  doc.querySelectorAll("td.k").forEach((td) => {
+    const label = (td.textContent || "").trim().toLowerCase();
+    if (label === "document version" || label === "version") {
+      const cell = td.nextElementSibling as HTMLElement | null;
+      if (!cell) return;
+      const span = cell.querySelector(".af") as HTMLElement | null;
+      if (span) span.textContent = version; else cell.textContent = version;
+    }
+  });
+  // Running header "… Version: <value>" — the value trails the last <b>Version:</b>. Replace the
+  // last .af span if present, else the last non-empty text node (leaving Document Code untouched).
+  const hd = doc.querySelector(".hd-2");
+  if (hd) {
+    const afs = hd.querySelectorAll(".af");
+    if (afs.length) {
+      afs[afs.length - 1].textContent = version;
+    } else {
+      const kids = Array.from(hd.childNodes);
+      for (let i = kids.length - 1; i >= 0; i--) {
+        const n = kids[i];
+        if (n.nodeType === 3 && (n.textContent || "").trim().length > 0) { n.textContent = " " + version; break; }
+      }
+    }
+  }
 }
 
 /** Inject the in-window action bar (Save in edit mode + Print + Close) and set the sheet's
@@ -110,7 +167,10 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     doc.querySelectorAll(FIXED).forEach((el) => el.setAttribute("contenteditable", "false"));
   }
   const style = doc.createElement("style");
-  style.textContent = "@media print{.indus-toolbar{display:none !important;}}";
+  style.textContent = "@media print{.indus-toolbar{display:none !important;}}"
+    // "View Saved" is strictly read-only: freeze every form control (checkboxes / selects / inputs)
+    // so nothing in the document can be changed — it's for viewing + Print/PDF only.
+    + (mode === "view" ? " .sheet input,.sheet select,.sheet textarea{pointer-events:none !important;}" : "");
   doc.head?.appendChild(style);
 
   const bar = doc.createElement("div");
@@ -180,35 +240,107 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
       spoc.addEventListener("input", syncRep);
     }
 
-    // §6 Pending Items Register — a "+ Add Row" control (top-right of the table) so the user can
-    // add as many pending-item rows as needed. Data operation → available to everyone. The button
-    // is removed on save and hidden in print; the added rows are kept.
-    const pt = doc.getElementById("pendingTable") as HTMLTableElement | null;
-    if (pt && !doc.querySelector(".indus-addrow")) {
-      const wrap = doc.createElement("div");
-      wrap.className = "indus-addrow";
-      wrap.setAttribute("style", "text-align:right; margin:2px 0 4px;");
-      wrap.setAttribute("contenteditable", "false");
-      const btn = doc.createElement("button");
-      btn.type = "button";
-      btn.textContent = "＋ Add Row";
-      btn.setAttribute("style", "cursor:pointer; border:none; border-radius:5px; padding:4px 12px; font:600 11px 'Segoe UI',system-ui,sans-serif; color:#fff; background:#0f6a72;");
-      btn.onclick = () => {
-        const sn = [...pt.rows].filter((r) => !r.classList.contains("h")).length + 1;
-        const tr = pt.insertRow(-1);
-        tr.innerHTML =
-          `<td class="c">${sn}</td><td class="fill"></td><td class="fill"></td>` +
-          `<td class="fill"><input type="date" class="pd"></td>` +
-          `<td class="fill"><select class="sc"><option value=""></option><option>Urgent</option><option>Normal</option></select></td>` +
-          `<td class="fill"><select class="sc"><option value=""></option><option>In Progress</option><option>Not Required</option><option>Completed</option><option>Pending</option></select></td>` +
-          `<td class="fill"></td><td class="fill"></td>`;
+    // §8 "Support SPOC" mirrors §2 "Implementation Engineer" as it's typed, and §8 "Support Contact"
+    // auto-derives that person's mobile from the embedded app.Users name→mobile map.
+    const implEng = doc.getElementById("implEngCell");
+    const supportSpoc = doc.getElementById("supportSpocCell");
+    const supportContact = doc.getElementById("supportContactCell");
+    if (implEng && (supportSpoc || supportContact)) {
+      let mobiles: Record<string, string> = {};
+      try { mobiles = JSON.parse(supportContact?.getAttribute("data-mobiles") || "{}"); } catch { /* no map */ }
+      const setCell = (cell: HTMLElement | null, val: string) => {
+        if (!cell) return;
+        const af = cell.querySelector(".af");
+        if (af) af.textContent = val; else cell.textContent = val;
       };
-      wrap.appendChild(btn);
-      pt.parentNode?.insertBefore(wrap, pt);
+      const syncEng = () => {
+        const name = (implEng.textContent || "").trim();
+        setCell(supportSpoc, name);
+        setCell(supportContact, mobiles[name.toLowerCase()] || "");
+      };
+      implEng.addEventListener("input", syncEng);
+    }
+
+    // §6 Pending Items Register — a "+ Add Row" control (top-right of the table) plus a per-row
+    // Delete (✕) button at the end of each row. Both are UI-only helpers: hidden in print and
+    // stripped from the saved/serialized HTML (see cleanDocHtml). Data operation → everyone.
+    const pt = doc.getElementById("pendingTable") as HTMLTableElement | null;
+    if (pt) {
+      const dataRows = () => [...pt.rows].filter((r) => !r.classList.contains("h"));
+      const renumber = () => dataRows().forEach((r, i) => { const c = r.cells[0]; if (c) c.textContent = String(i + 1); });
+      const addDelCell = (tr: HTMLTableRowElement) => {
+        const td = tr.insertCell(-1);
+        td.className = "indus-delcell";
+        td.setAttribute("contenteditable", "false");
+        td.setAttribute("style", "text-align:center; width:34px;");
+        const del = doc.createElement("button");
+        del.type = "button";
+        del.title = "Delete row";
+        del.textContent = "✕";
+        del.setAttribute("style", "cursor:pointer; border:none; border-radius:5px; padding:2px 7px; font:700 12px 'Segoe UI',system-ui,sans-serif; color:#fff; background:#c0392b;");
+        del.onclick = () => { tr.remove(); renumber(); };
+        td.appendChild(del);
+      };
+      // one-time: add an (empty) header cell + a delete cell to each existing data row
+      if (!pt.querySelector(".indus-delcol")) {
+        const hdr = pt.rows[0];
+        if (hdr && hdr.classList.contains("h")) {
+          const hc = hdr.insertCell(-1); hc.className = "indus-delcol"; hc.setAttribute("contenteditable", "false");
+        }
+        dataRows().forEach(addDelCell);
+      }
+      if (!doc.querySelector(".indus-addrow")) {
+        const wrap = doc.createElement("div");
+        wrap.className = "indus-addrow";
+        wrap.setAttribute("style", "text-align:right; margin:2px 0 4px;");
+        wrap.setAttribute("contenteditable", "false");
+        const btn = doc.createElement("button");
+        btn.type = "button";
+        btn.textContent = "＋ Add Row";
+        btn.setAttribute("style", "cursor:pointer; border:none; border-radius:5px; padding:4px 12px; font:600 11px 'Segoe UI',system-ui,sans-serif; color:#fff; background:#0f6a72;");
+        btn.onclick = () => {
+          const tr = pt.insertRow(-1);
+          tr.innerHTML =
+            `<td class="c"></td><td class="fill"></td><td class="fill"></td>` +
+            `<td class="fill"><input type="date" class="pd"></td>` +
+            `<td class="fill"><select class="sc"><option value=""></option><option>Urgent</option><option>Normal</option></select></td>` +
+            `<td class="fill"><select class="sc"><option value=""></option><option>In Progress</option><option>Not Required</option><option>Completed</option><option>Pending</option></select></td>` +
+            `<td class="fill"></td><td class="fill"></td>`;
+          addDelCell(tr);
+          renumber();
+        };
+        wrap.appendChild(btn);
+        pt.parentNode?.insertBefore(wrap, pt);
+      }
+    }
+
+    // §8 Support Email — multi-select dropdown (options built in fetchFilledTemplate from the
+    // active Support-role users). Only present on a fresh fill; stripped from saved/printed HTML,
+    // leaving the comma-separated selection as plain text (.ms-display). Wire the toggle + sync here.
+    const seCell = doc.getElementById("supportEmailCell");
+    const sePanel = seCell?.querySelector(".ms-panel") as HTMLElement | null;
+    if (seCell && sePanel) {
+      const seBtn = seCell.querySelector(".ms-btn") as HTMLButtonElement | null;
+      const boxes = () => [...sePanel.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+      // Always render "<fixed email>[, ...selected]". Re-query the (non-editable) display span each
+      // time so it can never end up detached — fixes "remove all then re-select shows nothing".
+      const refresh = () => {
+        const d = seCell.querySelector(".ms-display") as HTMLElement | null;
+        if (!d) return;
+        const fixed = d.getAttribute("data-fixed") || "";
+        const sel = boxes().filter((b) => b.checked).map((b) => b.value);
+        d.textContent = [fixed, ...sel].filter(Boolean).join(", ");
+      };
+      seBtn?.addEventListener("click", (e) => { e.stopPropagation(); sePanel.style.display = sePanel.style.display === "block" ? "none" : "block"; });
+      boxes().forEach((b) => b.addEventListener("change", refresh));
+      doc.addEventListener("click", (e) => { if (!seCell.contains(e.target as Node)) sePanel.style.display = "none"; });
     }
 
     // Protect form controls from DELETION: users may tick/untick checkboxes, radios and use the
     // date/dropdown pickers, but Backspace/Delete must NOT remove them from the editable document.
+    // Also protect the §8 Support Email display + its dropdown control (non-editable islands the
+    // browser would otherwise delete atomically on Backspace).
+    const PROTECTED = "input, select, .ms-display, .indus-msctl";
     const sheetEl = doc.querySelector(".sheet") as HTMLElement | null;
     sheetEl?.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Backspace" && e.key !== "Delete") return;
@@ -217,9 +349,9 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
       const r = sel.getRangeAt(0);
       const isCtrl = (node: Node | null): boolean =>
         !!node && node.nodeType === 1 &&
-        (!!(node as Element).matches?.("input, select") || !!(node as Element).querySelector?.("input, select"));
+        (!!(node as Element).matches?.(PROTECTED) || !!(node as Element).querySelector?.(PROTECTED));
       if (!r.collapsed) {
-        if (r.cloneContents().querySelector("input, select")) e.preventDefault();
+        if (r.cloneContents().querySelector(PROTECTED)) e.preventDefault();
         return;
       }
       const c = r.startContainer, o = r.startOffset;
@@ -230,11 +362,16 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     });
   }
 }
-const kickoffFields = (c: CustomerDetail): [string, string][] => [
-  ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
-  ["gstin", c.gstin ?? ""], ["email", c.email ?? ""], ["mobile", c.mobile ?? ""],
-  ["contact", c.mobile ?? ""], ["consultant", ""], ["segment", ""],
-];
+const kickoffFields = (c: CustomerDetail, version = "1.0"): [string, string][] => {
+  const code = (c.companyUniqueCode ?? "").trim();
+  return [
+    ["documentCode", code ? `IA-ERP-KO-${code}` : "IA-ERP-KO-001"],
+    ["version", version || "1.0"],
+    ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
+    ["gstin", c.gstin ?? ""], ["email", c.email ?? ""], ["mobile", c.mobile ?? ""],
+    ["contact", c.mobile ?? ""], ["consultant", ""], ["segment", ""],
+  ];
+};
 /** Sign-Off placeholders. When live auto-fill data `d` is available (fetched on open) the fields
  *  come from there; otherwise falls back to the client's own companyName/address/city so the
  *  document still opens meaningfully. */
@@ -348,6 +485,10 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   const [docMeta, setDocMeta] = useState<ClientDocMeta[]>([]);
   // Which doc's Download menu (PDF / HTML) is open, if any.
   const [dlMenu, setDlMenu] = useState<ClientDocType | null>(null);
+  // Save/Email audit-history modal: which doc it's open for + its rows + loading state.
+  const [historyFor, setHistoryFor] = useState<ClientDocType | null>(null);
+  const [historyItems, setHistoryItems] = useState<ClientDocHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // In-place edit state
   const [editing, setEditing] = useState(false);
@@ -504,11 +645,25 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     if (!docClientCode) return;
     clientDocsApi.meta(docClientCode).then((r) => setDocMeta(r?.success ? (r.data || []) : [])).catch(() => {});
   };
+  const loadHistory = (docType: ClientDocType) => {
+    if (!docClientCode) return;
+    setHistoryLoading(true);
+    clientDocsApi.history(docClientCode, docType)
+      .then((r) => setHistoryItems(r?.success ? (r.data || []) : []))
+      .catch(() => setHistoryItems([]))
+      .finally(() => setHistoryLoading(false));
+  };
+  const openHistory = (docType: ClientDocType) => { setHistoryFor(docType); setHistoryItems([]); loadHistory(docType); };
 
   const fetchFilledTemplate = async (docType: ClientDocType): Promise<string> => {
     const res = await fetch(docType === "SignOff" ? "/signoff.html" : "/kickoff.html", { cache: "no-store" });
     let html = await res.text();
-    if (docType !== "SignOff") return fillTemplate(html, kickoffFields(c));
+    if (docType !== "SignOff") {
+      // Kick-Off: fill the live send-version (1.0 → 1.1 → … per email) so it matches the Sign-Off flow.
+      let version = "1.0";
+      try { const vr = await clientDocsApi.version(docClientCode, "KickOff"); if (vr?.success && vr.version) version = vr.version; } catch { /* keep 1.0 */ }
+      return fillTemplate(html, kickoffFields(c, version));
+    }
 
     // Sign-Off: fetch the live auto-fill data (control DB + client DB + app DB). Degrade
     // gracefully — if the backend or client DB is unreachable, open with the client fallback.
@@ -532,6 +687,39 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       .replace('id="goLiveDate">', `id="goLiveDate" value="${todayIso}">`)
       .replace('id="projCompletionDate">', `id="projCompletionDate" value="${todayIso}">`)
       .replace('id="acceptedGoLiveDate">', `id="acceptedGoLiveDate" value="${todayIso}">`);
+
+    // §8 Support Email — a FIXED base email (maheshpatidar…, always shown) + a dropdown to ADD
+    // more active Support-role emails. The result renders as plain comma-separated text
+    // (.ms-display, non-editable so the user can't break it) on save/print; the interactive
+    // control (.indus-msctl) is stripped by cleanDocHtml. Falls back to the fixed email alone
+    // when the option list is unavailable.
+    const supportEmails = data?.supportEmails ?? [];
+    const fixedEmail = (data?.supportEmail || "maheshpatidar.indusanalytics@gmail.com").trim();
+    if (supportEmails.length) {
+      const options = supportEmails.filter((e) => e.trim().toLowerCase() !== fixedEmail.toLowerCase());
+      const opts = options.map((e) =>
+        `<label class="ms-opt" style="display:block;padding:4px 12px;font:400 11.5px 'Segoe UI',system-ui,sans-serif;white-space:nowrap;cursor:pointer;">` +
+        `<input type="checkbox" value="${esc(e)}" style="margin-right:7px;vertical-align:middle;">${esc(e)}</label>`
+      ).join("");
+      const ctrl =
+        `<span class="ms-display" contenteditable="false" data-fixed="${esc(fixedEmail)}">${esc(fixedEmail)}</span>` +
+        `<span class="indus-msctl" contenteditable="false" style="position:relative;display:inline-block;margin-left:8px;vertical-align:middle;">` +
+          `<button type="button" class="ms-btn" style="cursor:pointer;border:1px solid #0f6a72;background:#eaf5f6;color:#0f6a72;border-radius:5px;padding:2px 10px;font:600 11px 'Segoe UI',system-ui,sans-serif;">▼ Add Email</button>` +
+          `<div class="ms-panel" style="display:none;position:absolute;top:100%;left:0;z-index:60;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.15);max-height:230px;overflow:auto;min-width:250px;margin-top:4px;">${opts}</div>` +
+        `</span>`;
+      html = html.replace(
+        /(<td class="fill" id="supportEmailCell">)[\s\S]*?(<\/td>)/,
+        (_m, open: string, close: string) => open + ctrl + close,
+      );
+    }
+
+    // §8 Support SPOC + Support Contact follow §2 Implementation Engineer. Embed the active-user
+    // name/email → mobile map so injectDocToolbar can look up the mobile client-side as the user
+    // edits the engineer name (stripped from saved HTML by cleanDocHtml).
+    const userMobiles = data?.userMobiles ?? {};
+    if (Object.keys(userMobiles).length) {
+      html = html.replace('id="supportContactCell"', `id="supportContactCell" data-mobiles="${esc(JSON.stringify(userMobiles))}"`);
+    }
     return html;
   };
 
@@ -546,6 +734,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       if (res?.success) {
         btn.textContent = "✓ Saved"; btn.style.background = "#0a7d3c";
         refreshDocMeta();
+        if (historyFor === docType) loadHistory(docType);
         setFlash(`${docType === "SignOff" ? "Sign-Off" : "Kick-Off"} document saved.`);
         setTimeout(() => { try { btn.textContent = orig; btn.style.background = "#137a44"; btn.disabled = false; } catch { /* window closed */ } }, 2200);
       } else {
@@ -571,14 +760,16 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     } catch { /* ignore */ }
     (async () => {
       let html: string;
+      let loadedSaved = false;
       try {
         if (mode === "view") {
           const r = await clientDocsApi.get(docClientCode, docType);
           if (!r?.success || !r.data) { try { w.close(); } catch { /* */ } setFlash("No saved document to view."); return; }
-          html = r.data.htmlContent;
+          html = r.data.htmlContent; loadedSaved = true;
         } else if (docMetaFor(docType)) {
           const r = await clientDocsApi.get(docClientCode, docType);
-          html = r?.success && r.data ? r.data.htmlContent : await fetchFilledTemplate(docType);
+          if (r?.success && r.data) { html = r.data.htmlContent; loadedSaved = true; }
+          else html = await fetchFilledTemplate(docType);
         } else {
           html = await fetchFilledTemplate(docType);
         }
@@ -587,9 +778,21 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         alert("Failed to open document: " + e);
         return;
       }
+      // A saved Kick-Off / Sign-Off bakes the Version as static text at save time, but the version
+      // bumps on every email send (1.0 → 1.1 → …). In EDIT mode ("Open Document") re-fetch the live
+      // version and patch it so the working copy reflects the current send revision. "View Saved"
+      // (view mode) intentionally shows the frozen document as-is — its Version stays as saved.
+      let liveVersion: string | null = null;
+      if (loadedSaved && mode === "edit") {
+        try {
+          const vr = await clientDocsApi.version(docClientCode, docType);
+          if (vr?.success) liveVersion = vr.version ?? null;
+        } catch { /* keep the baked version */ }
+      }
       try { w.document.open(); w.document.write(html); w.document.close(); } catch { /* */ }
       setTimeout(() => {
         try {
+          if (liveVersion) patchDocVersion(w.document, liveVersion);
           injectDocToolbar(w, mode, mode === "edit" ? (btn) => saveFromWindow(w, docType, btn) : undefined, docType === "SignOff" && !canEditSignoffTemplate);
           w.focus();
         } catch { /* window closed */ }
@@ -677,9 +880,13 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         context: { clientCode: docClientCode, clientName: c.companyName ?? undefined, module: label },
         onSent: () => {
           setFlash(`${label} document emailed to the client.`);
-          // Email actually sent → bump the send revision so the Sign-Off Version
-          // increments (1.0 → 1.1 → …) the next time this document is opened.
-          void clientDocsApi.markSent(docClientCode, docType).then(refreshDocMeta);
+          // Email actually sent → log an audit entry (who / to whom / version) + bump the send
+          // revision so the Sign-Off Version increments (1.0 → 1.1 → …) the next time it's opened.
+          void clientDocsApi.markSent(docClientCode, docType, {
+            actorUserId: sUser.UserID ?? null,
+            actorName: sUser.name ?? null,
+            recipient: c.email ?? null,
+          }).then(() => { refreshDocMeta(); if (historyFor === docType) loadHistory(docType); });
         },
       });
     } catch (e) {
@@ -726,7 +933,48 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
             </div>
           )}
           {meta && <Button variant="outline" size="sm" icon={Mail} onClick={() => emailDoc(docType, label)}>Email to Client</Button>}
+          {meta && <Button variant="outline" size="sm" icon={History} onClick={() => openHistory(docType)}>History</Button>}
         </div>
+
+        {historyFor === docType && (
+          <div onClick={() => setHistoryFor(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,.45)", display: "grid", placeItems: "center", padding: 20 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 96vw)", maxHeight: "82vh", display: "flex", flexDirection: "column", background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 14, boxShadow: "0 24px 60px rgba(0,0,0,.28)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 18px", background: "rgb(var(--color-primary))", color: "#fff" }}>
+                <History size={18} />
+                <span style={{ fontWeight: 700, fontSize: 15 }}>{label} — Save &amp; Email History</span>
+                <button onClick={() => setHistoryFor(null)} style={{ marginLeft: "auto", background: "transparent", border: "none", color: "#fff", cursor: "pointer", display: "inline-flex", padding: 2 }}><X size={18} /></button>
+              </div>
+              <div style={{ overflow: "auto" }}>
+                {historyLoading ? (
+                  <div style={{ padding: 30, textAlign: "center", color: T.muted, fontSize: 13 }}>Loading history…</div>
+                ) : historyItems.length === 0 ? (
+                  <div style={{ padding: 30, textAlign: "center", color: T.faint, fontSize: 13 }}>No Save or Email activity recorded yet.</div>
+                ) : (
+                  historyItems.map((h) => {
+                    const emailed = h.action === "Emailed";
+                    return (
+                      <div key={h.historyId} style={{ display: "flex", gap: 12, padding: "12px 16px", borderBottom: `1px solid ${T.bd}` }}>
+                        <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: emailed ? "#e8f0fe" : "#e7f6ec", color: emailed ? "#1a56db" : "#0a7d3c" }}>
+                          {emailed ? <Mail size={16} /> : <Save size={16} />}
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13.5, color: T.fg, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            {emailed ? "Emailed to client" : "Saved final version"}
+                            {h.version ? <span style={{ fontSize: 11, fontWeight: 700, color: emailed ? "#1a56db" : "#0a7d3c", background: emailed ? "#e8f0fe" : "#e7f6ec", padding: "1px 8px", borderRadius: 20 }}>v{h.version}</span> : null}
+                          </div>
+                          <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
+                            by <b style={{ color: T.fg }}>{h.actorName || "Unknown"}</b> · {fmtHistoryDate(h.createdAt)}
+                          </div>
+                          {emailed && h.recipient ? <div style={{ fontSize: 12, color: T.muted, marginTop: 1, wordBreak: "break-all" }}>to {h.recipient}</div> : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

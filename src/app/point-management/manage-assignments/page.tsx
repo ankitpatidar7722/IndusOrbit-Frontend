@@ -4,10 +4,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Page, Button, Badge, StandardModal, Dropdown, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
-import { UserCog, XCircle } from "lucide-react";
+import { UserCog, XCircle, Eye } from "lucide-react";
 import { PmGuard } from "../PmGuard";
 import { usePmContext } from "../PmContext";
 import { gridFeatures, PmHeader } from "../shared";
+import { usePointDrawer, PointDrawer } from "../PointDrawer";
 import { pmApi, statusVariant, priorityVariant, fmtDate, type AssignmentRow, type PmUser } from "@/lib/tms";
 
 const dash = (v?: string | null) => (v && String(v).trim() ? v : "—");
@@ -28,6 +29,8 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
     pmApi.assignments().then(setRows).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }, []);
   useEffect(() => { reload(); pmApi.users("Developer").then(setDevs).catch(() => {}); }, [reload]);
+
+  const drawer = usePointDrawer(reload);   // "View" opens the full point detail drawer
 
   async function doReassign() {
     if (!reassignFor || !reassignFor.ticketID || !newDev) return;
@@ -67,9 +70,12 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
     { accessorKey: "module", header: "Module", size: 150, cell: ({ row }) => dash(row.original.module) },
     { accessorKey: "subModule", header: "Sub Module", size: 160, cell: ({ row }) => dash(row.original.subModule) },
     {
-      id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 240,
+      id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 300,
       cell: ({ row }) => (
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          <Button size="sm" variant="action-secondary" icon={Eye} onClick={() => drawer.open(row.original.pointID)} disabled={busy}>
+            View
+          </Button>
           <Button size="sm" variant="action-edit" icon={UserCog} onClick={() => { setReassignFor(row.original); setNewDev(""); }} disabled={busy}>
             Reassign
           </Button>
@@ -80,7 +86,7 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [busy, devs]);
+  ], [busy, devs, drawer]);
 
   if (loading) return <BrandedLoader size="lg" text="Loading assignments…" />;
 
@@ -105,6 +111,7 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
           options={[{ value: "", label: "— Select developer —" }, ...devs.map((d) => ({ value: String(d.userID), label: d.fullName }))]}
           placeholder="— Select developer —" searchable size="md" />
       </StandardModal>
+      <PointDrawer drawer={drawer} actions={null} uploaderId={tmsUserId} />
       <AlertComponent />
     </Page>
   );

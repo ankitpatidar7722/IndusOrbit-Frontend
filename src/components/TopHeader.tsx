@@ -8,10 +8,19 @@ import NotificationBell from "@/components/NotificationBell";
 import { useMessagingPanel } from "@/components/messaging/MessagingPanelProvider";
 import { useMessaging } from "@/contexts/MessagingContext";
 import HeaderEmailMenu from "@/components/HeaderEmailMenu";
+import { toggleMobileNav } from "@/components/MobileNav";
 import { photoUrl } from "@/lib/users";
 
-/** Toggle the indas-ui AppShell sidebar by clicking its built-in expand/collapse button. */
+/**
+ * Toggle the sidebar. Below the AppShell `lg` breakpoint (1024px) the sidebar is an off-canvas
+ * drawer that indas-ui can't open on its own — so there we flip our own `mobi-nav-open` body
+ * class (see MobileNav + globals.css). On desktop we click AppShell's Expand/Collapse button.
+ */
 function toggleSidebar() {
+  if (typeof window !== "undefined" && window.innerWidth < 1024) {
+    toggleMobileNav();
+    return;
+  }
   const btn = document.querySelector(
     'button[title="Expand sidebar"], button[title="Collapse sidebar"]'
   ) as HTMLButtonElement | null;
@@ -34,6 +43,7 @@ export default function TopHeader() {
 
   return (
     <header
+      className="app-topbar"
       style={{
         position: "relative",
         zIndex: 30,
@@ -55,11 +65,12 @@ export default function TopHeader() {
         <PanelLeft size={18} />
       </button>
 
-      {/* Logo (single) */}
-      <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: 0.2, whiteSpace: "nowrap", flexShrink: 0 }}>Indus Command Center</div>
+      {/* Logo (single) — full text on desktop, short "Indus 360" on mobile (see globals .app-topbar) */}
+      <div className="topbar-title" style={{ fontWeight: 800, fontSize: 17, letterSpacing: 0.2, whiteSpace: "nowrap", flexShrink: 0 }}>Indus Command Center</div>
+      <div className="topbar-title-short" style={{ fontWeight: 800, fontSize: 16, whiteSpace: "nowrap", flexShrink: 0 }}>Indus 360</div>
 
-      {/* Greeting */}
-      <div style={{ fontSize: 13.5, opacity: 0.92, whiteSpace: "nowrap" }}>Hello <b>{name}</b></div>
+      {/* Greeting — hidden on small screens to save header width */}
+      <div className="topbar-greeting" style={{ fontSize: 13.5, opacity: 0.92, whiteSpace: "nowrap" }}>Hello <b>{name}</b></div>
 
       {/* Theme toggle (light / dark) — flips the whole app */}
       <button style={{ ...iconBtn, marginLeft: "auto" }} onClick={() => themeCtx?.toggleMode()}
@@ -67,8 +78,8 @@ export default function TopHeader() {
         {isDark ? <Sun size={18} /> : <Moon size={18} />}
       </button>
 
-      {/* Icons */}
-      <button style={{ ...iconBtn, position: "relative" }} title="Chat" onClick={openMessaging}>
+      {/* Icons — Chat lives in the mobile bottom-nav, so hide it here on phones. */}
+      <button className="hide-on-mobile" style={{ ...iconBtn, position: "relative" }} title="Chat" onClick={openMessaging}>
         <MessageSquare size={18} />
         {chatUnread > 0 && (
           <span style={{ position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, background: "#22c55e", color: "#fff", fontSize: 10, fontWeight: 700, display: "grid", placeItems: "center", padding: "0 4px", border: "2px solid rgb(var(--color-primary-hover))", boxSizing: "content-box" }}>

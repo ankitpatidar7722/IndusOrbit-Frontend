@@ -110,7 +110,7 @@ export default function HeaderEmailMenu({ iconBtn }: { iconBtn: React.CSSPropert
       </button>
 
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, width: 384, maxWidth: "92vw", background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 14, boxShadow: "0 18px 50px -12px rgba(16,24,40,.35), 0 4px 12px rgba(16,24,40,.12)", overflow: "hidden", zIndex: 1000 }}>
+        <div className="header-popover" style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, width: 384, maxWidth: "92vw", background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 14, boxShadow: "0 18px 50px -12px rgba(16,24,40,.35), 0 4px 12px rgba(16,24,40,.12)", overflow: "hidden", zIndex: 1000 }}>
           {/* Header */}
           <div style={{ padding: "13px 16px", borderBottom: `1px solid ${T.bd}` }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>

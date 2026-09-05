@@ -30,6 +30,19 @@ export interface SaveClientDocReq {
   savedByName?: string | null;
 }
 
+/** One audit-log entry: a Save or an Email of the document. */
+export interface ClientDocHistoryItem {
+  historyId: number;
+  clientCode: string;
+  docType: ClientDocType;
+  action: "Saved" | "Emailed";
+  version?: string | null;
+  actorUserId?: number | null;
+  actorName?: string | null;
+  recipient?: string | null;
+  createdAt: string;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
   return res.json();
@@ -100,15 +113,33 @@ export const clientDocsApi = {
     } catch { return null; }
   },
 
-  /** Record that the finalized document was emailed to the client — bumps the send revision
-   *  so the Sign-Off Version increments (1.0 → 1.1 → …) on the next open. Best-effort. */
-  markSent: async (clientCode: string, docType: ClientDocType): Promise<void> => {
+  /** Record that the finalized document was emailed to the client — logs an audit entry
+   *  (who / to whom / version) and bumps the send revision so the Version increments on the
+   *  next open. Best-effort. */
+  markSent: async (
+    clientCode: string,
+    docType: ClientDocType,
+    opts?: { actorUserId?: number | null; actorName?: string | null; recipient?: string | null },
+  ): Promise<void> => {
     try {
       await fetch(`${BASE}/api/client-documents/${encodeURIComponent(clientCode)}/${docType}/mark-sent`, {
         method: "POST",
-        headers: { ...userIdHeader() },
+        headers: { "Content-Type": "application/json", ...userIdHeader() },
+        body: JSON.stringify(opts ?? {}),
         cache: "no-store",
       });
     } catch { /* non-critical — version just won't bump this send */ }
   },
+
+  /** Full Save + Email audit trail for a client's document (newest first). */
+  history: (clientCode: string, docType: ClientDocType) =>
+    get<{ success: boolean; data: ClientDocHistoryItem[] }>(
+      `/api/client-documents/${encodeURIComponent(clientCode)}/${docType}/history`,
+    ),
+
+  /** Current document version ("1.{send-revision}") for filling / patching the version. */
+  version: (clientCode: string, docType: ClientDocType) =>
+    get<{ success: boolean; version: string }>(
+      `/api/client-documents/${encodeURIComponent(clientCode)}/${docType}/version`,
+    ),
 };

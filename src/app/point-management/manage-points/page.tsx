@@ -161,7 +161,7 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
       <PmHeader page="manage-points" />
       {err && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err}</small></div>}
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
+      <div className="mp-filters" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
         <div style={{ width: 200 }}>
           <Dropdown value={status} onValueChange={(v) => setStatus(String(v))}
             options={[{ value: "", label: "All statuses" }, ...STATUSES.map((s) => ({ value: s, label: s }))]} searchable size="md" />
@@ -183,6 +183,7 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
           data={rows} columns={columns}
           getRowId={(r) => String(r.pointID)}
           mainColumns="description"
+          cardColumns={["pointID", "customerName", "reportedByName", "status"]}
           rightFrozenColumns={["sendtracker", "actions"]}
           {...gridFeatures}
         />

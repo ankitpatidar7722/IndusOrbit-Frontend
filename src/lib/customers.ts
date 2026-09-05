@@ -113,7 +113,8 @@ export interface SignoffData {
   companyName: string; address: string; city: string;
   projectStartDate: string; projectStartDateIso: string; goLiveDate: string; projectCompletionDate: string;
   contactPerson: string; implementationEngineer: string; implementationEngineerMobile: string;
-  implementationHead: string; supportEmail: string; inScopeModules: string[];
+  implementationHead: string; supportEmail: string; supportEmails?: string[];
+  userMobiles?: Record<string, string>; inScopeModules: string[];
 }
 
 async function get<T>(path: string): Promise<T> {

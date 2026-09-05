@@ -168,7 +168,7 @@ function EntityFormModal({
   return (
     <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size="lg" showFooter={!readOnly}
       onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
+      <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
         {fields.map((fd) => {
           const val = (f[fd.key] as string) ?? "";
           const span = fd.full || fd.type === "textarea" ? { gridColumn: "1 / -1" } : undefined;
@@ -936,7 +936,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
   return (
     <div>
       {flashBar}
-      <div style={{ marginBottom: 14 }}>
+      <div className="scroll-tabs" style={{ marginBottom: 14 }}>
         <Tabs tabs={subTabs} activeTab={sub} onTabChange={setSub} variant="rounded" size="sm" />
       </div>
       {sub === "milestones" && (
