@@ -56,6 +56,14 @@ export interface ChatParticipant {
   lastReadAt: string | null;
   isMuted: boolean;
   joinedAt: string;
+  /** Set when the user left / was removed — they become a read-only "past member". Absent = active. */
+  leftAt?: string | null;
+  /** Set when the user deleted the group from THEIR list only. Absent = visible to them. */
+  hiddenAt?: string | null;
+  /** Per-user: pin this chat to the top of MY list. */
+  isPinned?: boolean;
+  /** Per-user: set when I archived this chat out of my main list. Absent = not archived. */
+  archivedAt?: string | null;
 }
 export interface ChatReaction { emoji: string; userIds: number[] }
 export interface ChatAttachment { fileName: string; fileUrl: string; fileSize: number; mimeType: string }
@@ -64,7 +72,7 @@ export interface UnreadCount { RoomID: number; UnreadCount: number }
 
 export interface CreateRoomRequest { Type: "Group" | "Channel"; Name: string; Description?: string; IsPublic?: boolean; IsReadOnly?: boolean; ParticipantsJson: string }
 export interface CreateDMRequest { TargetUserID: number; TargetUserName: string }
-export interface SendMessageRequest { Content?: string; MessageType?: string; ParentMessageID?: number; AttachmentsJson?: string }
+export interface SendMessageRequest { Content?: string; MessageType?: string; ParentMessageID?: number; AttachmentsJson?: string; Mentions?: number[] }
 export interface UpdateRoomRequest { Name?: string; Description?: string; IsPublic?: boolean; IsReadOnly?: boolean; ParticipantsJson?: string }
 
 export interface APIResponse<T> { success: boolean; data?: T; error?: string }
@@ -122,6 +130,8 @@ class MessagingAPI {
   static getMessages(roomId: number, session: Session, page = 1, pageSize = 50) {
     return req<ChatMessage[]>("GET", `/api/messaging/conversations/${roomId}/messages?page=${page}&pageSize=${pageSize}`, session).then((r) => ({ ...r, data: r.data ?? [] }));
   }
+  /** All attachment + link messages shared in a room — the "Media, Docs & Links" gallery. */
+  static getSharedMedia(roomId: number, session: Session) { return req<ChatMessage[]>("GET", `/api/messaging/conversations/${roomId}/shared`, session).then((r) => ({ ...r, data: r.data ?? [] })); }
   static sendMessage(roomId: number, request: SendMessageRequest, session: Session) { return req<ChatMessage>("POST", `/api/messaging/conversations/${roomId}/messages`, session, request); }
   static editMessage(messageId: number, content: string, session: Session) { return req<ChatMessage>("POST", `/api/messaging/messages/${messageId}/edit`, session, { Content: content }); }
   static deleteMessage(messageId: number, session: Session) { return req<{ Message: string }>("POST", `/api/messaging/messages/${messageId}/delete`, session, {}); }
@@ -142,6 +152,10 @@ class MessagingAPI {
   static setGroupReadOnly(roomId: number, isReadOnly: boolean, session: Session) { return req<{ Message: string }>("POST", `/api/messaging/conversations/${roomId}/settings`, session, { IsReadOnly: isReadOnly }); }
   static setMemberRole(roomId: number, targetUserId: number, role: "Admin" | "Member", session: Session) { return req<{ Message: string }>("POST", `/api/messaging/conversations/${roomId}/members/${targetUserId}/role`, session, { Role: role }); }
   static deleteRoom(roomId: number, session: Session) { return req<{ Message: string }>("POST", `/api/messaging/conversations/${roomId}/delete`, session, {}); }
+  /** "Delete group for me" — removes the room from the caller's list only (does NOT delete for others). */
+  static deleteRoomForMe(roomId: number, session: Session) { return req<{ Message: string }>("POST", `/api/messaging/conversations/${roomId}/delete-for-me`, session, {}); }
+  /** Per-user chat prefs: mute / pin / archive (only the passed flags change). */
+  static setChatPrefs(roomId: number, prefs: { mute?: boolean; pin?: boolean; archive?: boolean }, session: Session) { return req<{ Message: string }>("POST", `/api/messaging/conversations/${roomId}/prefs`, session, { Mute: prefs.mute, Pin: prefs.pin, Archive: prefs.archive }); }
   static getUnreadCounts(session: Session) { return req<UnreadCount[]>("GET", "/api/messaging/unread-counts", session).then((r) => ({ ...r, data: r.data ?? [] })); }
   static getOnlineUsers(session: Session) { return req<string[]>("GET", "/api/messaging/online-users", session).then((r) => ({ ...r, data: r.data ?? [] })); }
   static getLastSeen(userId: number, session: Session) { return req<{ userId: number; isOnline: boolean; lastSeenAt: string | null }>("GET", `/api/messaging/last-seen/${userId}`, session); }

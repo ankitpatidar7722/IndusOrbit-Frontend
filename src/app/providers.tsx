@@ -17,6 +17,7 @@ import NotificationToaster from "@/components/NotificationToaster";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import MobileNav from "@/components/MobileNav";
 import BottomNav from "@/components/BottomNav";
+import RouteAccessGuard from "@/components/RouteAccessGuard";
 
 /**
  * Renders the app shell (with the DB-driven sidebar) only when authenticated.
@@ -64,7 +65,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <TopHeader />
             <div style={{ flex: 1, minHeight: 0 }}>
               <AppShell sidebar={{ companyId: u.CompanyID, userId: u.UserID }}>
-                {children}
+                <RouteAccessGuard>{children}</RouteAccessGuard>
               </AppShell>
             </div>
             {/* Native-app bottom navigation — mobile only (hidden ≥ lg via CSS). */}

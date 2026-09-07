@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up your AI Summary key · Indus Command Center</title>
+<style>
+  :root{
+    --bg:#f5f8fb; --surface:#ffffff; --panel:#eef3f8; --ink:#16202c; --muted:#586777;
+    --line:#e3eaf1; --navy:#1f4576; --navy-soft:#eaf0f9; --teal:#0f6a72; --teal-soft:#e3f2f2;
+    --green:#0f8a4d; --amber:#8a5a00; --amber-soft:#fdf3dc;
+    --shadow:0 1px 2px rgba(16,32,54,.04), 0 12px 30px -18px rgba(16,32,54,.28);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d131b; --surface:#151f2b; --panel:#1b2734; --ink:#e7eef6; --muted:#93a3b4;
+      --line:#273545; --navy:#7aa2e0; --navy-soft:#1a2740; --teal:#43b6c0; --teal-soft:#123037;
+      --green:#3ec27d; --amber:#e0b25a; --amber-soft:#2a2314;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d131b; --surface:#151f2b; --panel:#1b2734; --ink:#e7eef6; --muted:#93a3b4;
+    --line:#273545; --navy:#7aa2e0; --navy-soft:#1a2740; --teal:#43b6c0; --teal-soft:#123037;
+    --green:#3ec27d; --amber:#e0b25a; --amber-soft:#2a2314;
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f8fb; --surface:#ffffff; --panel:#eef3f8; --ink:#16202c; --muted:#586777;
+    --line:#e3eaf1; --navy:#1f4576; --navy-soft:#eaf0f9; --teal:#0f6a72; --teal-soft:#e3f2f2;
+    --green:#0f8a4d; --amber:#8a5a00; --amber-soft:#fdf3dc;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.62 "Segoe UI", ui-sans-serif, system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* language switch: only one language's text shows at a time */
+  body.lang-en .hi{ display:none !important; }
+  body.lang-hi .en{ display:none !important; }
+  body.lang-hi{ font-family:"Nirmala UI","Noto Sans Devanagari","Segoe UI",system-ui,sans-serif; }
+  .hi{ font-family:"Nirmala UI","Noto Sans Devanagari","Segoe UI",system-ui,sans-serif; }
+
+  .langbar{
+    position:sticky; top:0; z-index:20; display:flex; gap:8px; justify-content:flex-end; align-items:center;
+    padding:12px 22px; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .langbar .lbl{ margin-right:auto; font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; }
+  .lang-btn{
+    font:600 13px "Segoe UI",sans-serif; padding:7px 16px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  }
+  .lang-btn.on{ background:var(--navy); border-color:var(--navy); color:#fff; }
+
+  .wrap{ max-width:760px; margin:0 auto; padding:26px 22px 72px; }
+  code, .mono{ font-family:ui-monospace, "Cascadia Code", "Consolas", monospace; }
+
+  .eyebrow{ font-size:11.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  h1{ font-size:31px; line-height:1.18; letter-spacing:-.015em; margin:12px 0 0; text-wrap:balance; }
+  .lede{ font-size:16px; color:var(--muted); margin:14px 0 0; max-width:62ch; }
+  .why{
+    display:flex; gap:12px; align-items:flex-start; margin-top:22px; padding:14px 16px;
+    background:var(--teal-soft); border:1px solid var(--line); border-radius:12px; font-size:14px; line-height:1.7;
+  }
+  .why b{ color:var(--ink); }
+  .why .spark{ flex:none; width:22px; height:22px; }
+
+  .part{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:8px 22px 22px; margin-top:26px; box-shadow:var(--shadow); }
+  .part-head{ display:flex; align-items:center; gap:11px; padding:16px 0 6px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+  .tag{ font:700 11px/1.2 "Segoe UI",sans-serif; letter-spacing:.08em; text-transform:uppercase; padding:5px 9px; border-radius:999px; white-space:nowrap; }
+  .tag.google{ color:var(--teal); background:var(--teal-soft); }
+  .tag.app{ color:var(--navy); background:var(--navy-soft); }
+  .part-head h2{ font-size:19px; margin:0; letter-spacing:-.01em; }
+  .part-head .sub{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.55; }
+
+  ol.steps{ list-style:none; margin:0; padding:0; }
+  ol.steps > li{ display:grid; grid-template-columns:34px 1fr; gap:16px; padding:18px 0; border-top:1px solid var(--line); }
+  ol.steps > li:first-child{ border-top:0; }
+  .num{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font:700 15px/1 "Segoe UI",sans-serif; color:#fff; }
+  .sb{ min-width:0; }
+  .google .num{ background:var(--teal); }
+  .app .num{ background:var(--navy); }
+  .step-t{ font-size:15.5px; font-weight:650; margin:5px 0 0; line-height:1.4; }
+  .step-d{ font-size:14px; color:var(--muted); margin:6px 0 0; line-height:1.65; }
+  .step-d a{ color:var(--teal); font-weight:600; word-break:break-word; }
+  .app .step-d a{ color:var(--navy); }
+  .hint{ display:inline-flex; align-items:center; gap:7px; margin-top:9px; padding:6px 11px; border-radius:8px; background:var(--panel); border:1px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .hint .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); flex:none; }
+  .kbd{ font:600 12.5px/1 ui-monospace,Consolas,monospace; padding:3px 8px; border-radius:6px; background:var(--navy-soft); color:var(--navy); border:1px solid var(--line); white-space:nowrap; }
+  .kbd.t{ background:var(--teal-soft); color:var(--teal); }
+
+  /* screenshot figure */
+  figure.shot{ margin:13px 0 2px; border:1px solid var(--line); border-radius:11px; overflow:hidden; box-shadow:var(--shadow); }
+  figure.shot img{ display:block; width:100%; height:auto; }
+  figure.shot figcaption{ font-size:11.5px; color:var(--muted); padding:7px 13px; border-top:1px solid var(--line); background:var(--surface); line-height:1.5; }
+
+  .use{ margin-top:26px; padding:20px 22px; border-radius:16px; background:#20406e; color:#fff; box-shadow:var(--shadow); }
+  .use h2{ margin:0 0 6px; font-size:18px; display:flex; align-items:center; gap:9px; }
+  .use p{ margin:0; font-size:14.5px; color:rgba(255,255,255,.9); line-height:1.65; }
+  .use figure.shot{ margin-top:14px; border-color:rgba(255,255,255,.18); }
+  .use figure.shot figcaption{ background:rgba(255,255,255,.06); color:rgba(255,255,255,.75); border-top-color:rgba(255,255,255,.14); }
+
+  .notes{ margin-top:26px; }
+  .notes h3{ font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:0 0 12px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .note{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .note .h{ font-size:14px; font-weight:650; display:flex; align-items:center; gap:8px; }
+  .note p{ margin:6px 0 0; font-size:13px; color:var(--muted); line-height:1.6; }
+  .note .ic{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .ic.g{ background:var(--green); } .ic.n{ background:var(--navy); } .ic.t{ background:var(--teal); } .ic.a{ background:var(--amber); }
+  .trouble{ margin-top:14px; padding:14px 16px; background:var(--amber-soft); border:1px solid var(--line); border-radius:12px; font-size:13px; line-height:1.65; }
+  .trouble b{ color:var(--ink); }
+  footer{ margin-top:36px; padding-top:18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  svg{ display:block; }
+  @media (max-width:560px){ h1{ font-size:26px; } .grid{ grid-template-columns:1fr; } ol.steps > li{ grid-template-columns:30px 1fr; gap:13px; } }
+</style>
+</head>
+<body class="lang-en">
+
+<div class="langbar">
+  <span class="lbl"><span class="en">Language</span><span class="hi">भाषा</span></span>
+  <button class="lang-btn" data-lang="en">English</button>
+  <button class="lang-btn" data-lang="hi">हिन्दी</button>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><span class="en">Indus Command Center · Setup Guide</span><span class="hi">Indus Command Center · सेटअप गाइड</span></div>
+    <h1><span class="en">Set up your AI Summary key</span><span class="hi">अपनी AI Summary key सेट करें</span></h1>
+    <p class="lede"><span class="en">Add your own free Google&nbsp;Gemini key so the Tracker's <b>Summarize with AI</b> button works for you. It takes about two minutes, and you only do it once.</span><span class="hi">अपनी खुद की मुफ़्त Google&nbsp;Gemini key जोड़ें ताकि Tracker का <b>Summarize with AI</b> बटन आपके लिए चले। सिर्फ़ दो मिनट लगते हैं, और एक ही बार करना है।</span></p>
+    <div class="why">
+      <svg class="spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--teal)"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>
+      <div><span class="en">Every user adds their <b>own</b> key, so no one ever hits a shared limit. Your key is free and stays private to your account.</span><span class="hi">हर user अपनी <b>अलग</b> key डालता है, इसलिए किसी को limit की दिक्कत नहीं आती। Key बिलकुल मुफ़्त है और सिर्फ़ आपके account के लिए रहती है।</span></div>
+    </div>
+  </header>
+
+  <!-- PART A -->
+  <section class="part google">
+    <div class="part-head">
+      <span class="tag google"><span class="en">On Google</span><span class="hi">Google पर</span></span>
+      <div>
+        <h2><span class="en">Get your free Gemini key</span><span class="hi">अपनी मुफ़्त Gemini key लें</span></h2>
+        <div class="sub"><span class="en">From Google AI Studio — sign in with your office Google account.</span><span class="hi">Google AI Studio से — अपनी ऑफिस Google account से sign in करें।</span></div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Open Google AI Studio</span><span class="hi">Google AI Studio खोलें</span></div>
+          <p class="step-d"><span class="en">Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a> and sign in with your <b>office Google account</b>. You'll see the <b>API Keys</b> page with a <b>Create API key</b> button at the top-right.</span><span class="hi"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a> पर जाएँ और अपनी <b>ऑफिस Google account</b> से sign in करें। <b>API Keys</b> page खुलेगा, जिसमें ऊपर दाईं ओर <b>Create API key</b> बटन होगा।</span></p>
+          <figure class="shot"><img src="/guide/gemini-a-apikeys.png" alt="Google AI Studio API Keys page"><figcaption><span class="en">Google AI Studio → API Keys. The “Create API key” button is at the top-right.</span><span class="hi">Google AI Studio → API Keys. “Create API key” बटन ऊपर दाईं ओर है।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Create the API key</span><span class="hi">API key बनाएँ</span></div>
+          <p class="step-d"><span class="en">Click <span class="kbd t">Create API&nbsp;key</span>. Give it a name (e.g. <b>IndusOrbit</b>), keep the default project, and click <b>Create key</b>. It's on Google's <b>free tier</b> — no card, no cost.</span><span class="hi"><span class="kbd t">Create API&nbsp;key</span> पर click करें। कोई नाम दें (जैसे <b>IndusOrbit</b>), default project रहने दें, और <b>Create key</b> दबाएँ। यह Google के <b>free tier</b> पर है — न card, न कोई cost।</span></p>
+          <figure class="shot"><img src="/guide/gemini-a-create.png" alt="Create a new key dialog"><figcaption><span class="en">Name your key, pick the project, then click “Create key”.</span><span class="hi">Key को नाम दें, project चुनें, फिर “Create key” दबाएँ।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Copy your key</span><span class="hi">अपनी key copy करें</span></div>
+          <p class="step-d"><span class="en">A dialog shows your new key. Click <span class="kbd t">Copy key</span>. Keep it safe and don't share it with anyone.</span><span class="hi">एक dialog में आपकी नई key दिखेगी। <span class="kbd t">Copy key</span> दबाएँ। इसे safe रखें और किसी के साथ share न करें।</span></p>
+          <figure class="shot"><img src="/guide/gemini-a-copy.png" alt="API key details with Copy key button"><figcaption><span class="en">Click “Copy key”. (The key here is hidden for security.)</span><span class="hi">“Copy key” दबाएँ। (यहाँ key security के लिए छिपाई गई है।)</span></figcaption></figure>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- PART B -->
+  <section class="part app">
+    <div class="part-head">
+      <span class="tag app"><span class="en">In Indus Command Center</span><span class="hi">Indus Command Center में</span></span>
+      <div>
+        <h2><span class="en">Add the key to your profile</span><span class="hi">Key को अपनी profile में जोड़ें</span></h2>
+        <div class="sub"><span class="en">One-time — Settings keeps it saved for you.</span><span class="hi">एक ही बार — Settings इसे saved रखता है।</span></div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Open Settings</span><span class="hi">Settings खोलें</span></div>
+          <p class="step-d"><span class="en">Click your <b>profile photo</b> at the top-right, then <b>Settings</b>. On the <b>Profile</b> tab, scroll to the <b>AI Summary Key (Gemini)</b> section.</span><span class="hi">ऊपर दाईं ओर अपनी <b>profile photo</b> पर click करें, फिर <b>Settings</b>। <b>Profile</b> tab में <b>AI Summary Key (Gemini)</b> section तक scroll करें।</span></p>
+          <figure class="shot"><img src="/guide/gemini-b-settings.png" alt="Settings page with AI Summary Key section"><figcaption><span class="en">Settings → Profile tab → “AI Summary Key (Gemini)”.</span><span class="hi">Settings → Profile tab → “AI Summary Key (Gemini)”।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Paste your key and Save</span><span class="hi">अपनी key paste करके Save करें</span></div>
+          <p class="step-d"><span class="en">Click <span class="kbd">Add key</span> (or <span class="kbd">Change</span>), paste your key into the box, and click <span class="kbd">Save</span>. A green <b style="color:var(--green)">✓ Key configured</b> confirms you're done.</span><span class="hi"><span class="kbd">Add key</span> (या <span class="kbd">Change</span>) दबाएँ, अपनी key box में paste करें, और <span class="kbd">Save</span> दबाएँ। हरा <b style="color:var(--green)">✓ Key configured</b> दिखते ही हो गया।</span></p>
+          <figure class="shot"><img src="/guide/gemini-b-section.png" alt="AI Summary Key section with key field and Save"><figcaption><span class="en">Paste the key → Save. It's then stored securely and shown only as a masked value.</span><span class="hi">Key paste करें → Save। यह securely stored रहती है और सिर्फ़ masked दिखती है।</span></figcaption></figure>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- USE IT -->
+  <section class="use">
+    <h2>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>
+      <span class="en">Now use it</span><span class="hi">अब इस्तेमाल करें</span>
+    </h2>
+    <p><span class="en">Open any Tracker tab, create or edit a row, fill in the details, then click <b style="color:#fff">Summarize with AI</b>. Your summary appears in the Summary field — fully editable.</span><span class="hi">किसी भी Tracker tab में row बनाएँ/edit करें, details भरें, फिर <b style="color:#fff">Summarize with AI</b> दबाएँ। Summary अपने आप Summary field में भर जाएगी — edit भी कर सकते हैं।</span></p>
+    <figure class="shot"><img src="/guide/gemini-use.png" alt="Summarize with AI button in a Tracker row"><figcaption><span class="en">Tracker → Create / Edit a row → “Summarize with AI”.</span><span class="hi">Tracker → row Create / Edit करें → “Summarize with AI”।</span></figcaption></figure>
+  </section>
+
+  <!-- NOTES -->
+  <section class="notes">
+    <h3><span class="en">Good to know</span><span class="hi">जानने योग्य</span></h3>
+    <div class="grid">
+      <div class="note"><div class="h"><span class="ic g"></span><span class="en">It's free</span><span class="hi">मुफ़्त है</span></div><p><span class="en">Google's free tier is plenty for tracker summaries — no card, no charges.</span><span class="hi">Google का free tier tracker summaries के लिए काफ़ी है — न card, न charge।</span></p></div>
+      <div class="note"><div class="h"><span class="ic n"></span><span class="en">Only yours</span><span class="hi">सिर्फ़ आपकी</span></div><p><span class="en">Your key is tied to your account and never shown to anyone — only a masked value.</span><span class="hi">Key सिर्फ़ आपके account से जुड़ी है और किसी को नहीं दिखती — बस masked।</span></p></div>
+      <div class="note"><div class="h"><span class="ic t"></span><span class="en">Just once</span><span class="hi">एक ही बार</span></div><p><span class="en">Set it a single time. Every future summary uses it automatically.</span><span class="hi">एक बार set करें। आगे हर summary अपने आप इसी से चलेगी।</span></p></div>
+      <div class="note"><div class="h"><span class="ic a"></span><span class="en">Change anytime</span><span class="hi">कभी भी बदलें</span></div><p><span class="en">Settings → AI Summary Key → Change or Remove whenever you like.</span><span class="hi">Settings → AI Summary Key → जब चाहें Change या Remove करें।</span></p></div>
+    </div>
+    <div class="trouble">
+      <b><span class="en">Trouble?</span><span class="hi">दिक्कत?</span></b>
+      <span class="en">&nbsp;“API key not valid” → re-copy the key from Google AI Studio (no extra spaces). No summary appears → make sure you filled in some row details first, then click Summarize again.</span>
+      <span class="hi">&nbsp;“API key not valid” → key को Google AI Studio से दोबारा copy करें (कोई extra space न हो)। Summary न आए → पहले row में कुछ details भरें, फिर दोबारा Summarize दबाएँ।</span>
+    </div>
+  </section>
+
+  <footer>
+    <span><span class="en">Indus Command Center — AI Summary Key setup</span><span class="hi">Indus Command Center — AI Summary Key सेटअप</span></span>
+    <span>Indus Analytics</span>
+  </footer>
+
+</div>
+
+<script>
+  (function(){
+    var valid={en:1,hi:1};
+    function apply(l){
+      if(!valid[l]) l='en';
+      document.body.classList.remove('lang-en','lang-hi');
+      document.body.classList.add('lang-'+l);
+      var btns=document.querySelectorAll('.lang-btn');
+      for(var i=0;i<btns.length;i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-lang')===l);
+      try{ localStorage.setItem('guideLang', l); }catch(e){}
+    }
+    var params=new URLSearchParams(location.search);
+    var initial=params.get('lang') || (function(){ try{return localStorage.getItem('guideLang')}catch(e){return null} })() || 'en';
+    apply(initial);
+    document.querySelectorAll('.lang-btn').forEach(function(b){
+      b.addEventListener('click', function(){ apply(b.getAttribute('data-lang')); });
+    });
+  })();
+</script>
+</body>
+</html>

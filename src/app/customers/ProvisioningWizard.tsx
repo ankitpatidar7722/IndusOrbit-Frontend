@@ -209,12 +209,21 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
 
-  const T = (label: string, val: unknown, on: (v: string) => void, opts?: { type?: string; readOnly?: boolean; hint?: string }) => (
-    <div><Label text={label} extra={opts?.hint} />
-      <Input type={opts?.type ?? "text"} value={(val as string | number | undefined) ?? ""} onChange={(e) => on(e.target.value)} readOnly={opts?.readOnly}
-        style={opts?.readOnly ? { background: "#eef4fb", color: "#1e2a3d", fontWeight: 700, letterSpacing: 0.3 } : undefined} />
-    </div>
-  );
+  const T = (label: string, val: unknown, on: (v: string) => void, opts?: { type?: string; readOnly?: boolean; hint?: string }) => {
+    const t = opts?.type ?? "text";
+    // Mobile keyboard hints: email → @ keyboard, tel → phone pad, numeric → number pad (kept a text
+    // input so leading zeros/formatting survive). email/tel also turn off auto-capitalize/correct.
+    const inputMode = t === "email" ? "email" : t === "tel" ? "tel" : t === "numeric" ? "numeric" : undefined;
+    const htmlType = t === "numeric" ? "text" : t;
+    const noCaps = t === "email" || t === "tel";
+    return (
+      <div><Label text={label} extra={opts?.hint} />
+        <Input type={htmlType} inputMode={inputMode} autoCapitalize={noCaps ? "none" : undefined} autoCorrect={noCaps ? "off" : undefined}
+          value={(val as string | number | undefined) ?? ""} onChange={(e) => on(e.target.value)} readOnly={opts?.readOnly}
+          style={opts?.readOnly ? { background: "#eef4fb", color: "#1e2a3d", fontWeight: 700, letterSpacing: 0.3 } : undefined} />
+      </div>
+    );
+  };
   const S = (label: string, val: string, on: (v: string) => void, options: string[], extra?: { searchable?: boolean; allowCustom?: boolean }) => (
     <div><Label text={label} />
       <Dropdown
@@ -254,8 +263,8 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   if (!isOpen || typeof document === "undefined") return null;
   const meta = STEP_META[step];
   return createPortal(
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
+    <div onClick={onClose} className="provision-overlay" style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
+      <div onClick={(e) => e.stopPropagation()} className="provision-panel" style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
 
         {/* premium gradient header + step pills */}
         <div style={{ background: "linear-gradient(100deg,color-mix(in srgb, rgb(var(--color-primary)) 75%, black),rgb(var(--color-primary)) 52%,color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", padding: "15px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -336,7 +345,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {S("City", (sub.city as string) ?? "", (v) => setSub((p) => ({ ...p, city: v })), cityNames((sub.country as string) || "India", sub.state as string, sub.city as string), { searchable: true })}
           {T("Address", sub.address as string, (v) => setSub((p) => ({ ...p, address: v })))}
           {T("Email", sub.email, (v) => setSub((p) => ({ ...p, email: v })), { type: "email" })}
-          {T("Mobile", sub.mobile, (v) => setSub((p) => ({ ...p, mobile: v })))}
+          {T("Mobile", sub.mobile, (v) => setSub((p) => ({ ...p, mobile: v })), { type: "tel" })}
           {S("ERP Status", sub.subscriptionStatus as string, (v) => setSub((p) => ({ ...p, subscriptionStatus: v })), ["Active", "Expired"])}
           {S("Cloud Status", sub.cloudSubscriptionStatus as string, (v) => setSub((p) => ({ ...p, cloudSubscriptionStatus: v })), ["Active", "Expired", "Trial", "Suspended"])}
           {T("Company Login Name *", sub.companyUserID, (v) => setSub((p) => ({ ...p, companyUserID: v })))}
@@ -354,9 +363,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {S("Country", company.country ?? "", (v) => setCompany((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(company.country), { searchable: true })}
           {S("State", company.state ?? "", (v) => setCompany((p) => ({ ...p, state: v, city: "" })), stateNames(company.country, company.state), { searchable: true })}
           {S("City", company.city ?? "", (v) => setCompany((p) => ({ ...p, city: v })), cityNames(company.country, company.state, company.city), { searchable: true })}
-          {T("Pincode", company.pincode, (v) => setCompany((p) => ({ ...p, pincode: v })))}
-          {T("Mobile No", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })))}
-          {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })))}
+          {T("Pincode", company.pincode, (v) => setCompany((p) => ({ ...p, pincode: v })), { type: "numeric" })}
+          {T("Mobile No", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })), { type: "tel" })}
+          {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })), { type: "email" })}
           {T("PAN", company.pan, (v) => setCompany((p) => ({ ...p, pan: v })))}
           {T("Prod. Unit Name", company.productionUnitName, (v) => setCompany((p) => ({ ...p, productionUnitName: v })))}
         </div>
@@ -372,9 +381,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {S("State", branch.state ?? "", (v) => setBranch((p) => ({ ...p, state: v, city: "" })), stateNames(branch.country, branch.state), { searchable: true })}
           {S("City", branch.city ?? "", (v) => setBranch((p) => ({ ...p, city: v })), cityNames(branch.country, branch.state, branch.city), { searchable: true })}
           {T("District", branch.district, (v) => setBranch((p) => ({ ...p, district: v })))}
-          {T("Pincode", branch.pincode, (v) => setBranch((p) => ({ ...p, pincode: v })))}
-          {T("Mobile No", branch.mobileNo, (v) => setBranch((p) => ({ ...p, mobileNo: v })))}
-          {T("Email", branch.email, (v) => setBranch((p) => ({ ...p, email: v })))}
+          {T("Pincode", branch.pincode, (v) => setBranch((p) => ({ ...p, pincode: v })), { type: "numeric" })}
+          {T("Mobile No", branch.mobileNo, (v) => setBranch((p) => ({ ...p, mobileNo: v })), { type: "tel" })}
+          {T("Email", branch.email, (v) => setBranch((p) => ({ ...p, email: v })), { type: "email" })}
           {T("GSTIN", branch.gstin, (v) => setBranch((p) => ({ ...p, gstin: v })))}
         </div>
       )}

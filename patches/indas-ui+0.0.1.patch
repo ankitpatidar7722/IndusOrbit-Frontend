@@ -52,7 +52,7 @@ index 99c0137..6da3faa 100644
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..f759cec 100644
+index 920f23c..77602e0 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
 @@ -1154,7 +1154,8 @@ function SingleSelect({
@@ -65,7 +65,18 @@ index 920f23c..f759cec 100644
            },
            children: [
              /* @__PURE__ */ jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
-@@ -3610,7 +3611,7 @@ function DatePicker({
+@@ -2463,6 +2464,10 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+         className: "w-full text-xs bg-transparent text-[rgb(var(--fg-default))] placeholder:text-[rgb(var(--fg-muted))] focus:outline-none",
+         value: searchTerm,
+         onChange: (e) => setSearchTerm(e.target.value),
++        onPointerDown: (e) => e.stopPropagation(),
++        onMouseDown: (e) => e.stopPropagation(),
++        onTouchStart: (e) => e.stopPropagation(),
++        onClick: (e) => e.stopPropagation(),
+         onKeyDown: (e) => {
+           if (stopAllKeyPropagation) {
+             if (e.key !== "Escape") {
+@@ -3610,7 +3615,7 @@ function DatePicker({
      return returnFormat === "string" ? getLocalDateString(date) : date;
    };
    React26.useEffect(() => {
@@ -74,7 +85,7 @@ index 920f23c..f759cec 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -5632,7 +5633,7 @@ var SidebarPreferencesContext = createContext(void 0);
+@@ -5632,7 +5637,7 @@ var SidebarPreferencesContext = createContext(void 0);
  function useSidebarPreferences() {
    const context = useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -83,7 +94,7 @@ index 920f23c..f759cec 100644
    }
    return context;
  }
-@@ -5881,6 +5882,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -5881,6 +5886,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -95,7 +106,7 @@ index 920f23c..f759cec 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return Gauge;
    } else if (name.includes("sales")) {
-@@ -5993,7 +5999,7 @@ function DynamicSidebar({
+@@ -5993,7 +6003,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);

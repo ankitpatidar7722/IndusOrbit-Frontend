@@ -65,9 +65,9 @@ export default function TopHeader() {
         <PanelLeft size={18} />
       </button>
 
-      {/* Logo (single) — full text on desktop, short "Indus 360" on mobile (see globals .app-topbar) */}
+      {/* Logo (single) — full text on desktop, short "Indas Orbit" on mobile (see globals .app-topbar) */}
       <div className="topbar-title" style={{ fontWeight: 800, fontSize: 17, letterSpacing: 0.2, whiteSpace: "nowrap", flexShrink: 0 }}>Indus Command Center</div>
-      <div className="topbar-title-short" style={{ fontWeight: 800, fontSize: 16, whiteSpace: "nowrap", flexShrink: 0 }}>Indus 360</div>
+      <div className="topbar-title-short" style={{ fontWeight: 800, fontSize: 16, whiteSpace: "nowrap", flexShrink: 0 }}>Indas Orbit</div>
 
       {/* Greeting — hidden on small screens to save header width */}
       <div className="topbar-greeting" style={{ fontSize: 13.5, opacity: 0.92, whiteSpace: "nowrap" }}>Hello <b>{name}</b></div>

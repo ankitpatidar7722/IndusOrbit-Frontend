@@ -113,7 +113,7 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap", rowGap: 8 }}>
         <Badge variant="info">{enabled}/{rows.length} enabled</Badge>
         {source && (
           <Button size="sm" variant="outline" onClick={() => setCopyOpen(true)} disabled={!connStr} style={{ marginLeft: "auto" }}>
@@ -131,6 +131,7 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
           columns={columns}
           getRowId={(r) => r.moduleName}
           title="Modules"
+          cardColumns={["moduleDisplayName", "moduleName", "status"]}
           enableSearch
           enableSorting
           enablePagination
@@ -531,7 +532,7 @@ export function NewModuleTab({ app, connStr, onFlash }: { app: string; connStr: 
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="mm-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {/* Module Identity */}
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
               {customMode
@@ -551,7 +552,7 @@ export function NewModuleTab({ app, connStr, onFlash }: { app: string; connStr: 
 
             {/* Head / Order / Print */}
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="mm-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div><label style={nmLabel}>Head Display Name</label><input value={f.moduleHeadDisplayName} readOnly={!customMode} onChange={(e) => upd({ moduleHeadDisplayName: e.target.value })} style={{ ...nmInput, ...(!customMode ? nmRO : {}) }} /></div>
                 <div><label style={nmLabel}>Set Group Index<Req /></label>
                   <div style={{ position: "relative" }}>
@@ -561,11 +562,11 @@ export function NewModuleTab({ app, connStr, onFlash }: { app: string; connStr: 
                   {groupIndexClash && <NmErr text="Index already used by another Module Head." />}
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="mm-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div><label style={nmLabel}>Head Display Order<Req /></label><input type="number" value={f.moduleHeadDisplayOrder} onChange={(e) => onOrderChange(e.target.value)} style={{ ...nmInput, borderColor: orderShift ? "#e0a83a" : "#d8dee9" }} />{orderShift && <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#b7791f" }}><Info size={12} /> In use — existing will shift by +1.</div>}</div>
                 <div><label style={nmLabel}>Module Display Order</label><input type="number" value={f.moduleDisplayOrder} readOnly style={{ ...nmInput, ...nmRO }} /></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="mm-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ gridColumn: "1 / -1" }}><label style={nmLabel}>Print Web Page (optional)</label><input value={f.printWebPage} placeholder="Enter URL…" style={nmInput} onChange={(e) => upd({ printWebPage: e.target.value })} /></div>
                 <div><label style={nmLabel}>Document Name</label><input value={f.printDocName} placeholder="Common name…" style={nmInput} onChange={(e) => upd({ printDocName: e.target.value })} /></div>
                 <div><label style={nmLabel}>F-Year</label><input value={f.fYear} style={nmInput} onChange={(e) => upd({ fYear: e.target.value })} /></div>
@@ -630,7 +631,7 @@ export function ToolAuthorityTab({ customer, onFlash }: { customer: CustomerCard
       </div>
       {msg && <div style={{ color: "#8a6d1a", fontSize: 12.5, marginBottom: 8 }}>{msg}</div>}
       {loading ? <div style={{ padding: 24, textAlign: "center", opacity: 0.6 }}>Loading…</div> : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div className="mm-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {rows.map((r) => (
             <label key={r.moduleID} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: "1px solid var(--bd-subtle,#eef1f6)", borderRadius: 8, cursor: "pointer" }}>
               <input type="checkbox" checked={r.isEnabled} onChange={() => toggle(r.moduleID)} />

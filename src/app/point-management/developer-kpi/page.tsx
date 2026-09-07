@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Page, StatsGrid, StatsCard, Dropdown, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button } from "indas-ui";
+import { Page, StatsGrid, StatsCard, Dropdown, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button, useDevice } from "indas-ui";
 import { Layers, FolderOpen, CheckSquare, AlarmClock, XCircle } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
@@ -11,6 +11,7 @@ import { STATUS_CARDS, STATUS_COLORS, PIPELINE, pointColumns, lblStyle, clearBtn
 import { pmApi, type AdminDashboardStats, type PointGridRow, type PmCustomer } from "@/lib/tms";
 
 function DeveloperKpi({ devId }: { devId: number }) {
+  const { isMobile } = useDevice();
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [customers, setCustomers] = useState<PmCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,27 +72,33 @@ function DeveloperKpi({ devId }: { devId: number }) {
       <PmHeader page="developer-kpi" />
       {err && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err}</small></div>}
 
-      {/* Filters — DatePicker rendered outside a <label> so its calendar popover opens cleanly */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* Filters — DatePicker rendered outside a <label> so its calendar popover opens cleanly.
+          Mobile: 2-col grid → From|To on row 1, All-customers + Clear full-width below. */}
+      <div style={{
+        display: isMobile ? "grid" : "flex",
+        gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+        gap: 12, flexWrap: isMobile ? undefined : "wrap",
+        alignItems: isMobile ? "end" : "center", marginBottom: 18,
+      }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>
           <span style={lblStyle}>From</span>
-          <DateField value={from} onChange={setFrom} style={{ width: 160 }} />
+          <DateField value={from} onChange={setFrom} style={{ width: isMobile ? "100%" : 160 }} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>
           <span style={lblStyle}>To</span>
-          <DateField value={to} onChange={setTo} style={{ width: 160 }} />
+          <DateField value={to} onChange={setTo} style={{ width: isMobile ? "100%" : 160 }} />
         </div>
-        <div style={{ width: 200 }}>
+        <div style={{ width: isMobile ? "auto" : 200, ...(isMobile ? { gridColumn: "1 / -1" } : {}) }}>
           <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
         </div>
         {(from || to || custId) && (
-          <button style={clearBtnStyle} onClick={() => { setFrom(""); setTo(""); setCustId(undefined); }}>Clear</button>
+          <button style={{ ...clearBtnStyle, ...(isMobile ? { gridColumn: "1 / -1", width: "100%" } : {}) }} onClick={() => { setFrom(""); setTo(""); setCustId(undefined); }}>Clear</button>
         )}
       </div>
 
       {/* ── Hero KPIs ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(210px, 1fr))", gap: isMobile ? 10 : 14, marginBottom: 18 }}>
         <Kpi title="Total Points" value={stats?.total ?? 0} icon={Layers} accent="primary" subtitle="in this view" />
         <Kpi title="Open" value={stats?.open ?? 0} icon={FolderOpen} accent="info" subtitle="not yet closed" />
         <Kpi title="Closed" value={stats?.closed ?? 0} icon={CheckSquare} accent="success" badge={`${closedPct}%`} badgeLabel="of total" />
@@ -99,7 +106,7 @@ function DeveloperKpi({ devId }: { devId: number }) {
       </div>
 
       {/* ── Charts ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, marginBottom: 20 }}>
         <ChartCard title="Status Distribution" description="Where your points currently sit">
           {donutData.length > 0
             ? <DonutChart data={donutData} height={300} showLegend centerLabel="Total" centerValue={String(stats?.total ?? 0)} />
@@ -114,7 +121,7 @@ function DeveloperKpi({ devId }: { devId: number }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))", letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 10 }}>
         Breakdown — click a status to view its points
       </div>
-      <StatsGrid columns={4}>
+      <StatsGrid columns={4} className="pm-breakdown">
         {STATUS_CARDS.map((c) => {
           const clickable = !!c.status;
           const active = activeStatus === c.status;

@@ -17,13 +17,15 @@ const EMOJIS = [
 ]
 
 interface MessageInputProps {
-  onSend: (content: string, attachments?: ChatAttachment[]) => void
+  onSend: (content: string, attachments?: ChatAttachment[], mentions?: number[]) => void
   onUploadFile: (file: File) => Promise<{ FileName: string; FileUrl: string; FileSize: number; MimeType: string } | null>
   onTyping?: (isTyping: boolean) => void
   replyTo?: ChatMessage | null
   onCancelReply?: () => void
   disabled?: boolean
   placeholder?: string
+  /** Group members to offer for @mentions (usually active participants except me). */
+  mentionables?: { userId: number; userName: string }[]
 }
 
 export function MessageInput({
@@ -33,10 +35,15 @@ export function MessageInput({
   replyTo,
   onCancelReply,
   disabled,
-  placeholder
+  placeholder,
+  mentionables = []
 }: MessageInputProps) {
   const { t } = useLanguage()
   const [text, setText] = useState('')
+  // @mentions: the trailing "@query" being typed + which users have been tagged.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionAnchor, setMentionAnchor] = useState(0)
+  const [mentionedIds, setMentionedIds] = useState<Set<number>>(new Set())
   const [pendingFiles, setPendingFiles] = useState<{ file: File; preview?: string }[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [uploading, setUploading] = useState(false)
@@ -105,6 +112,24 @@ export function MessageInput({
     })
   }, [text])
 
+  // ── @mentions ─────────────────────────────────────────────────────────
+  const mentionMatches = mentionQuery === null ? [] :
+    mentionables.filter(u => (u.userName || '').toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+
+  const pickMention = useCallback((u: { userId: number; userName: string }) => {
+    const q = mentionQuery ?? ''
+    const before = text.slice(0, mentionAnchor)
+    const after = text.slice(mentionAnchor + 1 + q.length)   // skip '@' + the typed query
+    const inserted = `@${u.userName} `
+    setText(before + inserted + after)
+    setMentionedIds(prev => new Set(prev).add(u.userId))
+    setMentionQuery(null)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (el) { const pos = (before + inserted).length; el.focus(); el.setSelectionRange(pos, pos) }
+    })
+  }, [mentionQuery, mentionAnchor, text])
+
   const handleSubmit = useCallback(async () => {
     const content = text.trim()
     if (!content && pendingFiles.length === 0) return
@@ -123,20 +148,29 @@ export function MessageInput({
       }
     }
 
-    onSend(content, attachments.length > 0 ? attachments : undefined)
+    // Only send mentions whose "@Name" still survives in the final text.
+    const mentions = mentionables.filter(u => mentionedIds.has(u.userId) && content.includes('@' + u.userName)).map(u => u.userId)
+    onSend(content, attachments.length > 0 ? attachments : undefined, mentions.length ? mentions : undefined)
     setText('')
+    setMentionedIds(new Set())
+    setMentionQuery(null)
     setPendingFiles([])
     onTyping?.(false)
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [text, pendingFiles, onSend, onUploadFile, onTyping])
+  }, [text, pendingFiles, onSend, onUploadFile, onTyping, mentionables, mentionedIds])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // While the @mention list is open, Enter/Tab picks the first match instead of sending.
+    if (mentionQuery !== null && mentionMatches.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
+      e.preventDefault(); pickMention(mentionMatches[0]); return
+    }
+    if (e.key === 'Escape' && mentionQuery !== null) { setMentionQuery(null); return }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }, [handleSubmit])
+  }, [handleSubmit, mentionQuery, mentionMatches, pickMention])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -340,6 +374,20 @@ export function MessageInput({
         </div>
       ) : (
         <div className="relative flex items-end gap-1.5 px-3 py-2.5">
+          {/* @mention picker */}
+          {mentionQuery !== null && mentionMatches.length > 0 && (
+            <div className="absolute left-3 right-3 bottom-full mb-1 max-h-52 overflow-y-auto bg-[rgb(var(--bg-surface))] border border-[rgb(var(--bd-default))] rounded-xl shadow-xl z-30 py-1">
+              {mentionMatches.map((u, i) => (
+                <button key={u.userId} type="button" onMouseDown={e => { e.preventDefault(); pickMention(u) }}
+                  className={cn('w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-[rgb(var(--bg-hover))]', i === 0 && 'bg-[rgb(var(--bg-subtle))]')}>
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[0.65rem] font-semibold flex-shrink-0 bg-[rgb(var(--color-primary))]">
+                    {(u.userName || '?').trim().slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-sm font-medium text-[rgb(var(--fg-default))] truncate">{u.userName}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {/* Emoji picker */}
           <div className="relative flex-shrink-0" ref={emojiRef}>
             <button
@@ -392,7 +440,15 @@ export function MessageInput({
           <textarea
             ref={textareaRef}
             value={text}
-            onChange={e => { setText(e.target.value); handleTyping() }}
+            onChange={e => {
+              const val = e.currentTarget.value
+              setText(val); handleTyping()
+              // Detect a trailing "@query" at the caret → open the mention picker.
+              const caret = e.currentTarget.selectionStart ?? val.length
+              const m = val.slice(0, caret).match(/@([^\s@]*)$/)
+              if (m && mentionables.length > 0) { setMentionQuery(m[1]); setMentionAnchor(caret - m[0].length) }
+              else setMentionQuery(null)
+            }}
             onKeyDown={handleKeyDown}
             disabled={disabled || uploading}
             placeholder={placeholder || t('Type a message...')}

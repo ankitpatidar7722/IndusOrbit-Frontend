@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react'
-import { ArrowLeft, Users, Pin, Star, Search, X, Inbox, Lock } from 'lucide-react'
+import { ArrowLeft, Users, Pin, Star, Search, X, Inbox, Lock, MoreVertical, Bell, BellOff, Archive, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from 'indas-ui'
 import { useMessaging } from '@/contexts/MessagingContext'
@@ -9,6 +9,7 @@ import { MessageBubble } from './message-bubble'
 import { MessageInput } from './message-input'
 import { ForwardModal } from './forward-modal'
 import { GroupInfoPanel } from './group-info-panel'
+import { MediaGalleryPanel } from './media-gallery-panel'
 import { AttachmentViewer } from './attachment-viewer'
 import { parseParticipants } from '@/lib/messaging'
 import { getAvatarColor, getInitials, formatDaySeparator, isSameDay, formatLastSeen } from './conversation-list'
@@ -41,6 +42,8 @@ export function MessageThread({
   const [searchText, setSearchText] = useState('')
   const [showGroupInfo, setShowGroupInfo] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showChatMenu, setShowChatMenu] = useState(false)   // ⋮ header menu: mute / pin / archive
+  const [showMedia, setShowMedia] = useState(false)         // "Media, docs & links" gallery (DM + group)
   const [viewerAttachment, setViewerAttachment] = useState<ChatAttachment | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -61,11 +64,17 @@ export function MessageThread({
   }, [room, currentUserId, t])
 
   const participants = useMemo(() => parseParticipants(room.Participants), [room.Participants])
-  const memberCount = participants.length
+  const myPart = useMemo(() => participants.find(p => String(p.userId) === currentUserId), [participants, currentUserId])
+  const iLeft = !!myPart?.leftAt                          // I'm a past member — read-only, history up to when I left
+  const myMuted = !!myPart?.isMuted
+  const myPinned = !!myPart?.isPinned
+  const myArchived = !!myPart?.archivedAt
+  const activeParticipants = useMemo(() => participants.filter(p => !p.leftAt), [participants])
+  const memberCount = activeParticipants.length
 
-  // "Only admins can send" gating (groups/channels).
-  const myRole = useMemo(() => participants.find(p => String(p.userId) === currentUserId)?.role, [participants, currentUserId])
-  const canSend = room.Type === 'DM' || !room.IsReadOnly || myRole === 'Owner' || myRole === 'Admin'
+  // "Only admins can send" gating (groups/channels) — plus: a member who LEFT can never send.
+  const myRole = myPart?.role
+  const canSend = !iLeft && (room.Type === 'DM' || !room.IsReadOnly || myRole === 'Owner' || myRole === 'Admin')
   const isGroup = room.Type !== 'DM'
 
   // Build sender name map
@@ -131,11 +140,10 @@ export function MessageThread({
     }
   }, [pagination, state.loadingMessages, room.RoomID, actions])
 
-  const handleSend = useCallback((content: string, attachments?: ChatAttachment[]) => {
+  const handleSend = useCallback((content: string, attachments?: ChatAttachment[], mentions?: number[]) => {
     const request: any = { Content: content }
-    if (attachments) {
-      request.AttachmentsJson = JSON.stringify(attachments)
-    }
+    if (attachments) request.AttachmentsJson = JSON.stringify(attachments)
+    if (mentions && mentions.length) request.Mentions = mentions
     if (replyTo) {
       actions.replyToMessage(replyTo.MessageID, request)
       setReplyTo(null)
@@ -143,6 +151,18 @@ export function MessageThread({
       actions.sendMessage(room.RoomID, request)
     }
   }, [replyTo, room.RoomID, actions])
+
+  // Members offered for @mentions (groups only): active participants except me.
+  const mentionables = useMemo(
+    () => isGroup ? activeParticipants.filter(p => String(p.userId) !== currentUserId).map(p => ({ userId: p.userId, userName: p.userName || '' })) : [],
+    [isGroup, activeParticipants, currentUserId]
+  )
+  // All active member names (incl. me) — used to highlight @mentions in the bubbles.
+  const mentionNameList = useMemo(
+    () => isGroup ? activeParticipants.map(p => p.userName || '').filter(Boolean) : [],
+    [isGroup, activeParticipants]
+  )
+
 
   const handleTyping = useCallback((isTyping: boolean) => {
     actions.sendTyping(room.RoomID, isTyping)
@@ -259,6 +279,41 @@ export function MessageThread({
           >
             <Search className="w-4 h-4" />
           </button>
+
+          {/* ⋮ overflow: mute / pin-to-top / archive (persisted per-user) */}
+          <div className="relative">
+            <button
+              onClick={() => setShowChatMenu(v => !v)}
+              title={t('More')}
+              className={cn('w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[rgb(var(--bg-hover))]',
+                showChatMenu ? 'text-[rgb(var(--color-primary))]' : 'text-[rgb(var(--fg-muted))]')}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showChatMenu && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowChatMenu(false)} />
+                <div className="absolute right-0 top-9 w-56 py-1 bg-[rgb(var(--bg-surface))] border border-[rgb(var(--bd-default))] rounded-xl shadow-xl z-30">
+                  <button onClick={() => { setShowMedia(true); setShowChatMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--fg-default))]">
+                    <ImageIcon className="w-4 h-4" /> {t('Media, docs & links')}
+                  </button>
+                  <button onClick={() => { actions.setChatPrefs(room.RoomID, { mute: !myMuted }); setShowChatMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--fg-default))]">
+                    {myMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />} {myMuted ? t('Unmute notifications') : t('Mute notifications')}
+                  </button>
+                  <button onClick={() => { actions.setChatPrefs(room.RoomID, { pin: !myPinned }); setShowChatMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--fg-default))]">
+                    <Pin className={cn('w-4 h-4', myPinned && 'fill-current')} /> {myPinned ? t('Unpin chat') : t('Pin to top')}
+                  </button>
+                  <button onClick={() => { actions.setChatPrefs(room.RoomID, { archive: !myArchived }); setShowChatMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--fg-default))]">
+                    <Archive className="w-4 h-4" /> {myArchived ? t('Unarchive chat') : t('Archive chat')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -374,6 +429,7 @@ export function MessageThread({
                 currentUserId={Number(currentUserId)}
                 status={isOwn ? getMessageStatus(msg) : undefined}
                 onOpenAttachment={setViewerAttachment}
+                mentionNames={mentionNameList}
               />
             </Fragment>
           )
@@ -396,11 +452,12 @@ export function MessageThread({
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           disabled={state.sendingMessage}
+          mentionables={mentionables}
         />
       ) : (
         <div className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-4 border-t border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))] text-[rgb(var(--fg-muted))]">
           <Lock className="w-4 h-4" />
-          <span className="text-sm">{t('Only admins can send messages')}</span>
+          <span className="text-sm">{iLeft ? t('You left this group — you can only view past messages') : t('Only admins can send messages')}</span>
         </div>
       )}
 
@@ -421,6 +478,11 @@ export function MessageThread({
           onClose={() => setShowGroupInfo(false)}
           onExit={() => { setShowGroupInfo(false); onBack() }}
         />
+      )}
+
+      {/* Media, docs & links gallery (DM + group) */}
+      {showMedia && (
+        <MediaGalleryPanel roomId={room.RoomID} roomName={displayName} onClose={() => setShowMedia(false)} />
       )}
 
       {/* In-app attachment viewer */}

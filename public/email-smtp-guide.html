@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up your email (SMTP) · Indus Command Center</title>
+<style>
+  :root{
+    --bg:#f5f8fb; --surface:#ffffff; --panel:#eef3f8; --ink:#16202c; --muted:#586777;
+    --line:#e3eaf1; --navy:#1f4576; --navy-soft:#eaf0f9; --teal:#0f6a72; --teal-soft:#e3f2f2;
+    --green:#0f8a4d; --amber:#8a5a00; --amber-soft:#fdf3dc;
+    --shadow:0 1px 2px rgba(16,32,54,.04), 0 12px 30px -18px rgba(16,32,54,.28);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0d131b; --surface:#151f2b; --panel:#1b2734; --ink:#e7eef6; --muted:#93a3b4; --line:#273545; --navy:#7aa2e0; --navy-soft:#1a2740; --teal:#43b6c0; --teal-soft:#123037; --green:#3ec27d; --amber:#e0b25a; --amber-soft:#2a2314; --shadow:0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6); }
+  }
+  :root[data-theme="dark"]{ --bg:#0d131b; --surface:#151f2b; --panel:#1b2734; --ink:#e7eef6; --muted:#93a3b4; --line:#273545; --navy:#7aa2e0; --navy-soft:#1a2740; --teal:#43b6c0; --teal-soft:#123037; --green:#3ec27d; --amber:#e0b25a; --amber-soft:#2a2314; }
+  :root[data-theme="light"]{ --bg:#f5f8fb; --surface:#ffffff; --panel:#eef3f8; --ink:#16202c; --muted:#586777; --line:#e3eaf1; --navy:#1f4576; --navy-soft:#eaf0f9; --teal:#0f6a72; --teal-soft:#e3f2f2; --green:#0f8a4d; --amber:#8a5a00; --amber-soft:#fdf3dc; }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.62 "Segoe UI", ui-sans-serif, system-ui, Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+  body.lang-en .hi{ display:none !important; }
+  body.lang-hi .en{ display:none !important; }
+  body.lang-hi{ font-family:"Nirmala UI","Noto Sans Devanagari","Segoe UI",system-ui,sans-serif; }
+  .hi{ font-family:"Nirmala UI","Noto Sans Devanagari","Segoe UI",system-ui,sans-serif; }
+
+  .langbar{ position:sticky; top:0; z-index:20; display:flex; gap:8px; justify-content:flex-end; align-items:center; padding:12px 22px; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .langbar .lbl{ margin-right:auto; font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; }
+  .lang-btn{ font:600 13px "Segoe UI",sans-serif; padding:7px 16px; border-radius:8px; cursor:pointer; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
+  .lang-btn.on{ background:var(--navy); border-color:var(--navy); color:#fff; }
+
+  .wrap{ max-width:760px; margin:0 auto; padding:26px 22px 72px; }
+  code, .mono{ font-family:ui-monospace, "Cascadia Code", "Consolas", monospace; }
+  .eyebrow{ font-size:11.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  h1{ font-size:31px; line-height:1.18; letter-spacing:-.015em; margin:12px 0 0; text-wrap:balance; }
+  .lede{ font-size:16px; color:var(--muted); margin:14px 0 0; max-width:62ch; }
+  .why{ display:flex; gap:12px; align-items:flex-start; margin-top:22px; padding:14px 16px; background:var(--teal-soft); border:1px solid var(--line); border-radius:12px; font-size:14px; line-height:1.7; }
+  .why b{ color:var(--ink); }
+  .why .spark{ flex:none; width:22px; height:22px; }
+
+  .part{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:8px 22px 22px; margin-top:26px; box-shadow:var(--shadow); }
+  .part-head{ display:flex; align-items:center; gap:11px; padding:16px 0 6px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+  .tag{ font:700 11px/1.2 "Segoe UI",sans-serif; letter-spacing:.08em; text-transform:uppercase; padding:5px 9px; border-radius:999px; white-space:nowrap; }
+  .tag.google{ color:var(--teal); background:var(--teal-soft); }
+  .tag.app{ color:var(--navy); background:var(--navy-soft); }
+  .part-head h2{ font-size:19px; margin:0; letter-spacing:-.01em; }
+  .part-head .sub{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.55; }
+
+  ol.steps{ list-style:none; margin:0; padding:0; }
+  ol.steps > li{ display:grid; grid-template-columns:34px 1fr; gap:16px; padding:18px 0; border-top:1px solid var(--line); }
+  ol.steps > li:first-child{ border-top:0; }
+  .num{ width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font:700 15px/1 "Segoe UI",sans-serif; color:#fff; }
+  .sb{ min-width:0; }
+  .google .num{ background:var(--teal); }
+  .app .num{ background:var(--navy); }
+  .step-t{ font-size:15.5px; font-weight:650; margin:5px 0 0; line-height:1.4; }
+  .step-d{ font-size:14px; color:var(--muted); margin:6px 0 0; line-height:1.65; }
+  .step-d a{ color:var(--teal); font-weight:600; word-break:break-word; }
+  .app .step-d a{ color:var(--navy); }
+  .hint{ display:inline-flex; align-items:center; gap:7px; margin-top:9px; padding:6px 11px; border-radius:8px; background:var(--panel); border:1px solid var(--line); font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .hint .dot{ width:7px; height:7px; border-radius:50%; background:var(--amber); flex:none; }
+  .keychip{ margin-top:10px; display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:9px; background:var(--panel); border:1px dashed var(--line); font-size:13px; letter-spacing:.12em; }
+  .keychip .mono{ color:var(--ink); font-weight:600; }
+  .kbd{ font:600 12.5px/1 ui-monospace,Consolas,monospace; padding:3px 8px; border-radius:6px; background:var(--navy-soft); color:var(--navy); border:1px solid var(--line); white-space:nowrap; }
+  .kbd.t{ background:var(--teal-soft); color:var(--teal); }
+
+  table.fields{ width:100%; border-collapse:collapse; margin-top:12px; font-size:13.5px; }
+  table.fields td{ padding:9px 12px; border:1px solid var(--line); }
+  table.fields tr td:first-child{ width:42%; color:var(--muted); background:var(--panel); font-weight:600; }
+  table.fields td .mono{ color:var(--ink); font-weight:600; }
+
+  figure.shot{ margin:13px 0 2px; border:1px solid var(--line); border-radius:11px; overflow:hidden; box-shadow:var(--shadow); }
+  figure.shot img{ display:block; width:100%; height:auto; }
+  figure.shot figcaption{ font-size:11.5px; color:var(--muted); padding:7px 13px; border-top:1px solid var(--line); background:var(--surface); line-height:1.5; }
+
+  .use{ margin-top:26px; padding:20px 22px; border-radius:16px; background:#20406e; color:#fff; box-shadow:var(--shadow); }
+  .use h2{ margin:0 0 6px; font-size:18px; display:flex; align-items:center; gap:9px; }
+  .use p{ margin:0; font-size:14.5px; color:rgba(255,255,255,.9); line-height:1.65; }
+
+  .notes{ margin-top:26px; }
+  .notes h3{ font-size:13px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:0 0 12px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .note{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .note .h{ font-size:14px; font-weight:650; display:flex; align-items:center; gap:8px; }
+  .note p{ margin:6px 0 0; font-size:13px; color:var(--muted); line-height:1.6; }
+  .note .ic{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .ic.g{ background:var(--green); } .ic.n{ background:var(--navy); } .ic.t{ background:var(--teal); } .ic.a{ background:var(--amber); }
+  .trouble{ margin-top:14px; padding:14px 16px; background:var(--amber-soft); border:1px solid var(--line); border-radius:12px; font-size:13px; line-height:1.65; }
+  .trouble b{ color:var(--ink); }
+  footer{ margin-top:36px; padding-top:18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  svg{ display:block; }
+  @media (max-width:560px){ h1{ font-size:26px; } .grid{ grid-template-columns:1fr; } ol.steps > li{ grid-template-columns:30px 1fr; gap:13px; } table.fields tr td:first-child{ width:46%; } }
+</style>
+</head>
+<body class="lang-en">
+
+<div class="langbar">
+  <span class="lbl"><span class="en">Language</span><span class="hi">भाषा</span></span>
+  <button class="lang-btn" data-lang="en">English</button>
+  <button class="lang-btn" data-lang="hi">हिन्दी</button>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><span class="en">Indus Command Center · Setup Guide</span><span class="hi">Indus Command Center · सेटअप गाइड</span></div>
+    <h1><span class="en">Set up your email (SMTP)</span><span class="hi">अपना email (SMTP) सेट करें</span></h1>
+    <p class="lede"><span class="en">Connect your own mailbox once, so the emails you send from the app — client mails, documents — go out from <b>your</b> address. For Gmail you'll use an <b>App Password</b>. It takes about three minutes, one time.</span><span class="hi">अपना mailbox एक बार connect करें, ताकि app से भेजी emails — client mail, documents — <b>आपके</b> address से जाएँ। Gmail के लिए एक <b>App Password</b> इस्तेमाल होगा। लगभग तीन मिनट, एक ही बार।</span></p>
+    <div class="why">
+      <svg class="spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--teal)"><path d="M4 4h16v16H4z"/><path d="m4 6 8 6 8-6"/></svg>
+      <div><span class="en">Gmail blocks your normal login password for apps. So you create a one-time <b>App Password</b> just for Indus Command Center — safe, and you can remove it anytime.</span><span class="hi">Gmail अपना normal login password apps के लिए block कर देता है। इसलिए सिर्फ़ Indus Command Center के लिए एक <b>App Password</b> बनाते हैं — safe है और कभी भी हटा सकते हैं।</span></div>
+    </div>
+  </header>
+
+  <!-- PART A -->
+  <section class="part google">
+    <div class="part-head">
+      <span class="tag google"><span class="en">On Google</span><span class="hi">Google पर</span></span>
+      <div>
+        <h2><span class="en">Get a Gmail App Password</span><span class="hi">Gmail App Password लें</span></h2>
+        <div class="sub"><span class="en">From your Google Account — sign in with your office Gmail.</span><span class="hi">अपने Google Account से — office Gmail से sign in करें।</span></div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Turn on 2-Step Verification</span><span class="hi">2-Step Verification ON करें</span></div>
+          <p class="step-d"><span class="en">Go to <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer">Google Account → Security</a> and turn on <b>2-Step Verification</b>. App Passwords need this. <b>Already on? Skip to step 2.</b></span><span class="hi"><a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer">Google Account → Security</a> में जाकर <b>2-Step Verification</b> ON करें। App Password के लिए ये ज़रूरी है। <b>पहले से ON है तो step 2 पर जाएँ।</b></span></p>
+          <figure class="shot"><img src="/guide/smtp-a-2step.png" alt="Google Account Security — 2-Step Verification"><figcaption><span class="en">Google Account → Security. Make sure <b>2-Step Verification</b> is On.</span><span class="hi">Google Account → Security. <b>2-Step Verification</b> On होना चाहिए।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Open the App Passwords page</span><span class="hi">App Passwords page खोलें</span></div>
+          <p class="step-d"><span class="en">Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a> and sign in with your <b>office Gmail</b>.</span><span class="hi"><a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a> पर जाएँ और अपनी <b>office Gmail</b> से sign in करें।</span></p>
+          <span class="hint"><span class="dot"></span><span class="en">Page not opening? Make sure 2-Step Verification (step 1) is ON.</span><span class="hi">Page नहीं खुल रहा? पक्का करें कि 2-Step Verification (step 1) ON है।</span></span>
+          <figure class="shot"><img src="/guide/smtp-a-apppass.png" alt="App passwords page"><figcaption><span class="en">On the App Passwords page, type a name in <b>App name</b>, then click <b>Create</b>.</span><span class="hi">App Passwords page पर <b>App name</b> में नाम लिखें, फिर <b>Create</b> दबाएँ।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Create the password</span><span class="hi">Password बनाएँ</span></div>
+          <p class="step-d"><span class="en">Type a name like <b>Indus Command Center</b> and click <span class="kbd t">Create</span>.</span><span class="hi">कोई नाम लिखें जैसे <b>Indus Command Center</b> और <b>Create</b> दबाएँ।</span></p>
+        </div>
+      </li>
+      <li>
+        <span class="num">4</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Copy the 16-character password</span><span class="hi">16-अक्षर का password copy करें</span></div>
+          <p class="step-d"><span class="en">Google shows a 16-letter password. <b>Copy it.</b> (Spaces don't matter.) This is your <b>App Password</b> — not your login password.</span><span class="hi">Google एक 16-अक्षर का password दिखाएगा। उसे <b>copy</b> करें (spaces से फ़र्क नहीं पड़ता)। यही आपका <b>App Password</b> है — login password नहीं।</span></p>
+          <span class="keychip"><span class="mono">abcd efgh ijkl mnop</span></span>
+          <figure class="shot"><img src="/guide/smtp-a-generated.png" alt="Generated app password dialog"><figcaption><span class="en">Copy the 16-character password shown here. (Hidden in this image for security.)</span><span class="hi">यहाँ दिखा 16-अक्षर password copy करें। (इस image में security के लिए छिपाया गया।)</span></figcaption></figure>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- PART B -->
+  <section class="part app">
+    <div class="part-head">
+      <span class="tag app"><span class="en">In Indus Command Center</span><span class="hi">Indus Command Center में</span></span>
+      <div>
+        <h2><span class="en">Add it in Email Settings</span><span class="hi">Email Settings में जोड़ें</span></h2>
+        <div class="sub"><span class="en">One-time — Settings keeps it saved for you.</span><span class="hi">एक ही बार — Settings इसे saved रखता है।</span></div>
+      </div>
+    </div>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Open Email Settings</span><span class="hi">Email Settings खोलें</span></div>
+          <p class="step-d"><span class="en">Click your <b>profile photo</b> (top-right) → <b>Settings</b> → <b>Profile</b> tab → <b>Email Settings</b> → <span class="kbd">Configure</span>, then choose <span class="kbd">SMTP</span>.</span><span class="hi">ऊपर दाईं ओर <b>profile photo</b> → <b>Settings</b> → <b>Profile</b> tab → <b>Email Settings</b> → <b>Configure</b>, फिर <b>SMTP</b> चुनें।</span></p>
+          <figure class="shot"><img src="/guide/smtp-b-settings.png" alt="Settings — Email Settings section"><figcaption><span class="en">Settings → Profile tab → Email Settings → <b>Configure</b>.</span><span class="hi">Settings → Profile tab → Email Settings → <b>Configure</b>।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Fill these four fields</span><span class="hi">ये चार fields भरें</span></div>
+          <p class="step-d"><span class="en">For Gmail, enter exactly:</span><span class="hi">Gmail के लिए बिलकुल यही डालें:</span></p>
+          <table class="fields">
+            <tr><td>SMTP Username</td><td><span class="en">your full Gmail — <span class="mono">you@gmail.com</span></span><span class="hi">आपकी पूरी Gmail — <span class="mono">you@gmail.com</span></span></td></tr>
+            <tr><td>SMTP Password</td><td><span class="en">the <b>App Password</b> from Part&nbsp;A</span><span class="hi">Part A वाला <b>App Password</b></span></td></tr>
+            <tr><td>SMTP Server</td><td class="mono">smtp.gmail.com</td></tr>
+            <tr><td>Port</td><td class="mono">587</td></tr>
+          </table>
+          <figure class="shot"><img src="/guide/smtp-b-fields.png" alt="SMTP fields in Email Settings"><figcaption><span class="en">Pick <b>SMTP</b>, then paste your App Password into <b>SMTP Password</b>. Server + Port as above.</span><span class="hi"><b>SMTP</b> चुनें, फिर App Password को <b>SMTP Password</b> में paste करें। Server + Port ऊपर जैसे।</span></figcaption></figure>
+        </div>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <div class="sb">
+          <div class="step-t"><span class="en">Save</span><span class="hi">Save करें</span></div>
+          <p class="step-d"><span class="en">Click <span class="kbd">Save</span>. A green <b style="color:var(--green)">✓ SMTP configured</b> confirms you're done.</span><span class="hi"><span class="kbd">Save</span> दबाएँ। हरा <b style="color:var(--green)">✓ SMTP configured</b> दिखते ही हो गया।</span></p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- USE IT -->
+  <section class="use">
+    <h2>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="m4 6 8 6 8-6"/></svg>
+      <span class="en">That's it</span><span class="hi">बस हो गया</span>
+    </h2>
+    <p><span class="en">Every email you send from the app — client mails, Kick-Off / Sign-Off documents — now goes out from <b style="color:#fff">your own mailbox</b>. No extra steps each time.</span><span class="hi">अब app से भेजी हर email — client mail, Kick-Off / Sign-Off documents — <b style="color:#fff">आपके अपने mailbox</b> से जाएगी। हर बार कुछ नहीं करना।</span></p>
+  </section>
+
+  <!-- NOTES -->
+  <section class="notes">
+    <h3><span class="en">Good to know</span><span class="hi">जानने योग्य</span></h3>
+    <div class="grid">
+      <div class="note"><div class="h"><span class="ic a"></span><span class="en">App Password only</span><span class="hi">सिर्फ़ App Password</span></div><p><span class="en">Use the 16-letter App Password — <b>not</b> your Gmail login password. Login passwords won't work.</span><span class="hi">16-अक्षर वाला App Password इस्तेमाल करें — Gmail का login password <b>नहीं</b>। Login password काम नहीं करेगा।</span></p></div>
+      <div class="note"><div class="h"><span class="ic t"></span><span class="en">Gmail values</span><span class="hi">Gmail values</span></div><p><span class="en">Server <span class="mono">smtp.gmail.com</span>, Port <span class="mono">587</span> — same for everyone on Gmail.</span><span class="hi">Server <span class="mono">smtp.gmail.com</span>, Port <span class="mono">587</span> — Gmail वालों के लिए एक जैसे।</span></p></div>
+      <div class="note"><div class="h"><span class="ic n"></span><span class="en">2-Step needed</span><span class="hi">2-Step ज़रूरी</span></div><p><span class="en">App Passwords only appear after 2-Step Verification is turned on for your account.</span><span class="hi">App Passwords तभी दिखते हैं जब account पर 2-Step Verification ON हो।</span></p></div>
+      <div class="note"><div class="h"><span class="ic g"></span><span class="en">Stored safely</span><span class="hi">Safe रहती है</span></div><p><span class="en">Your password is saved securely and used only to send your mail. Leave it blank later to keep it.</span><span class="hi">आपका password securely saved रहता है और सिर्फ़ आपकी mail भेजने में इस्तेमाल होता है। बाद में blank छोड़ो तो वही रहता है।</span></p></div>
+    </div>
+    <div class="trouble">
+      <b><span class="en">Trouble?</span><span class="hi">दिक्कत?</span></b>
+      <span class="en">&nbsp;“Authentication failed / username &amp; password not accepted” → you likely used your login password. Use the <b>App Password</b> from Part&nbsp;A, and make sure <b>2-Step Verification</b> is ON.</span>
+      <span class="hi">&nbsp;“Authentication failed / username &amp; password not accepted” → शायद आपने login password डाला। Part A वाला <b>App Password</b> इस्तेमाल करें, और पक्का करें कि <b>2-Step Verification</b> ON है।</span>
+    </div>
+  </section>
+
+  <footer>
+    <span><span class="en">Indus Command Center — Email (SMTP) setup</span><span class="hi">Indus Command Center — Email (SMTP) सेटअप</span></span>
+    <span>Indus Analytics</span>
+  </footer>
+
+</div>
+
+<script>
+  (function(){
+    var valid={en:1,hi:1};
+    function apply(l){
+      if(!valid[l]) l='en';
+      document.body.classList.remove('lang-en','lang-hi');
+      document.body.classList.add('lang-'+l);
+      var btns=document.querySelectorAll('.lang-btn');
+      for(var i=0;i<btns.length;i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-lang')===l);
+      try{ localStorage.setItem('guideLang', l); }catch(e){}
+    }
+    var params=new URLSearchParams(location.search);
+    var initial=params.get('lang') || (function(){ try{return localStorage.getItem('guideLang')}catch(e){return null} })() || 'en';
+    apply(initial);
+    document.querySelectorAll('.lang-btn').forEach(function(b){ b.addEventListener('click', function(){ apply(b.getAttribute('data-lang')); }); });
+  })();
+</script>
+</body>
+</html>

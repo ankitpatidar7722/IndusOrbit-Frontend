@@ -142,7 +142,7 @@ export default function LoginPage() {
                 <label style={labelStyle}>Username</label>
                 <div style={{ position: "relative", marginTop: 6, marginBottom: 18 }}>
                   <User size={16} style={{ position: "absolute", left: 14, top: 15, color: "rgb(var(--fg-subtle))" }} />
-                  <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your username"
+                  <input type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your username"
                     autoComplete="username" required style={field} />
                 </div>
 

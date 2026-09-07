@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Tabs, Badge, Button, Dropdown, Switch } from "indas-ui";
+import { Tabs, Badge, Button, Dropdown, Switch, useDevice } from "indas-ui";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 import { Pencil, Building2, MapPin, CreditCard, Cloud, KeyRound, ShieldCheck, Rocket, Activity, FileCheck2, HardHat, X, Save, Wand2, Copy, Check, Eye, Download, FileText, FileDown, FileCode, FileSpreadsheet, CheckCircle2, Mail, History, type LucideIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -435,13 +435,18 @@ function addDays(dateStr: string | null | undefined, days: number): string {
 
 /** One bordered section card: bg-subtle header band (icon + dark bold title) + field grid. */
 function SectionCard({ icon: Icon, title, cols = 3, children }: { icon: LucideIcon; title: string; cols?: number; children: React.ReactNode }) {
+  // On phones, force 2 columns regardless of the desktop `cols` (3/4/5/6) so field values (dates,
+  // "1 Year", …) never get squeezed into ~55px columns and wrap character-by-character. Driven in JS
+  // (not just CSS) so it's guaranteed to apply inside this modal.
+  const { isMobile } = useDevice();
+  const colCount = isMobile ? 2 : cols;
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 12, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", background: T.subtle, borderBottom: `1px solid ${T.bd}` }}>
         <Icon size={13} style={{ color: T.primary }} />
         <span style={{ fontSize: 11, fontWeight: 700, color: T.fg, letterSpacing: 0.4, textTransform: "uppercase" }}>{title}</span>
       </div>
-      <div style={{ padding: "9px 14px", display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: "8px 20px", alignItems: "start" }}>
+      <div className="cdb-grid" style={{ padding: "9px 14px", display: "grid", gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`, gap: "8px 20px", alignItems: "start" }}>
         {children}
       </div>
     </div>
@@ -472,6 +477,12 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   const { data: session } = useSession();
   const { openComposer } = useEmailComposer();
   const [c, setC] = useState<CustomerDetail | null>(null);
+  // On phones the SectionCard grid is forced to 2 columns, so a field asking for span≥2 (e.g. the
+  // span-3 "Status Description" / "ERP Message") must become full-width — otherwise `grid-column:
+  // span 3` in a 2-track grid spawns an implicit 3rd column, re-cramping everything (dates wrap).
+  const { isMobile: isMobileView } = useDevice();
+  const colSpan = (span?: number, full?: boolean): string | undefined =>
+    full ? "1 / -1" : (isMobileView && span && span >= 2) ? "1 / -1" : span ? `span ${span}` : undefined;
   // Authority to edit the FIXED Sign-Off template (headings/labels). Regular users can only fill data.
   const [canEditSignoffTemplate, setCanEditSignoffTemplate] = useState(false);
   // lockTab (e.g. "tracker") pins this to a single tab and hides the tab-bar — used by the
@@ -1001,7 +1012,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     const n = parseInt(days) || 0;
     const d = on && base ? addDays(base, n) : "";
     return (
-      <div style={{ gridColumn: span ? `span ${span}` : undefined, minWidth: 0 }}>
+      <div style={{ gridColumn: colSpan(span), minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
           <label style={{ ...labelCss, marginBottom: 0 }}>Exceed Date</label>
           <button type="button" onClick={() => setHistKind(kind)} title="Exceed-days change history"
@@ -1019,7 +1030,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
   const fld = (label: string, key: keyof SubscriptionSave, kind: FieldKind = "text", opts: FieldOpts = {}) => {
     const box = (inner: React.ReactNode) => (
-      <div key={String(key)} style={{ gridColumn: opts.full ? "1 / -1" : opts.span ? `span ${opts.span}` : undefined, minWidth: 0 }}>
+      <div key={String(key)} style={{ gridColumn: colSpan(opts.span, opts.full), minWidth: 0 }}>
         <label style={labelCss}>{label}</label>
         {inner}
       </div>
@@ -1063,8 +1074,12 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         <span style={{ fontSize: 13, fontWeight: 600, color: fv ? "rgb(var(--color-success))" : T.muted }}>{fv ? "On" : "Off"}</span>
       </div>
     );
-    if (kind === "number") return box(<input type="number" value={(fv as number | string | undefined) ?? ""} onChange={(e) => set(key, Number(e.target.value))} style={fldInput} />);
-    return box(<input type="text" value={(fv as string) ?? ""} onChange={(e) => set(key, e.target.value)} readOnly={opts.readOnly} style={{ ...(opts.readOnly ? roInput : fldInput), ...(opts.narrow ? { maxWidth: 150 } : null) }} />);
+    if (kind === "number") return box(<input type="number" inputMode="numeric" value={(fv as number | string | undefined) ?? ""} onChange={(e) => set(key, Number(e.target.value))} style={fldInput} />);
+    // Mobile keyboard hint derived from the field key: email → @ keyboard, mobile/contact/phone → phone pad.
+    const km = String(key).toLowerCase();
+    const im = km.includes("email") ? "email" : (km.includes("mobile") || km.includes("contact") || km.includes("phone")) ? "tel" : undefined;
+    const noCaps = im === "email" || im === "tel";
+    return box(<input type={im === "email" ? "email" : im === "tel" ? "tel" : "text"} inputMode={im} autoCapitalize={noCaps ? "none" : undefined} autoCorrect={noCaps ? "off" : undefined} value={(fv as string) ?? ""} onChange={(e) => set(key, e.target.value)} readOnly={opts.readOnly} style={{ ...(opts.readOnly ? roInput : fldInput), ...(opts.narrow ? { maxWidth: 150 } : null) }} />);
   };
 
   const actions = editing ? (
@@ -1148,7 +1163,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
             {fld("Message Active", "isMessageActive", "bool")}
             {fld("Status Description", "statusDescription", "text", { span: 3 })}
             {editing && f.isMessageActive ? (
-              <div style={{ gridColumn: "span 3" }}>
+              <div style={{ gridColumn: colSpan(3) }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
                   <label style={{ ...labelCss, marginBottom: 0 }}>ERP Message</label>
                   <Button variant="ghost" size="xs" icon={Wand2} onClick={() => setMsgPopup(true)}>Format Message</Button>
@@ -1184,7 +1199,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
       {tab === "authority" && (
         <div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="scroll-tabs" style={{ marginBottom: 16 }}>
             <Tabs tabs={SUB_TABS} activeTab={subTab} onTabChange={setSubTab} variant="rounded" size="sm" />
           </div>
           {!canEdit("authority") && <div style={{ fontSize: 12, color: T.muted, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Eye size={13} /> View only — you can browse module authority but not change it.</div>}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo, useCallback, useRef, useEffect } from 'react'
+import { useState, memo, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import { Reply, Smile, Pencil, Trash2, Copy, Check, CheckCheck, MoreHorizontal, Forward, Pin, Star, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from 'indas-ui'
@@ -33,6 +33,25 @@ interface MessageBubbleProps {
   status?: 'sent' | 'delivered' | 'read'
   /** Open an attachment in the in-app viewer (instead of a new browser tab). */
   onOpenAttachment?: (attachment: ChatAttachment) => void
+  /** Group member names — used to highlight @mentions in the text. */
+  mentionNames?: string[]
+}
+
+/** Render message text with @mentions of known members highlighted. */
+function renderWithMentions(content: string, names: string[]): ReactNode {
+  const valid = names.filter(Boolean)
+  if (valid.length === 0) return content
+  const escaped = [...valid].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const re = new RegExp(`@(?:${escaped.join('|')})`, 'g')
+  const out: ReactNode[] = []
+  let last = 0, m: RegExpExecArray | null
+  while ((m = re.exec(content)) !== null) {
+    if (m.index > last) out.push(content.slice(last, m.index))
+    out.push(<span key={m.index} className="font-semibold text-[rgb(var(--color-primary))]">{m[0]}</span>)
+    last = m.index + m[0].length
+  }
+  if (last < content.length) out.push(content.slice(last))
+  return out
 }
 
 /**
@@ -70,7 +89,8 @@ export const MessageBubble = memo(function MessageBubble({
   onThreadClick,
   currentUserId,
   status,
-  onOpenAttachment
+  onOpenAttachment,
+  mentionNames = []
 }: MessageBubbleProps) {
   const { t } = useLanguage()
   const [showActions, setShowActions] = useState(false)
@@ -249,7 +269,7 @@ export const MessageBubble = memo(function MessageBubble({
                 {/* Text content + inline time */}
                 {message.Content && (
                   <p className="whitespace-pre-wrap break-words">
-                    {message.Content}
+                    {renderWithMentions(message.Content, mentionNames)}
                     <span className="inline-flex items-center gap-1 ml-2 align-bottom translate-y-[1px]">
                       {message.IsStarred && <Star className="w-3 h-3 fill-current opacity-70" />}
                       {message.IsPinned && <Pin className="w-3 h-3 fill-current opacity-70" />}

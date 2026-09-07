@@ -478,3 +478,44 @@ button:not(:disabled):not([aria-disabled="true"]),
   .mp-filters > label { display: inline-flex !important; align-items: center; gap: 6px; }
   .mp-filters > label > * { flex: 1; width: 100% !important; min-width: 0 !important; }
 }
+
+/* ---- Create Client wizard (custom overlay, NOT role=dialog) — bound to the header→nav band on
+   phones and stack its 3-col field grids to one column. ---- */
+@media (max-width: 640px) {
+  .provision-overlay { padding: 62px 8px 70px !important; place-items: stretch !important; }
+  .provision-panel { width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 12px !important; }
+  .provision-panel [style*="1fr 1fr"],
+  .provision-panel [style*="repeat(2"],
+  .provision-panel [style*="repeat(3"] { grid-template-columns: 1fr !important; }
+}
+
+/* ---- Client detail (ClientDetailBody) SectionCard grids: cols=3/4/5/6 on desktop cram badly on a
+   phone (labels wrap char-by-char). Force 2 comfortable columns on mobile (values are short: dates,
+   "1 Year", "Off"). Class-based so it works regardless of the modal primitive (Modal, not Dialog). ---- */
+@media (max-width: 640px) {
+  .cdb-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ---- Robust mobile stacking for `repeat(N, minmax(0, 1fr))` form grids (client-detail SectionCards,
+   PointDrawer info cards, etc.) — targets the EXISTING inline style so it needs no className/recompile
+   and applies even to an already-open modal via CSS HMR. Modals built on indas-ui `Modal` (not Dialog)
+   aren't caught by the [role="dialog"] rule, so this covers them. 2 comfortable columns on phones. ---- */
+@media (max-width: 640px) {
+  /* NOTE: match just "minmax" — the browser normalizes React's `minmax(0, 1fr)` to
+     `minmax(0px, 1fr)` in the serialized style attribute, so a spacing-exact selector never matched. */
+  [style*="minmax"] { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ModuleManagerModal (New Module form + Indus-tool authority checkbox grid) — 2-col inline grids
+   inside the non-dialog client-detail Modal. Collapse to one column on phones so fields/checkboxes
+   aren't crushed to ~80px. Class-based (explicit) so it won't catch unrelated grids. */
+@media (max-width: 640px) {
+  .mm-grid2 { grid-template-columns: 1fr !important; }
+}
+
+/* Point-management admin dashboard "Breakdown" StatsGrid — indas-ui maps columns={4} to
+   `grid-cols-1 sm:grid-cols-2 …`, i.e. a single column below 640px (17 status cards = a very
+   long scroll on a phone). Force 2 columns on phones. !important beats the Tailwind grid-cols-1. */
+@media (max-width: 640px) {
+  .pm-breakdown { grid-template-columns: 1fr 1fr !important; }
+}

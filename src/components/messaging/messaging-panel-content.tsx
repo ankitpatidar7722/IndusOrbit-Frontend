@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useCallback, useMemo, useState } from 'react'
-import { Search, Users, MessageSquare, Plus, ArrowLeft } from 'lucide-react'
+import { Search, Users, MessageSquare, Plus, ArrowLeft, Pin, BellOff, Archive, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage, useDevice } from 'indas-ui'
 import { useSession } from 'next-auth/react'
@@ -41,6 +41,14 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
   const [opening, setOpening] = useState<number | null>(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [profileContact, setProfileContact] = useState<ChatContact | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+
+  // My per-user chat flags (mute / pin / archive) for a room.
+  const myFlags = useCallback((room?: ChatRoom | null) => {
+    if (!room) return { muted: false, pinned: false, archived: false }
+    const me = parseParticipants(room.Participants).find(p => String(p.userId) === currentUserId)
+    return { muted: !!me?.isMuted, pinned: !!me?.isPinned, archived: !!me?.archivedAt }
+  }, [currentUserId])
 
   useEffect(() => {
     actions.fetchConversations()
@@ -61,32 +69,44 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
   }, [state.conversations, currentUserId])
 
   // Chats = every user (people), sorted by most-recent DM then name.
-  const people = useMemo(() => {
+  const peopleSort = useCallback((a: { contact: ChatContact; room?: ChatRoom }, b: { contact: ChatContact; room?: ChatRoom }) => {
+    const pa = myFlags(a.room).pinned ? 1 : 0
+    const pb = myFlags(b.room).pinned ? 1 : 0
+    if (pa !== pb) return pb - pa                           // pinned DMs first
+    const at = a.room?.LastMessageAt ? new Date(a.room.LastMessageAt).getTime() : 0
+    const bt = b.room?.LastMessageAt ? new Date(b.room.LastMessageAt).getTime() : 0
+    if (at !== bt) return bt - at
+    return (a.contact.UserName || '').localeCompare(b.contact.UserName || '')
+  }, [myFlags])
+  const allPeople = useMemo(() => {
     const q = search.trim().toLowerCase()
     return state.contacts
       .filter(c => String(c.UserID) !== currentUserId)
       .filter(c => !q || (c.UserName || '').toLowerCase().includes(q))
       .map(c => ({ contact: c, room: dmByUser.get(c.UserID) }))
-      .sort((a, b) => {
-        const at = a.room?.LastMessageAt ? new Date(a.room.LastMessageAt).getTime() : 0
-        const bt = b.room?.LastMessageAt ? new Date(b.room.LastMessageAt).getTime() : 0
-        if (at !== bt) return bt - at
-        return (a.contact.UserName || '').localeCompare(b.contact.UserName || '')
-      })
   }, [state.contacts, search, currentUserId, dmByUser])
+  const people = useMemo(() => allPeople.filter(p => !myFlags(p.room).archived).sort(peopleSort), [allPeople, myFlags, peopleSort])
+  const archivedPeople = useMemo(() => allPeople.filter(p => myFlags(p.room).archived).sort(peopleSort), [allPeople, myFlags, peopleSort])
+  const shownPeople = showArchived ? archivedPeople : people
 
-  // Groups = group / channel conversations.
-  const groups = useMemo(() => {
+  // Groups = group / channel conversations. Pinned first, then most-recent. Archived split out.
+  const groupSort = useCallback((a: ChatRoom, b: ChatRoom) => {
+    const pa = myFlags(a).pinned ? 1 : 0
+    const pb = myFlags(b).pinned ? 1 : 0
+    if (pa !== pb) return pb - pa
+    const at = a.LastMessageAt ? new Date(a.LastMessageAt).getTime() : 0
+    const bt = b.LastMessageAt ? new Date(b.LastMessageAt).getTime() : 0
+    return bt - at
+  }, [myFlags])
+  const allGroups = useMemo(() => {
     const q = search.trim().toLowerCase()
     return state.conversations
       .filter(r => r.Type === 'Group' || r.Type === 'Channel')
       .filter(r => !q || (r.Name || '').toLowerCase().includes(q))
-      .sort((a, b) => {
-        const at = a.LastMessageAt ? new Date(a.LastMessageAt).getTime() : 0
-        const bt = b.LastMessageAt ? new Date(b.LastMessageAt).getTime() : 0
-        return bt - at
-      })
   }, [state.conversations, search])
+  const groups = useMemo(() => allGroups.filter(r => !myFlags(r).archived).sort(groupSort), [allGroups, myFlags, groupSort])
+  const archivedGroups = useMemo(() => allGroups.filter(r => myFlags(r).archived).sort(groupSort), [allGroups, myFlags, groupSort])
+  const shownGroups = showArchived ? archivedGroups : groups   // Groups tab shows active OR (toggled) archived
 
   const selectRoom = useCallback((room: ChatRoom) => {
     setSelectedRoom(room)
@@ -137,7 +157,7 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
             {(['Chats', 'Groups'] as Tab[]).map(tk => (
               <button
                 key={tk}
-                onClick={() => setTab(tk)}
+                onClick={() => { setTab(tk); setShowArchived(false) }}
                 className={cn(
                   'flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors',
                   tab === tk
@@ -166,12 +186,24 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
           {/* List */}
           <div className="flex-1 overflow-y-auto px-1.5 pb-2">
             {tab === 'Chats' ? (
-              state.loadingConversations && state.contacts.length === 0 ? (
-                <ListSkeleton />
-              ) : people.length === 0 ? (
-                <Empty text={search ? t('No people found') : t('No people')} />
-              ) : (
-                people.map(({ contact, room }) => {
+              <>
+                {showArchived ? (
+                  <button onClick={() => setShowArchived(false)} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-left text-sm font-medium text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-hover))]">
+                    <ChevronLeft className="w-4 h-4" /> {t('Back')}
+                  </button>
+                ) : archivedPeople.length > 0 ? (
+                  <button onClick={() => setShowArchived(true)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-[rgb(var(--bg-hover))]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgb(var(--bg-subtle))] text-[rgb(var(--fg-muted))]"><Archive className="w-4.5 h-4.5" /></div>
+                    <span className="text-sm font-medium text-[rgb(var(--fg-default))]">{t('Archived')}</span>
+                    <span className="ml-auto text-xs font-semibold text-[rgb(var(--fg-muted))]">{archivedPeople.length}</span>
+                  </button>
+                ) : null}
+                {state.loadingConversations && state.contacts.length === 0 ? (
+                  <ListSkeleton />
+                ) : shownPeople.length === 0 ? (
+                  <Empty text={showArchived ? t('No archived chats') : (search ? t('No people found') : t('No people'))} />
+                ) : (
+                  shownPeople.map(({ contact, room }) => {
                   const online = actions.isUserOnline(contact.UserID)
                   const unread = room ? (state.unreadCounts[room.RoomID] || 0) : 0
                   const isActive = !!room && selectedRoom?.RoomID === room.RoomID
@@ -198,7 +230,11 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-[rgb(var(--fg-default))] truncate">{contact.UserName}</span>
+                          <span className="flex items-center gap-1 min-w-0">
+                            <span className="text-sm font-medium text-[rgb(var(--fg-default))] truncate">{contact.UserName}</span>
+                            {myFlags(room).pinned && <Pin className="w-3 h-3 text-[rgb(var(--fg-muted))] flex-shrink-0 fill-current" />}
+                            {myFlags(room).muted && <BellOff className="w-3 h-3 text-[rgb(var(--fg-muted))] flex-shrink-0" />}
+                          </span>
                           {room?.LastMessageAt && (
                             <span className="text-[0.6875rem] text-[rgb(var(--fg-muted))] flex-shrink-0">{formatRelativeTime(room.LastMessageAt)}</span>
                           )}
@@ -217,26 +253,46 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
                     </button>
                   )
                 })
-              )
+                )}
+              </>
             ) : (
               /* Groups tab */
               <>
-                <button
-                  onClick={() => setShowCreateGroup(true)}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-[rgb(var(--bg-hover))] transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgb(var(--color-primary))]/12 text-[rgb(var(--color-primary))]">
-                    <Plus className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm font-medium text-[rgb(var(--color-primary))]">{t('New Group')}</span>
-                </button>
-                {groups.length === 0 ? (
-                  <Empty text={search ? t('No groups found') : t('No groups yet')} />
+                {!showArchived && (
+                  <button
+                    onClick={() => setShowCreateGroup(true)}
+                    className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-[rgb(var(--bg-hover))] transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgb(var(--color-primary))]/12 text-[rgb(var(--color-primary))]">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <span className="text-sm font-medium text-[rgb(var(--color-primary))]">{t('New Group')}</span>
+                  </button>
+                )}
+
+                {/* Archived chats toggle */}
+                {showArchived ? (
+                  <button onClick={() => setShowArchived(false)} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-left text-sm font-medium text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-hover))]">
+                    <ChevronLeft className="w-4 h-4" /> {t('Back')}
+                  </button>
+                ) : archivedGroups.length > 0 ? (
+                  <button onClick={() => setShowArchived(true)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-[rgb(var(--bg-hover))]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgb(var(--bg-subtle))] text-[rgb(var(--fg-muted))]">
+                      <Archive className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="text-sm font-medium text-[rgb(var(--fg-default))]">{t('Archived')}</span>
+                    <span className="ml-auto text-xs font-semibold text-[rgb(var(--fg-muted))]">{archivedGroups.length}</span>
+                  </button>
+                ) : null}
+
+                {shownGroups.length === 0 ? (
+                  <Empty text={showArchived ? t('No archived chats') : (search ? t('No groups found') : t('No groups yet'))} />
                 ) : (
-                  groups.map(room => {
+                  shownGroups.map(room => {
                     const unread = state.unreadCounts[room.RoomID] || 0
                     const isActive = selectedRoom?.RoomID === room.RoomID
                     const count = parseParticipants(room.Participants).length
+                    const f = myFlags(room)
                     return (
                       <button
                         key={room.RoomID}
@@ -246,12 +302,16 @@ export function MessagingPanelContent({ onClose }: MessagingPanelContentProps) {
                           isActive ? 'bg-[rgb(var(--color-primary))]/10' : 'hover:bg-[rgb(var(--bg-hover))]'
                         )}
                       >
-                        <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium', getAvatarColor(room.RoomID))}>
+                        <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0', getAvatarColor(room.RoomID))}>
                           {room.Type === 'Channel' ? '#' : getInitials(room.Name || 'G')}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-[rgb(var(--fg-default))] truncate">{room.Name || t('Unnamed')}</span>
+                            <span className="flex items-center gap-1 min-w-0">
+                              <span className="text-sm font-medium text-[rgb(var(--fg-default))] truncate">{room.Name || t('Unnamed')}</span>
+                              {f.pinned && <Pin className="w-3 h-3 text-[rgb(var(--fg-muted))] flex-shrink-0 fill-current" />}
+                              {f.muted && <BellOff className="w-3 h-3 text-[rgb(var(--fg-muted))] flex-shrink-0" />}
+                            </span>
                             {room.LastMessageAt && <span className="text-[0.6875rem] text-[rgb(var(--fg-muted))] flex-shrink-0">{formatRelativeTime(room.LastMessageAt)}</span>}
                           </div>
                           <div className="flex items-center justify-between gap-2 mt-0.5">

@@ -2,19 +2,20 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Card, CardContent, Switch, Input, useModalAlert, ThemeContext } from "indas-ui";
+import { Card, CardContent, Switch, Input, useModalAlert, ThemeContext, useDevice } from "indas-ui";
 
 import {
   User, Bell, Settings as SettingsIcon, ArrowLeft, LogOut, Eye, EyeOff, KeyRound, Camera, X,
   CircleUser, PenLine, Mail, Server, Cloud, Zap, CheckCircle2, Database, Type, RotateCcw,
-  Palette, Save, Loader2, Trash2, Check, Smartphone,
+  Palette, Save, Loader2, Trash2, Check, Smartphone, Sparkles, HelpCircle,
 } from "lucide-react";
 import { usersApi, photoUrl, type UserDetail } from "@/lib/users";
 import { emailApi } from "@/lib/email";
 import ImageCropModal from "@/components/ImageCropModal";
+import GuideModal from "@/components/GuideModal";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { MessageSquare } from "lucide-react";
-import { BOTTOM_NAV_CATALOG, DEFAULT_BOTTOM_NAV, MAX_BOTTOM_NAV, loadBottomNav, saveBottomNav } from "@/lib/bottomNav";
+import { bottomNavCandidates, DEFAULT_ITEMS, MAX_BOTTOM_NAV, iconForItem, loadBottomNav, saveBottomNav, type BottomNavStored } from "@/lib/bottomNav";
 
 /* ─── palette ─── */
 const NAVY = "rgb(var(--color-primary))";
@@ -26,9 +27,13 @@ const ghostBtn: React.CSSProperties = { display: "inline-flex", alignItems: "cen
 const iconBox: React.CSSProperties = { width: 38, height: 38, borderRadius: 10, display: "grid", placeItems: "center", background: "rgb(var(--bg-subtle))", color: NAVY, flexShrink: 0 };
 
 /** icon-box + title/subtitle + right control (the page's signature row). */
-function Row({ icon, title, subtitle, children, tint }: { icon: React.ReactNode; title: string; subtitle?: string; children?: React.ReactNode; tint?: string }) {
+function Row({ icon, title, subtitle, children, tint, stackOnMobile }: { icon: React.ReactNode; title: string; subtitle?: string; children?: React.ReactNode; tint?: string; stackOnMobile?: boolean }) {
+  const { isMobile } = useDevice();
+  // Rows with a wide control (font-family select, font-size slider) stack on a phone so the control
+  // drops below the title at full width instead of overflowing the row. Switch/button rows stay inline.
+  const stack = !!isMobile && !!stackOnMobile;
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: 14, background: "rgb(var(--bg-subtle))", borderRadius: 11, border: "1px solid #eef1f5" }}>
+    <div style={{ display: "flex", flexDirection: stack ? "column" : "row", alignItems: stack ? "flex-start" : "center", justifyContent: "space-between", gap: stack ? 12 : 14, padding: 14, background: "rgb(var(--bg-subtle))", borderRadius: 11, border: "1px solid #eef1f5" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <div style={{ ...iconBox, ...(tint ? { background: `${tint}14`, color: tint } : {}) }}>{icon}</div>
         <div style={{ minWidth: 0 }}>
@@ -36,7 +41,7 @@ function Row({ icon, title, subtitle, children, tint }: { icon: React.ReactNode;
           {subtitle && <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subtitle}</div>}
         </div>
       </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
+      <div style={{ flexShrink: 0, ...(stack ? { width: "100%" } : {}) }}>{children}</div>
     </div>
   );
 }
@@ -75,15 +80,22 @@ export default function SettingsPage() {
   const userId = su.UserID ?? 0;
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const themeCtx = useContext(ThemeContext);
+  const { isMobile } = useDevice();
 
   const [tab, setTab] = useState<"profile" | "notifications" | "preferences" | "bottomnav">("profile");
-  // Bottom Navbar (mobile): the user's chosen shortcut keys (max 4). Persisted per-user in localStorage.
-  const [navKeys, setNavKeys] = useState<string[]>(DEFAULT_BOTTOM_NAV);
-  useEffect(() => { setNavKeys(loadBottomNav(userId)); }, [userId]);
-  const toggleNavKey = (key: string) => setNavKeys((prev) => {
-    if (prev.includes(key)) return prev.filter((k) => k !== key);
+  // Which setup guide the Help popup is showing (null = closed).
+  const [guide, setGuide] = useState<{ src: string; title: string } | null>(null);
+  // Bottom Navbar (mobile): the user's chosen shortcut items (max 4). Persisted per-user in localStorage.
+  // Candidates = Home/Clients/Chat/Alerts + every module the user can view.
+  const [navItems, setNavItems] = useState<BottomNavStored[]>(DEFAULT_ITEMS);
+  const [navCandidates, setNavCandidates] = useState<BottomNavStored[]>([]);
+  useEffect(() => { setNavItems(loadBottomNav(userId)); }, [userId]);
+  useEffect(() => { if (userId) bottomNavCandidates(userId).then(setNavCandidates); }, [userId]);
+  const navHas = (key: string) => navItems.some((i) => i.key === key);
+  const toggleNavItem = (it: BottomNavStored) => setNavItems((prev) => {
+    if (prev.some((i) => i.key === it.key)) return prev.filter((i) => i.key !== it.key);
     if (prev.length >= MAX_BOTTOM_NAV) return prev;   // cap at 4 (a 5th "Menu" is always shown)
-    return [...prev, key];
+    return [...prev, it];
   });
 
   /* ── profile ── */
@@ -109,6 +121,27 @@ export default function SettingsPage() {
   const [smtp, setSmtp] = useState({ smtpUsername: "", smtpPassword: "", smtpServer: "smtp.gmail.com", smtpPort: "587", smtpAuthenticate: true, smtpUseSSL: true });
   const [savingSmtp, setSavingSmtp] = useState(false);
   const [emailConfigured, setEmailConfigured] = useState(false);
+
+  /* ── AI (Gemini) key — each user adds their own free key so no shared rate limit ── */
+  const [showAi, setShowAi] = useState(false);
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiHasKey, setGeminiHasKey] = useState(false);
+  const [geminiMasked, setGeminiMasked] = useState("");
+  const [savingAi, setSavingAi] = useState(false);
+  useEffect(() => {
+    if (userId) usersApi.geminiKeyStatus(userId).then((r) => { if (r.success) { setGeminiHasKey(r.hasKey); setGeminiMasked(r.masked); } }).catch(() => {});
+  }, [userId]);
+  const saveGeminiKey = async (explicit?: string) => {
+    if (!userId) return;
+    const key = (explicit !== undefined ? explicit : geminiKey).trim();
+    setSavingAi(true);
+    const r = await usersApi.selfGeminiKey(userId, key);
+    setSavingAi(false);
+    if (r.success) {
+      setGeminiHasKey(!!key); setGeminiMasked(key ? `…${key.slice(-4)}` : ""); setGeminiKey(""); setShowAi(false);
+      showSuccess(key ? "AI key saved" : "AI key removed", key ? "Your Gemini key is saved — Tracker summaries will use it." : "Your Gemini key has been cleared.", 2600);
+    } else showError("Could not save", r.message || "Please try again.");
+  };
 
   /* ── notifications ── */
   const [notif, setNotif] = useState({ email: true, push: false, system: true });
@@ -236,7 +269,7 @@ export default function SettingsPage() {
 
       <div style={{ display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
         {/* left rail */}
-        <div style={{ ...cardStyle, width: 300, flexShrink: 0, padding: 14 }}>
+        <div style={{ ...cardStyle, width: isMobile ? "100%" : 300, flexShrink: 0, padding: 14 }}>
           {tabs.map((t) => {
             const Icon = t.icon; const active = tab === t.id;
             return (
@@ -252,8 +285,9 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {/* content */}
-        <div style={{ flex: 1, minWidth: 320, display: "grid", gap: 16 }}>
+        {/* content — flex column (not grid) so a wide child (e.g. the 3-col theme presets) can't
+            overflow via grid's min-width:auto; children stay bounded to the column width on mobile. */}
+        <div style={{ flex: 1, minWidth: isMobile ? 0 : 320, display: "flex", flexDirection: "column", gap: 16 }}>
           {tab === "profile" && (
             <>
               {/* Profile Information */}
@@ -267,7 +301,7 @@ export default function SettingsPage() {
                     {!editing && <button onClick={() => setEditing(true)} style={ghostBtn}><PenLine size={15} /> Edit</button>}
                   </div>
 
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 26 }}>
+                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flexWrap: "wrap", gap: isMobile ? 20 : 26 }}>
                     {/* photo + signature */}
                     <div style={{ display: "flex", gap: 22 }}>
                       <div>
@@ -301,9 +335,9 @@ export default function SettingsPage() {
                     </div>
 
                     {/* fields */}
-                    <div style={{ flex: 1, minWidth: 280, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div style={{ flex: 1, minWidth: isMobile ? 0 : 280, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
                       <div><label style={label}>Full Name</label>{editing ? <Input value={pf.fullName} onChange={(e) => setPf((p) => ({ ...p, fullName: e.target.value }))} /> : <div style={readOnlyChip}>{detail?.fullName || "—"}</div>}</div>
-                      <div><label style={label}>Email Address</label>{editing ? <Input type="email" value={pf.email} onChange={(e) => setPf((p) => ({ ...p, email: e.target.value }))} /> : <div style={readOnlyChip}>{detail?.email || "—"}</div>}</div>
+                      <div><label style={label}>Email Address</label>{editing ? <Input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={pf.email} onChange={(e) => setPf((p) => ({ ...p, email: e.target.value }))} /> : <div style={readOnlyChip}>{detail?.email || "—"}</div>}</div>
                       <div><label style={label}>Role</label><div style={readOnlyChip}>{detail?.role || "—"}</div></div>
                       <div><label style={label}>Contact No</label><div style={readOnlyChip}>{detail?.mobile || <span style={{ color: "rgb(var(--fg-subtle))" }}>— from HR —</span>}</div></div>
                     </div>
@@ -329,7 +363,10 @@ export default function SettingsPage() {
                         <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 2 }}>Configure your mailbox — emails you send go out from here.</div>
                         {emailConfigured && <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#1c9a54", marginTop: 6, fontWeight: 600 }}><CheckCircle2 size={13} /> {provider === "MicrosoftGraph" ? "Microsoft Graph" : "SMTP"} configured</div>}
                       </div>
-                      {!showEmail && <button onClick={() => setShowEmail(true)} style={ghostBtn}><Mail size={15} /> Configure</button>}
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button onClick={() => setGuide({ src: "/email-smtp-guide.html", title: "Email (SMTP) — Setup Guide" })} style={ghostBtn}><HelpCircle size={15} /> Help</button>
+                        {!showEmail && <button onClick={() => setShowEmail(true)} style={ghostBtn}><Mail size={15} /> Configure</button>}
+                      </div>
                     </div>
                     {showEmail && (
                       <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
@@ -340,17 +377,48 @@ export default function SettingsPage() {
                           })}
                         </div>
                         {provider === "MicrosoftGraph" && <div style={{ fontSize: 12.5, color: "#8a5a00", background: "#fff8e6", border: "1px solid #f2e2b8", borderRadius: 8, padding: "8px 12px" }}>Microsoft Graph isn&apos;t wired yet — sending uses SMTP. Fill the SMTP details below.</div>}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                          <div><label style={label}>SMTP Username</label><Input value={smtp.smtpUsername} onChange={(e) => setSmtp((s) => ({ ...s, smtpUsername: e.target.value }))} placeholder="you@gmail.com" /></div>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+                          <div><label style={label}>SMTP Username</label><Input inputMode="email" autoCapitalize="none" autoCorrect="off" value={smtp.smtpUsername} onChange={(e) => setSmtp((s) => ({ ...s, smtpUsername: e.target.value }))} placeholder="you@gmail.com" /></div>
                           <div><label style={label}>SMTP Password</label><EyeInput value={smtp.smtpPassword} onChange={(v) => setSmtp((s) => ({ ...s, smtpPassword: v }))} placeholder="App password (leave blank to keep)" /></div>
                           <div><label style={label}>SMTP Server</label><Input value={smtp.smtpServer} onChange={(e) => setSmtp((s) => ({ ...s, smtpServer: e.target.value }))} placeholder="smtp.gmail.com" /></div>
-                          <div><label style={label}>Port</label><Input value={smtp.smtpPort} onChange={(e) => setSmtp((s) => ({ ...s, smtpPort: e.target.value }))} placeholder="587" /></div>
+                          <div><label style={label}>Port</label><Input inputMode="numeric" value={smtp.smtpPort} onChange={(e) => setSmtp((s) => ({ ...s, smtpPort: e.target.value }))} placeholder="587" /></div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
                           <button onClick={() => setShowEmail(false)} style={ghostBtn}>Cancel</button>
                           <button onClick={saveSmtp} disabled={savingSmtp} style={{ ...primaryBtn, opacity: savingSmtp ? 0.7 : 1 }}>{savingSmtp ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save</button>
                         </div>
                         <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))" }}>Tip: for Gmail use an <b>App Password</b> (Google Account → Security → App passwords), not your login password.</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ borderTop: "1px solid #eef1f5" }} />
+
+                  {/* AI Summary Key (Gemini) — per-user, self-service */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "rgb(var(--fg-default))", display: "inline-flex", alignItems: "center", gap: 6 }}><Sparkles size={15} style={{ color: NAVY }} /> AI Summary Key (Gemini)</div>
+                        <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 2 }}>Add your own free Google Gemini key — the Tracker “Summarize” button uses your key, so you never hit a shared limit.</div>
+                        {geminiHasKey && <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#1c9a54", marginTop: 6, fontWeight: 600 }}><CheckCircle2 size={13} /> Key configured {geminiMasked && <span style={{ color: "rgb(var(--fg-muted))", fontWeight: 500 }}>({geminiMasked})</span>}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button onClick={() => setGuide({ src: "/gemini-key-guide.html", title: "AI Summary Key — Setup Guide" })} style={ghostBtn}><HelpCircle size={15} /> Help</button>
+                        {!showAi && <button onClick={() => setShowAi(true)} style={ghostBtn}><Sparkles size={15} /> {geminiHasKey ? "Change" : "Add key"}</button>}
+                      </div>
+                    </div>
+                    {showAi && (
+                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
+                        <div><label style={label}>Gemini API Key</label><EyeInput value={geminiKey} onChange={setGeminiKey} placeholder={geminiHasKey ? "Enter a new key to replace the current one" : "Paste your Gemini API key"} /></div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ fontSize: 12, color: NAVY, fontWeight: 700 }}>Get a free key ↗</a>
+                          <div style={{ display: "flex", gap: 10 }}>
+                            {geminiHasKey && <button onClick={() => saveGeminiKey("")} disabled={savingAi} style={ghostBtn}><Trash2 size={14} /> Remove</button>}
+                            <button onClick={() => { setShowAi(false); setGeminiKey(""); }} style={ghostBtn}>Cancel</button>
+                            <button onClick={() => saveGeminiKey()} disabled={savingAi || !geminiKey.trim()} style={{ ...primaryBtn, opacity: savingAi || !geminiKey.trim() ? 0.6 : 1 }}>{savingAi ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save</button>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))" }}>Sign in with your office Google account at the link above → <b>Create API key</b> (it&apos;s free). Your key is stored securely and used only for your own summaries.</div>
                       </div>
                     )}
                   </div>
@@ -369,7 +437,7 @@ export default function SettingsPage() {
                     {showPwd && (
                       <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
                         <div><label style={label}>Current password</label><EyeInput value={pwd.cur} onChange={(v) => setPwd((p) => ({ ...p, cur: v }))} /></div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                           <div><label style={label}>New password</label><EyeInput value={pwd.nw} onChange={(v) => setPwd((p) => ({ ...p, nw: v }))} /></div>
                           <div><label style={label}>Confirm new password</label><EyeInput value={pwd.cf} onChange={(v) => setPwd((p) => ({ ...p, cf: v }))} /></div>
                         </div>
@@ -405,19 +473,19 @@ export default function SettingsPage() {
           )}
 
           {tab === "preferences" && (
-            <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* Font family */}
-              <Row icon={<Type size={18} />} title="Font Family" subtitle="Choose your preferred font style">
-                <select value={themeCtx?.theme.fontFamily ?? "system"} onChange={(e) => themeCtx?.setFontFamily(e.target.value as "system")} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d7deea", fontSize: 13, minWidth: 180, background: "rgb(var(--bg-surface))" }}>
+              <Row icon={<Type size={18} />} title="Font Family" subtitle="Choose your preferred font style" stackOnMobile>
+                <select value={themeCtx?.theme.fontFamily ?? "system"} onChange={(e) => themeCtx?.setFontFamily(e.target.value as "system")} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d7deea", fontSize: 13, minWidth: 180, width: isMobile ? "100%" : undefined, background: "rgb(var(--bg-surface))" }}>
                   {FONTS.map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
                 </select>
               </Row>
 
               {/* Font size */}
-              <Row icon={<Eye size={18} />} title="Font Size" subtitle={`Adjust text size: ${Math.round(fontScale)}%`}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Row icon={<Eye size={18} />} title="Font Size" subtitle={`Adjust text size: ${Math.round(fontScale)}%`} stackOnMobile>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", width: isMobile ? "100%" : undefined }}>
                   <span style={{ fontSize: 11, color: "rgb(var(--fg-subtle))" }}>80%</span>
-                  <input type="range" min={80} max={150} step={1} value={fontScale} onChange={(e) => themeCtx?.setFontScale(parseInt(e.target.value))} style={{ width: 180, accentColor: NAVY }} />
+                  <input type="range" min={80} max={150} step={1} value={fontScale} onChange={(e) => themeCtx?.setFontScale(parseInt(e.target.value))} style={{ width: isMobile ? 140 : 180, accentColor: NAVY }} />
                   <span style={{ fontSize: 11, color: "rgb(var(--fg-subtle))" }}>150%</span>
                   <button onClick={() => themeCtx?.setFontScale(100)} style={{ ...ghostBtn, padding: "6px 10px", fontSize: 12 }}><RotateCcw size={13} /> Reset</button>
                 </div>
@@ -435,7 +503,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div style={{ fontSize: 12, fontWeight: 700, color: "rgb(var(--fg-muted))", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>Color Themes</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                     {PRESETS.map((p) => {
                       const on = (themeCtx?.theme.variant ?? "default") === p.variant;
                       return (
@@ -474,32 +542,33 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", marginBottom: 16 }}>
                   Choose up to {MAX_BOTTOM_NAV} shortcuts for the mobile bottom bar (tap to add / remove).
-                  A <b>Menu</b> button (opens the full sidebar) is always shown. <b>{navKeys.length}/{MAX_BOTTOM_NAV}</b> selected.
+                  A <b>Menu</b> button (opens the full sidebar) is always shown. <b>{navItems.length}/{MAX_BOTTOM_NAV}</b> selected.
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
-                  {BOTTOM_NAV_CATALOG.map((it) => {
-                    const on = navKeys.includes(it.key);
-                    const full = !on && navKeys.length >= MAX_BOTTOM_NAV;
-                    const Icon = it.icon;
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+                  {(navCandidates.length ? navCandidates : navItems).map((it) => {
+                    const on = navHas(it.key);
+                    const full = !on && navItems.length >= MAX_BOTTOM_NAV;
+                    const Icon = iconForItem(it);
                     return (
-                      <button key={it.key} type="button" onClick={() => { if (!full) toggleNavKey(it.key); }} disabled={full}
+                      <button key={it.key} type="button" onClick={() => { if (!full) toggleNavItem(it); }} disabled={full}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: 11, cursor: full ? "not-allowed" : "pointer", textAlign: "left",
                           border: `1.5px solid ${on ? NAVY : "#d7deea"}`,
                           background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 10%, transparent)" : "rgb(var(--bg-surface))",
                           color: on ? NAVY : "rgb(var(--fg-muted))", opacity: full ? 0.45 : 1 }}>
                         <Icon size={18} style={{ flexShrink: 0 }} />
-                        <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{it.label}</span>
-                        {on && <Check size={16} />}
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{it.label}</span>
+                        {on && <Check size={16} style={{ flexShrink: 0 }} />}
                       </button>
                     );
                   })}
+                  {navCandidates.length === 0 && <div style={{ gridColumn: "1 / -1", fontSize: 13, color: "rgb(var(--fg-subtle))", padding: 12 }}>Loading modules…</div>}
                 </div>
                 <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-                  <button onClick={() => { saveBottomNav(userId, navKeys); showSuccess("Saved", "Bottom navbar updated.", 2000); }}
-                    disabled={navKeys.length === 0} style={{ ...primaryBtn, opacity: navKeys.length ? 1 : 0.6 }}>
+                  <button onClick={() => { saveBottomNav(userId, navItems); showSuccess("Saved", "Bottom navbar updated.", 2000); }}
+                    disabled={navItems.length === 0} style={{ ...primaryBtn, opacity: navItems.length ? 1 : 0.6 }}>
                     <Save size={15} /> Save
                   </button>
-                  <button onClick={() => setNavKeys(DEFAULT_BOTTOM_NAV)} style={ghostBtn}><RotateCcw size={15} /> Reset to default</button>
+                  <button onClick={() => setNavItems(DEFAULT_ITEMS)} style={ghostBtn}><RotateCcw size={15} /> Reset to default</button>
                 </div>
               </CardContent>
             </Card>
@@ -507,6 +576,7 @@ export default function SettingsPage() {
         </div>
       </div>
       <AlertComponent />
+      <GuideModal src={guide?.src ?? null} title={guide?.title} onClose={() => setGuide(null)} />
       <ImageCropModal open={!!cropSrc} imageSrc={cropSrc} onCancel={() => setCropSrc(null)} onCropped={onPhotoCropped} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin .8s linear infinite}`}</style>
     </div>

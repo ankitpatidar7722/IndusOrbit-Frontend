@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Page, Input, Dropdown } from "indas-ui";
+import { Page, Input, Dropdown, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
@@ -9,6 +9,7 @@ import { reportColumns, lblStyle, clearBtnStyle, gridFeatures, PmHeader } from "
 import { pmApi, type TimeReportRow, type PmCustomer, type PmUser } from "@/lib/tms";
 
 function TimeReport() {
+  const { isMobile } = useDevice();
   const [rows, setRows] = useState<TimeReportRow[]>([]);
   const [customers, setCustomers] = useState<PmCustomer[]>([]);
   const [devs, setDevs] = useState<PmUser[]>([]);
@@ -34,18 +35,24 @@ function TimeReport() {
     <Page>
       <PmHeader page="time-report" />
       {err && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err}</small></div>}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
-        <div style={{ width: 200 }}>
+      {/* Mobile: 2-col grid → From|To on row 1, customers|developers on row 2, Clear full-width. */}
+      <div style={{
+        display: isMobile ? "grid" : "flex",
+        gridTemplateColumns: isMobile ? "1fr 1fr" : undefined,
+        gap: 12, flexWrap: isMobile ? undefined : "wrap",
+        alignItems: isMobile ? "end" : "center", marginBottom: 18,
+      }}>
+        <label style={{ ...lblStyle, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>From <DateField value={from} onChange={setFrom} style={{ width: isMobile ? "100%" : 150 }} /></label>
+        <label style={{ ...lblStyle, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>To <DateField value={to} onChange={setTo} style={{ width: isMobile ? "100%" : 150 }} /></label>
+        <div style={{ width: isMobile ? "auto" : 200 }}>
           <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
         </div>
-        <div style={{ width: 200 }}>
+        <div style={{ width: isMobile ? "auto" : 200 }}>
           <Dropdown value={devId != null ? String(devId) : ""} onValueChange={(v) => setDevId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All developers" }, ...devs.map((d) => ({ value: String(d.userID), label: d.fullName }))]} searchable size="md" />
         </div>
-        <label style={lblStyle}>From <DateField value={from} onChange={setFrom} style={{ width: 150 }} /></label>
-        <label style={lblStyle}>To <DateField value={to} onChange={setTo} style={{ width: 150 }} /></label>
-        {(custId || devId || from || to) && <button style={clearBtnStyle} onClick={() => { setCustId(undefined); setDevId(undefined); setFrom(""); setTo(""); }}>Clear</button>}
+        {(custId || devId || from || to) && <button style={{ ...clearBtnStyle, ...(isMobile ? { gridColumn: "1 / -1", width: "100%" } : {}) }} onClick={() => { setCustId(undefined); setDevId(undefined); setFrom(""); setTo(""); }}>Clear</button>}
       </div>
       {loading ? <BrandedLoader size="md" text="Loading report…" /> : (
         <DataGrid title={`${rows.length} point(s)`} data={rows} columns={columns} getRowId={(r) => String(r.pointID)}

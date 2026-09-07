@@ -81,8 +81,8 @@ function ManageCustomers() {
             <Fld label="Company name *"><Input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} /></Fld>
             <Fld label="Customer name"><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} /></Fld>
             <Fld label="Contact person"><Input value={form.contactPerson ?? ""} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} /></Fld>
-            <Fld label="Contact email"><Input type="email" value={form.contactEmail ?? ""} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} /></Fld>
-            <Fld label="Contact phone"><Input value={form.contactPhone ?? ""} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} /></Fld>
+            <Fld label="Contact email"><Input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={form.contactEmail ?? ""} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} /></Fld>
+            <Fld label="Contact phone"><Input type="tel" inputMode="tel" value={form.contactPhone ?? ""} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} /></Fld>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 }}>
               <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Active
             </label>

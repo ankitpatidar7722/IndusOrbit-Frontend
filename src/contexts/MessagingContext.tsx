@@ -15,7 +15,7 @@ import type {
   SendMessageRequest,
   UpdateRoomRequest
 } from '@/lib/messaging'
-import { parseReactions } from '@/lib/messaging'
+import { parseReactions, parseParticipants } from '@/lib/messaging'
 
 // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -346,6 +346,9 @@ interface MessagingContextValue {
     setGroupReadOnly: (roomId: number, isReadOnly: boolean) => Promise<void>
     leaveGroup: (roomId: number) => Promise<void>
     deleteRoom: (roomId: number) => Promise<void>
+    deleteRoomForMe: (roomId: number) => Promise<void>
+    setChatPrefs: (roomId: number, prefs: { mute?: boolean; pin?: boolean; archive?: boolean }) => Promise<void>
+    fetchSharedMedia: (roomId: number) => Promise<ChatMessage[]>
     setActiveRoom: (roomId: number | null) => void
 
     // Messages
@@ -423,6 +426,10 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
       if (!data?.message) return
       const msg = data.message as ChatMessage
       const roomId = data.roomId
+
+      // If I've LEFT this room, I no longer receive new messages (read-only history only).
+      const room = stateRef.current.conversations.find(r => r.RoomID === roomId)
+      if (room && currentUserId && parseParticipants(room.Participants).find(p => String(p.userId) === currentUserId)?.leftAt) return
 
       // Add to room messages
       dispatch({ type: 'ADD_MESSAGE', payload: { roomId, message: msg } })
@@ -722,13 +729,37 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
   const leaveGroup = useCallback(async (roomId: number) => {
     if (!session) return
     await MessagingAPI.leaveGroup(roomId, session)
-    dispatch({ type: 'REMOVE_CONVERSATION', payload: { roomId } })
-  }, [session])
+    // Soft-leave: the group STAYS in my list read-only (history up to now). Refresh it to pick up my
+    // leftAt (which flips the thread to read-only) instead of removing it from the list.
+    await refreshRoom(roomId)
+  }, [session, refreshRoom])
 
   const deleteRoom = useCallback(async (roomId: number) => {
     if (!session) return
     await MessagingAPI.deleteRoom(roomId, session)
     dispatch({ type: 'REMOVE_CONVERSATION', payload: { roomId } })
+  }, [session])
+
+  // "Delete group for me": remove the room from MY list only (I've usually already left). It stays
+  // for everyone else — nothing is deleted globally.
+  const deleteRoomForMe = useCallback(async (roomId: number) => {
+    if (!session) return
+    await MessagingAPI.deleteRoomForMe(roomId, session)
+    dispatch({ type: 'REMOVE_CONVERSATION', payload: { roomId } })
+  }, [session])
+
+  // Per-user chat prefs (WhatsApp-style): mute / pin / archive. Optimistic — refresh to reflect.
+  const setChatPrefs = useCallback(async (roomId: number, prefs: { mute?: boolean; pin?: boolean; archive?: boolean }) => {
+    if (!session) return
+    await MessagingAPI.setChatPrefs(roomId, prefs, session)
+    await refreshRoom(roomId)
+  }, [session, refreshRoom])
+
+  // Shared media/docs/links of a room (for the group's gallery).
+  const fetchSharedMedia = useCallback(async (roomId: number) => {
+    if (!session) return []
+    const r = await MessagingAPI.getSharedMedia(roomId, session)
+    return r.data || []
   }, [session])
 
   const setActiveRoom = useCallback((roomId: number | null) => {
@@ -1042,6 +1073,9 @@ export function MessagingProvider({ children }: { children: React.ReactNode }) {
     setGroupReadOnly,
     leaveGroup,
     deleteRoom,
+    deleteRoomForMe,
+    setChatPrefs,
+    fetchSharedMedia,
     setActiveRoom,
     fetchMessages,
     fetchMoreMessages,

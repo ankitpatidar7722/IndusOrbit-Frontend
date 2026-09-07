@@ -120,6 +120,11 @@ export const usersApi = {
     send<{ success: boolean; message: string }>("POST", `/api/users/${id}/self-password`, body),
   selfSmtp: (id: number, body: Partial<UserSave>) =>
     send<{ success: boolean; message: string }>("POST", `/api/users/${id}/self-smtp`, body),
+  // Per-user Gemini API key for AI summaries (self-service). The key itself is never returned — only whether it's set.
+  geminiKeyStatus: (id: number) =>
+    get<{ success: boolean; hasKey: boolean; masked: string }>(`/api/users/${id}/gemini-key`),
+  selfGeminiKey: (id: number, apiKey: string) =>
+    send<{ success: boolean; message: string }>("POST", `/api/users/${id}/self-gemini-key`, { apiKey }),
   getModules: (id: number) => get<{ success: boolean; data: ModuleAuthRow[]; message?: string }>(`/api/users/${id}/modules`),
   saveModules: (id: number, modules: ModuleAuthToggle[]) =>
     send<{ success: boolean; message: string; savedCount?: number }>("POST", `/api/users/${id}/modules`, { userId: id, modules }),

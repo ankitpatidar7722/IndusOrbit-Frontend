@@ -1,11 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, Dropdown, useModalAlert, TooltipProvider } from "indas-ui";
 // Same full-featured grid as /users (owned source — colored header tint, white filter row, etc.)
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, PlayCircle } from "lucide-react";
+import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, PlayCircle, Sparkles } from "lucide-react";
+import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
 import { usersApi } from "@/lib/users";
@@ -19,7 +20,7 @@ type Tracker = {
 };
 
 /* ------------------------------------------------------------------ form model */
-type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user";
+type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user" | "aiSummary";
 // dependsOn: for "submodule" — the key of the "module" field it cascades from.
 // compute: derives this field's value from the other form values (read-only, auto-filled) — e.g. Days = To − From.
 type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; locked?: boolean };
@@ -103,6 +104,47 @@ async function loadUserNames(): Promise<string[]> {
   return _usersCache;
 }
 
+/** Textarea + "Summarize with AI" button. Sends the row's filled fields to Gemini (backend) and
+ *  drops the returned summary into the field. The text stays fully editable. */
+function AiSummaryField({ value, onChange, entity, fields, values, disabled }: {
+  value: string; onChange: (v: string) => void; entity: string; fields: FieldDef[]; values: Record<string, unknown>; disabled?: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const generate = async () => {
+    setBusy(true); setErr(null);
+    const payload: Record<string, string> = {};
+    for (const fd of fields) {
+      if (fd.type === "aiSummary") continue;                     // don't feed the summary back in
+      const v = String(values[fd.key] ?? "").trim();
+      if (v) payload[fd.label] = v;
+    }
+    if (Object.keys(payload).length === 0) { setErr("Fill in some details first, then Summarize."); setBusy(false); return; }
+    const res = await trackerAiApi.summarize(entity, payload);
+    if (res.success && res.summary) onChange(res.summary.replace(/\*\*/g, "").trim());
+    else setErr(res.message || "Could not generate the summary.");
+    setBusy(false);
+  };
+  return (
+    <div>
+      <textarea style={{ ...inputStyle, minHeight: 72, resize: "vertical" }} value={value}
+        onChange={(e) => onChange(e.target.value)} placeholder="Click “Summarize with AI” to auto-generate — or write your own." />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+        <button type="button" onClick={generate} disabled={busy || disabled}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid rgb(var(--color-primary))",
+            background: busy ? "rgba(148,163,184,.15)" : "rgb(var(--color-primary))", color: busy ? "rgb(var(--fg-muted))" : "#fff",
+            borderRadius: 8, padding: "5px 12px", fontSize: 12.5, fontWeight: 600, cursor: busy || disabled ? "default" : "pointer" }}>
+          <Sparkles size={14} /> {busy ? "Summarizing…" : "Summarize with AI"}
+        </button>
+        {value && !busy && (
+          <span style={{ fontSize: 11.5, color: "rgb(var(--fg-muted))" }}>Auto-generated · editable</span>
+        )}
+        {err && <span style={{ fontSize: 12, color: "#c0392b" }}>{err}</span>}
+      </div>
+    </div>
+  );
+}
+
 function EntityFormModal({
   open, title, fields, initial, saving, onClose, onSave, readOnly = false,
 }: {
@@ -181,6 +223,8 @@ function EntityFormModal({
               {fd.compute ? (
                 <input type="text" value={val} onChange={(e) => set(fd.key, e.target.value)}
                   title="Auto-calculated from the dates — you can override it" style={inputStyle} />
+              ) : fd.type === "aiSummary" ? (
+                <AiSummaryField value={val} onChange={(v) => set(fd.key, v)} entity={title} fields={fields} values={f} disabled={readOnly || fieldLocked} />
               ) : fd.type === "textarea" ? (
                 <textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={val} onChange={(e) => set(fd.key, e.target.value)} />
               ) : fd.type === "time" ? (
@@ -357,8 +401,10 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   sendToPoint?: (code: string, rowId: number) => Promise<{ success: boolean; pointId?: number; product?: string; message?: string }>;
   // "Send To → Task": append the row to the acting user's TODAY worklog Draft in IndusInternalApp.
   sendToTask?: (code: string, rowId: number) => Promise<{ success: boolean; message?: string }>;
+  // Optional summary block rendered between the header and the grid (e.g. the Milestone progress meter).
+  summary?: ReactNode;
 }) {
-  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint, sendToTask } = props;
+  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint, sendToTask, summary } = props;
   const { openComposer } = useEmailComposer();
   const [modal, setModal] = useState<{ open: boolean; row: T | null }>({ open: false, row: null });
   const [saving, setSaving] = useState(false);
@@ -643,8 +689,11 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {canEdit ? (
               <>
-                <Button variant="outline" size="sm" icon={Download} onClick={downloadTemplate}>Download Template</Button>
-                <Button variant="outline" size="sm" icon={Upload} loading={importing} onClick={() => importRef.current?.click()}>Import Excel</Button>
+                {/* Download Template + Import Excel: desktop only (hidden on phones — bulk Excel work isn't practical there). */}
+                <span className="hide-on-mobile" style={{ display: "contents" }}>
+                  <Button variant="outline" size="sm" icon={Download} onClick={downloadTemplate}>Download Template</Button>
+                  <Button variant="outline" size="sm" icon={Upload} loading={importing} onClick={() => importRef.current?.click()}>Import Excel</Button>
+                </span>
                 <input ref={importRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importExcel(f); }} />
                 <button onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                   <Plus size={15} /> Create
@@ -655,6 +704,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
             )}
           </div>
         </div>
+        {summary}
         <DataGrid<T>
           data={rows}
           columns={cols}
@@ -690,6 +740,19 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
 const badgeCell = <T extends { status: string }>() =>
   ({ row }: { row: { original: T } }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge>;
 
+// AI summary cell — shows the generated summary (full text on hover), or a dash when empty.
+const summaryCell = <T extends { summary?: string }>() =>
+  ({ row }: { row: { original: T } }) => {
+    const s = (row.original.summary ?? "").trim();
+    if (!s) return <span style={{ color: "rgb(var(--fg-muted))" }}>—</span>;
+    return (
+      <span title={s} style={{ display: "inline-flex", alignItems: "flex-start", gap: 5 }}>
+        <Sparkles size={12} style={{ color: "rgb(var(--color-primary))", flexShrink: 0, marginTop: 2 }} />
+        <span>{s}</span>
+      </span>
+    );
+  };
+
 /** Actual − Estimated in days (yyyy-MM-dd strings); "" until both dates are set. */
 function milestoneVarianceDays(planned: unknown, actual: unknown): string {
   const est = String(planned ?? "").slice(0, 10), act = String(actual ?? "").slice(0, 10);
@@ -702,6 +765,93 @@ function milestoneOnTimeStatus(planned: unknown, actual: unknown): string {
   const est = String(planned ?? "").slice(0, 10), act = String(actual ?? "").slice(0, 10);
   if (!est || !act) return "";
   return act > est ? "Delayed" : "On Time";
+}
+
+// Milestone status → bar/legend colour. Status colours are reserved + always shown WITH a text
+// label + count (never colour alone), and read on both light & dark surfaces.
+const MS_STATUS: { key: string; label: string; color: string }[] = [
+  { key: "Complete",    label: "Complete",    color: "#16a34a" },
+  { key: "In Progress", label: "In Progress", color: "#2563eb" },
+  { key: "Delayed",     label: "Delayed",     color: "#dc2626" },
+  { key: "On Hold",     label: "On Hold",     color: "#d97706" },
+  { key: "Pending",     label: "Pending",     color: "#94a3b8" },
+];
+
+/** Progress meter for the Milestone Roadmap: overall % complete + a stacked status bar with a
+ *  labelled legend, and a per-milestone (group) progress breakdown. Anything not "Complete" counts
+ *  as pending. Renders nothing when there are no milestones. */
+function MilestoneProgress({ milestones }: { milestones: Milestone[] }) {
+  const { total, counts, groups } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const groups = new Map<string, { done: number; total: number }>();
+    for (const m of milestones) {
+      const s = MS_STATUS.some((x) => x.key === m.status) ? String(m.status) : "Pending";
+      counts[s] = (counts[s] || 0) + 1;
+      const g = (m.milestoneGroup || "").trim() || "Ungrouped";
+      const rec = groups.get(g) || { done: 0, total: 0 };
+      rec.total += 1;
+      if (s === "Complete") rec.done += 1;
+      groups.set(g, rec);
+    }
+    return { total: milestones.length, counts, groups };
+  }, [milestones]);
+
+  if (total === 0) return null;
+  const done = counts["Complete"] || 0;
+  const pct = Math.round((done / total) * 100);
+  const groupList = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+  const track = "rgba(148,163,184,.2)";
+
+  return (
+    <div style={{ background: "rgb(var(--bg-subtle))", border: "1px solid rgba(148,163,184,.25)", borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
+        {/* Headline % complete */}
+        <div style={{ textAlign: "center", minWidth: 88 }}>
+          <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1, color: pct >= 100 ? "#16a34a" : "rgb(var(--fg-default))" }}>{pct}%</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "rgb(var(--fg-muted))", marginTop: 4, letterSpacing: .6 }}>COMPLETE</div>
+        </div>
+        {/* Stacked status bar + legend */}
+        <div style={{ flex: 1, minWidth: 250 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
+            <span style={{ color: "rgb(var(--fg-default))", fontWeight: 600 }}>{done} of {total} phases complete</span>
+            <span style={{ color: "rgb(var(--fg-muted))" }}>{100 - pct}% pending</span>
+          </div>
+          <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", background: track, gap: 2 }}>
+            {MS_STATUS.filter((s) => (counts[s.key] || 0) > 0).map((s) => (
+              <div key={s.key} title={`${s.label}: ${counts[s.key]}`} style={{ width: `${(counts[s.key] / total) * 100}%`, background: s.color }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 10 }}>
+            {MS_STATUS.filter((s) => (counts[s.key] || 0) > 0).map((s) => (
+              <span key={s.key} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "rgb(var(--fg-default))" }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                {s.label} <b>{counts[s.key]}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Per-milestone progress */}
+      {groupList.length > 1 && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(148,163,184,.2)", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: "12px 22px" }}>
+          {groupList.map(([g, rec]) => {
+            const gp = Math.round((rec.done / rec.total) * 100);
+            return (
+              <div key={g}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
+                  <span style={{ color: "rgb(var(--fg-default))", fontWeight: 600 }}>{g}</span>
+                  <span style={{ color: "rgb(var(--fg-muted))" }}>{gp}% · {rec.done}/{rec.total}</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 5, background: track, overflow: "hidden" }}>
+                  <div style={{ width: `${gp}%`, height: "100%", background: gp >= 100 ? "#16a34a" : "rgb(var(--color-primary))", borderRadius: 5 }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const MILESTONE_COLS: ColumnDef<Milestone>[] = [
@@ -721,6 +871,7 @@ const MILESTONE_COLS: ColumnDef<Milestone>[] = [
   { accessorKey: "timelineVariance", header: "Timeline Var (Days)", size: 130 },
   { accessorKey: "timelineVarianceStatus", header: "Timeline Var Status", size: 150 },
   { accessorKey: "remarkDuration", header: "Remark-2 (Duration)", size: 180 },
+  { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<Milestone>() },
 ];
 const MILESTONE_FIELDS: FieldDef[] = [
   { key: "milestoneGroup", label: "Roadmap to Success" },
@@ -739,6 +890,7 @@ const MILESTONE_FIELDS: FieldDef[] = [
   { key: "timelineVarianceStatus", label: "Timeline Variance Status", compute: (v) => milestoneOnTimeStatus(v.plannedDate, v.actualDate) },
   { key: "remarkStartDelay", label: "Remark-1 (Start Delay)", type: "textarea" },
   { key: "remarkDuration", label: "Remark-2 (Duration)", type: "textarea" },
+  { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const MILESTONE_BLANK = { status: "Pending", sortOrder: 0 };
 
@@ -767,6 +919,7 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
     },
   },
   { accessorKey: "remark", header: "Remark", size: 180 },
+  { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<TrainingUpdate>() },
 ];
 const TRAINING_FIELDS: FieldDef[] = [
   { key: "moduleName", label: "Main Module", type: "module" },
@@ -781,6 +934,7 @@ const TRAINING_FIELDS: FieldDef[] = [
   { key: "details", label: "Details of Covered Modules in Training", type: "textarea" },
   { key: "videoUrl", label: "YouTube Link Attachment", type: "url", full: true },
   { key: "remark", label: "Remark", type: "textarea" },
+  { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const TRAINING_BLANK = { status: "Scheduled" };
 
@@ -797,6 +951,7 @@ const CR_COLS: ColumnDef<ChangeRequest>[] = [
   { accessorKey: "completionDate", header: "Completion Date", size: 130 },
   { accessorKey: "completionDays", header: "Completion Days", size: 130 },
   { accessorKey: "remark", header: "Remark", size: 180 },
+  { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<ChangeRequest>() },
 ];
 const CR_FIELDS: FieldDef[] = [
   { key: "moduleName", label: "Module Name", type: "module" },
@@ -810,6 +965,7 @@ const CR_FIELDS: FieldDef[] = [
   { key: "completionDate", label: "Completion Date", type: "date" },
   { key: "completionDays", label: "Completion Days" },
   { key: "remark", label: "Remark", type: "textarea" },
+  { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const CR_BLANK = { status: "Open", queryType: "Improvement", emailed: false, tasked: false, pointed: false };
 
@@ -941,6 +1097,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       </div>
       {sub === "milestones" && (
         <EntityGrid<Milestone> code={code} title="Milestone Roadmap" rows={data.milestones} columns={MILESTONE_COLS}
+          summary={<MilestoneProgress milestones={data.milestones} />}
           fields={milestoneFields} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "milestone", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addMilestone, update: api.updateMilestone, del: api.deleteMilestone }} canEdit={canEdit} />

@@ -79,7 +79,7 @@ function ManageUsers() {
         {form && (
           <div style={{ display: "grid", gap: 12 }}>
             <Fld label="Full name *"><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Fld>
-            <Fld label="Email *"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Fld>
+            <Fld label="Email *"><Input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Fld>
             <Fld label={form.userID ? "Password (leave blank to keep)" : "Password"}><Input type="password" value={form.password ?? ""} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Fld>
             <Fld label="Role">
               <Dropdown value={form.role} onValueChange={(v) => setForm({ ...form, role: String(v) })}

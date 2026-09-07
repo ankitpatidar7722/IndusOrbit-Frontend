@@ -32,6 +32,7 @@ export interface Milestone {
   remarkDuration?: string;         // Remark-2 (Duration)
   sortOrder: number;
   emailed: boolean; tasked: boolean;
+  summary?: string;                // AI (Gemini) generated summary
 }
 export interface TrainingUpdate {
   id: number; clientCode: string;
@@ -47,6 +48,7 @@ export interface TrainingUpdate {
   remark?: string;
   videoUrl?: string;
   emailed: boolean; tasked: boolean;
+  summary?: string;                // AI (Gemini) generated summary
 }
 export interface KeylineModule { head: string; name: string; }
 
@@ -66,6 +68,7 @@ export interface ChangeRequest {
   inBugTool: boolean;
   emailed: boolean; tasked: boolean; pointed: boolean;
   pointID?: number | null;         // Point Management ticket id created from this CR
+  summary?: string;                // AI (Gemini) generated summary
 }
 export interface SupportLog { id: number; clientCode: string; logDate?: string; moduleName?: string; subModule?: string; problem?: string; solution?: string; status: string; emailed: boolean; tasked: boolean; }
 export interface OnsiteVisit {

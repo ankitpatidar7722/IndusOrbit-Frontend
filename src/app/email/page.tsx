@@ -5,9 +5,10 @@ import { Badge, Button, StandardModal } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import {
   Mail, Inbox, Star, Send, Archive, Trash2, RefreshCw, Search, Paperclip,
-  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText, Menu,
+  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText, Menu, Sparkles,
 } from "lucide-react";
 import { mailApi, mailTime, attachmentUrl, type MailMessage, type MailListResult, type MailFolder } from "@/lib/mail";
+import { trackerAiApi } from "@/lib/trackerAi";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import TemplatesManager from "./TemplatesManager";
 
@@ -37,6 +38,14 @@ const AVATARS = ["rgb(var(--color-primary))", "#0f6a72", "#553c9a", "#b45309", "
 function avatarBg(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return AVATARS[h % AVATARS.length]; }
 const initial = (a: { name?: string | null; email: string }) => (a.name?.[0] || a.email?.[0] || "?").toUpperCase();
 const quote = (m: MailMessage) => `\n\n\n---------- Original message ----------\nFrom: ${m.from.name || ""} <${m.from.email}>\nDate: ${new Date(m.receivedAt).toLocaleString()}\nSubject: ${m.subject}\n\n${m.bodyText || m.snippet || ""}`;
+
+/** HTML → readable plain text (for AI summarization of HTML emails). */
+const stripHtml = (html: string): string => {
+  if (typeof document === "undefined") return html.replace(/<[^>]+>/g, " ");
+  const d = document.createElement("div");
+  d.innerHTML = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
+  return (d.textContent || "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+};
 
 const PER_PAGE = 50;
 
@@ -244,6 +253,20 @@ function EmailViewer({ m, loading, email, folder, onClose, onReply, onForward, o
   m: MailMessage; loading: boolean; email: string; folder: string; onClose: () => void;
   onReply: () => void; onForward: () => void; onArchive: () => void; onDelete: () => void;
 }) {
+  // AI "Summarise this email" — a quick overview (a few bullet points) via the user's Gemini key.
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [sumErr, setSumErr] = useState<string | null>(null);
+  useEffect(() => { setSummary(null); setSumErr(null); setSummarizing(false); }, [m.id]);
+  const summarise = async () => {
+    setSummarizing(true); setSumErr(null);
+    const body = (m.bodyText && m.bodyText.trim()) || (m.bodyHtml ? stripHtml(m.bodyHtml) : "") || m.snippet || "";
+    const r = await trackerAiApi.summarizeEmail({ subject: m.subject, from: `${m.from.name || ""} <${m.from.email}>`, body });
+    setSummarizing(false);
+    if (r.success && r.summary) setSummary(r.summary);
+    else setSumErr(r.message || "Could not summarize this email.");
+  };
+
   return (
     <StandardModal isOpen onClose={onClose} title={m.subject || "(No Subject)"} size="xl" showFooter={false}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 12, borderBottom: `1px solid ${T.bd}` }}>
@@ -253,6 +276,33 @@ function EmailViewer({ m, loading, email, folder, onClose, onReply, onForward, o
           <div style={{ fontSize: 12, color: T.muted }}>&lt;{m.from.email}&gt; · to {m.to.map((t) => t.name || t.email).join(", ") || "me"}</div>
         </div>
         <div style={{ fontSize: 12, color: T.muted, flexShrink: 0 }}>{new Date(m.receivedAt).toLocaleString()}</div>
+      </div>
+
+      {/* AI "Summarise this email" — quick overview via the user's Gemini key */}
+      <div style={{ paddingTop: 12 }}>
+        {!summary && (
+          <button onClick={summarise} disabled={summarizing}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 15px", borderRadius: 20, border: `1px solid ${T.bd}`, background: T.subtle, color: T.fg, fontSize: 13, fontWeight: 600, cursor: summarizing ? "default" : "pointer" }}>
+            <Sparkles size={15} style={{ color: T.primary }} /> {summarizing ? "Summarising…" : "Summarise this email"}
+          </button>
+        )}
+        {sumErr && <div style={{ marginTop: 8, fontSize: 12.5, color: "#c0392b" }}>{sumErr}</div>}
+        {summary && (
+          <div style={{ background: T.subtle, border: `1px solid ${T.bd}`, borderRadius: 12, padding: "13px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Sparkles size={15} style={{ color: T.primary }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.fg }}>AI Overview</span>
+              <button onClick={summarise} disabled={summarizing} title="Regenerate" style={{ marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer", color: T.muted, display: "inline-flex", padding: 2 }}><RefreshCw size={14} /></button>
+              <button onClick={() => setSummary(null)} title="Hide" style={{ background: "transparent", border: "none", cursor: "pointer", color: T.muted, display: "inline-flex", padding: 2 }}><X size={15} /></button>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {summary.split("\n").map((l) => l.replace(/^\s*[-*•]\s*/, "").replace(/\*\*/g, "").trim()).filter(Boolean).map((l, i) => (
+                <li key={i} style={{ fontSize: 13, color: T.fg, lineHeight: 1.6, marginBottom: 4 }}>{l}</li>
+              ))}
+            </ul>
+            <div style={{ fontSize: 11, color: T.muted, marginTop: 8 }}>By Gemini · may have mistakes</div>
+          </div>
+        )}
       </div>
 
       <div style={{ padding: "16px 2px", minHeight: 180 }}>

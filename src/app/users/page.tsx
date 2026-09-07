@@ -1,6 +1,6 @@
 "use client";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Page, StandardModal, Badge, Button, Dropdown, useModalAlert } from "indas-ui";
+import { Page, StandardModal, Badge, Button, Dropdown, useModalAlert, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
@@ -53,6 +53,7 @@ type ModuleMatrixHandle = { save: (overrideUserId?: number) => Promise<{ success
 
 // `blankPerms` (Create flow) → show the FULL module list but with every checkbox unchecked.
 const ModuleMatrix = forwardRef<ModuleMatrixHandle, { userId: number; blankPerms?: boolean }>(function ModuleMatrix({ userId, blankPerms }, ref) {
+  const { isMobile } = useDevice();
   const [rows, setRows] = useState<ModuleAuthRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,6 +95,52 @@ const ModuleMatrix = forwardRef<ModuleMatrixHandle, { userId: number; blankPerms
   const cbx: React.CSSProperties = { width: 16, height: 16, cursor: "pointer", accentColor: "rgb(var(--color-primary))" };
 
   if (loading) return <div style={{ padding: 34, textAlign: "center", opacity: 0.6 }}>Loading modules…</div>;
+
+  // ── Mobile: a 760px-wide checkbox matrix is unusable on a phone. Render each module as a card
+  //    with a row "All" toggle + the 7 permissions as wrapped, labelled chips (2 per row). ──
+  if (isMobile) {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap", rowGap: 8 }}>
+          <Badge variant="info">{grantedCount}/{rows.length} modules granted</Badge>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer" }}>
+            <input type="checkbox" style={cbx} checked={allOn} onChange={(e) => setAll(e.target.checked)} /> Select everything
+          </label>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "56vh", overflowY: "auto", paddingRight: 2 }}>
+          {rows.map((r, i) => (
+            <div key={r.moduleID} style={{ border: "1px solid #e6ebf2", borderRadius: 11, padding: 12, background: "rgb(var(--bg-surface))" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  {r.moduleHeadName && <div style={{ fontSize: 10.5, fontWeight: 700, color: "rgb(var(--fg-subtle))", letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 2 }}>{r.moduleHeadName}</div>}
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{r.moduleDisplayName || r.moduleName}</div>
+                </div>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: rowAllOn(r) ? "rgb(var(--color-primary))" : "rgb(var(--fg-muted))", cursor: "pointer", flexShrink: 0 }}>
+                  <input type="checkbox" style={cbx} checked={rowAllOn(r)} onChange={(e) => setRowAll(i, e.target.checked)} /> All
+                </label>
+              </div>
+              {/* flex-wrap (not grid) so the [role=dialog] "1fr 1fr" stacking catch-all can't collapse
+                  this to one column — we want 2 perm chips per row here. */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {PERMS.map((p) => {
+                  const on = r[p.key];
+                  return (
+                    <label key={p.key} style={{ flex: "1 1 42%", minWidth: 0, display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 9px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                      border: `1px solid ${on ? "rgb(var(--color-primary))" : "#dce3ec"}`,
+                      background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 10%, transparent)" : "transparent",
+                      color: on ? "rgb(var(--color-primary))" : "rgb(var(--fg-muted))" }}>
+                      <input type="checkbox" style={cbx} checked={on} onChange={(e) => setCell(i, p.key, e.target.checked)} /> {p.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))", marginTop: 8 }}>Tip: “Can View” controls whether the module appears in the user’s sidebar.</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -154,6 +201,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   userId: number | null; isOpen: boolean; lookups: UserLookups | null;
   onClose: () => void; onSaved: () => void; onFlash: (m: string) => void;
 }) {
+  const { isMobile } = useDevice();
   const [curId, setCurId] = useState<number | null>(userId);
   const [tab, setTab] = useState("profile");
   const [f, setF] = useState<UserSave & { employeeCode?: string }>({ ...BLANK_USER });
@@ -294,9 +342,9 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   }
 
   const tabDefs = useMemo(() => [
-    { id: "profile", label: "User Profile", icon: User },
-    { id: "modules", label: "Module Authentication", icon: ShieldCheck },
-    { id: "emails", label: "Emails", icon: Mail },
+    { id: "profile", label: "User Profile", short: "Profile", icon: User },
+    { id: "modules", label: "Module Authentication", short: "Modules", icon: ShieldCheck },
+    { id: "emails", label: "Emails", short: "Emails", icon: Mail },
   ], []);
   const provider = f.emailProvider || "SMTP";
 
@@ -319,14 +367,15 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
           return (
             <button key={t.id} type="button" onClick={() => setTab(t.id)}
               style={{
-                flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-                padding: "11px 12px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 700,
+                flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: isMobile ? 5 : 8,
+                padding: isMobile ? "9px 6px" : "11px 12px", borderRadius: 9, border: "none", cursor: "pointer",
+                fontSize: isMobile ? 12 : 13.5, fontWeight: 700, whiteSpace: "nowrap",
                 background: active ? "#fff" : "transparent",
                 color: active ? "rgb(var(--color-primary))" : "#67758a",
                 boxShadow: active ? "0 2px 8px -3px rgba(31,69,118,.3), inset 0 0 0 1px #d6e3f4" : "none",
                 transition: "background .15s, color .15s",
               }}>
-              <Icon size={16} /> {t.label}
+              <Icon size={isMobile ? 14 : 16} /> {isMobile ? t.short : t.label}
             </button>
           );
         })}
@@ -338,8 +387,8 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div className="form-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 18px", maxWidth: 640 }}>
             <div><label style={fldLabel}>Full Name *</label><input value={f.fullName} onChange={(e) => set("fullName", e.target.value)} style={fldInput} placeholder="Employee name" /></div>
-            <div><label style={fldLabel}>Email *</label><input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
-            <div><label style={fldLabel}>Mobile No</label><input value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
+            <div><label style={fldLabel}>Email *</label><input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
+            <div><label style={fldLabel}>Mobile No</label><input type="tel" inputMode="tel" value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
             <div><label style={fldLabel}>Role</label>
               <Dropdown value={f.role ?? ""} onValueChange={(v) => set("role", String(v))}
                 options={[...(lookups?.roles ?? []), ...(f.role && !(lookups?.roles ?? []).includes(f.role) ? [f.role] : [])].map((r) => ({ value: r, label: r }))}
@@ -417,7 +466,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
             )}
 
             <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 18px" }}>
-              <div><label style={fldLabel}>SMTP Username</label><input value={f.smtpUsername ?? ""} onChange={(e) => set("smtpUsername", e.target.value)} style={fldInput} placeholder="you@gmail.com" autoComplete="off" /></div>
+              <div><label style={fldLabel}>SMTP Username</label><input inputMode="email" autoCapitalize="none" autoCorrect="off" value={f.smtpUsername ?? ""} onChange={(e) => set("smtpUsername", e.target.value)} style={fldInput} placeholder="you@gmail.com" autoComplete="off" /></div>
               <div><label style={fldLabel}>SMTP Password</label>
                 <div style={{ position: "relative" }}>
                   <input type={showSmtpPwd ? "text" : "password"} value={f.smtpPassword ?? ""} onChange={(e) => set("smtpPassword", e.target.value)} style={{ ...fldInput, paddingRight: 34 }} placeholder={hasSmtpPwd ? "•••••••• saved — leave blank to keep" : (curId ? "Leave blank to keep current" : "App password")} autoComplete="new-password" />
@@ -425,7 +474,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 </div>
               </div>
               <div><label style={fldLabel}>SMTP Server</label><input value={f.smtpServer ?? ""} onChange={(e) => set("smtpServer", e.target.value)} style={fldInput} placeholder="smtp.gmail.com" /></div>
-              <div><label style={fldLabel}>Port</label><input value={f.smtpPort ?? ""} onChange={(e) => set("smtpPort", e.target.value)} style={fldInput} placeholder="587" /></div>
+              <div><label style={fldLabel}>Port</label><input inputMode="numeric" value={f.smtpPort ?? ""} onChange={(e) => set("smtpPort", e.target.value)} style={fldInput} placeholder="587" /></div>
               <div><label style={fldLabel}>Authenticate</label>
                 <Dropdown value={f.smtpAuthenticate ? "Yes" : "No"} onValueChange={(v) => set("smtpAuthenticate", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
               </div>

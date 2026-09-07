@@ -207,11 +207,20 @@ export function CardView<TData>({
     [columns]
   )
 
-  // Display columns — exclude select and actions. When `cardColumns` is given, show exactly those
-  // (by accessorKey/id), in that order; otherwise fall back to the first N real columns.
+  // Other icon-button columns (Send To / Send to Tracker) — these have no data value, only tappable
+  // icons, so on a card they'd render blank. Show their cell alongside the actions instead.
+  const ACTION_AREA_IDS = ['sendto', 'sendtracker']
+  const actionAreaColumns = useMemo(() =>
+    columns.filter(col => col.id && ACTION_AREA_IDS.includes(col.id as string)),
+    [columns]
+  )
+
+  // Display columns — exclude select, actions and the action-area icon columns. When `cardColumns`
+  // is given, show exactly those (by accessorKey/id), in that order; else the first N real columns.
   const displayColumns = useMemo(() => {
     const usable = columns.filter(col =>
-      col.id !== 'select' && col.id !== 'actions' && (col as any).accessorKey !== 'actions'
+      col.id !== 'select' && col.id !== 'actions' && (col as any).accessorKey !== 'actions' &&
+      !(col.id && ACTION_AREA_IDS.includes(col.id as string))
     )
     if (cardColumns && cardColumns.length) {
       const key = (c: ColumnDef<TData>) => ((c as any).accessorKey as string) || (c.id as string)
@@ -311,13 +320,19 @@ export function CardView<TData>({
                         </div>
 
                         {/* Actions — always visible (mobile has no hover, so the opacity-on-hover
-                            trick would leave the View/Edit buttons untappable on touch). */}
+                            trick would leave the View/Edit buttons untappable on touch). Includes the
+                            Send To / Send-to-Tracker icon columns so they're reachable on a card. */}
                         <div
-                          className="flex-shrink-0"
+                          className="flex-shrink-0 flex items-center gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          {actionAreaColumns.map((col) => (
+                            <span key={col.id as string}>
+                              {(col as any).cell?.({ row: { original: item, getValue: (colId: string) => (item as any)?.[colId] }, getValue: () => null, renderValue: () => null })}
+                            </span>
+                          ))}
                           {actionsColumn && (actionsColumn as any).cell?.({
-                            row: { original: item },
+                            row: { original: item, getValue: (colId: string) => (item as any)?.[colId] },
                             getValue: () => null,
                             renderValue: () => null,
                           })}
@@ -328,21 +343,34 @@ export function CardView<TData>({
                       {displayColumns.length > 2 && (
                         <div className="mt-2 pt-2 border-t border-[rgb(var(--bd-default))]/40 space-y-1">
                           {displayColumns.slice(2).map((column) => {
-                            const fieldKey = (column as any).accessorKey as string
-                            // Skip empty fields — a card full of "—" rows looks sparse/unpolished on mobile.
-                            const raw = (item as any)[fieldKey]
-                            if (raw == null || (typeof raw !== "boolean" && String(raw).trim() === "")) return null
-                            const fieldValue = getDisplayValue(item, fieldKey)
+                            const fieldKey = ((column as any).accessorKey as string) || (column.id as string)
+                            const hasCell = typeof (column as any).cell === "function"
+                            const raw = fieldKey ? (item as any)[fieldKey] : undefined
+                            // Columns with a custom cell (toggles, status pills, badges) always render —
+                            // their value may be falsy (an "off" switch) yet still needs to show, and the
+                            // cell carries the real formatting. Plain columns skip when empty so cards
+                            // aren't full of "—" rows.
+                            if (!hasCell && (raw == null || (typeof raw !== "boolean" && String(raw).trim() === ""))) return null
                             const fieldLabel = getFieldLabel(column)
+                            const cellNode = hasCell
+                              ? (column as any).cell({ row: { original: item, getValue: (colId: string) => (item as any)?.[colId] }, getValue: () => raw, renderValue: () => raw })
+                              : null
 
                             return (
-                              <div key={fieldKey} className="flex items-center justify-between gap-2">
-                                <span className="text-[0.65rem] text-[rgb(var(--fg-muted))] truncate flex-shrink-0 max-w-[40%]">
+                              <div key={fieldKey} className="flex items-center justify-between gap-2"
+                                {...(hasCell ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}>
+                                <span className="text-[0.65rem] text-[rgb(var(--fg-muted))] truncate flex-shrink-0 max-w-[45%]">
                                   {fieldLabel}
                                 </span>
-                                <span className={`${cfg.valueText} font-medium text-[rgb(var(--fg-default))] text-right truncate`}>
-                                  {fieldValue}
-                                </span>
+                                {hasCell ? (
+                                  <span className={`${cfg.valueText} font-medium text-[rgb(var(--fg-default))] min-w-0 flex items-center justify-end`}>
+                                    {cellNode}
+                                  </span>
+                                ) : (
+                                  <span className={`${cfg.valueText} font-medium text-[rgb(var(--fg-default))] text-right truncate`}>
+                                    {getDisplayValue(item, fieldKey)}
+                                  </span>
+                                )}
                               </div>
                             )
                           })}

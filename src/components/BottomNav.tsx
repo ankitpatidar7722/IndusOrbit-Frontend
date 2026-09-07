@@ -6,11 +6,11 @@ import { Menu } from "lucide-react";
 import { useMessagingPanel } from "@/components/messaging/MessagingPanelProvider";
 import { useMessaging } from "@/contexts/MessagingContext";
 import { toggleMobileNav } from "@/components/MobileNav";
-import { loadBottomNav, itemFor, BOTTOM_NAV_EVENT, type BottomNavItem } from "@/lib/bottomNav";
+import { loadBottomNav, iconForItem, BOTTOM_NAV_EVENT, type BottomNavStored } from "@/lib/bottomNav";
 
 /**
  * Native-app bottom navigation bar — mobile only (hidden ≥ lg via .bottom-nav CSS).
- * Shows the user's chosen 4 shortcuts (Settings → Bottom Navbar) + a fixed "Menu" (opens the full
+ * Shows the user's chosen shortcuts (Settings → Bottom Navbar) + a fixed "Menu" (opens the full
  * module drawer). Per-user config in localStorage; refreshes live when Settings saves.
  */
 export default function BottomNav() {
@@ -21,18 +21,16 @@ export default function BottomNav() {
   const unread = state.totalUnreadCount;
   const userId = (useSession().data?.user as { UserID?: number } | undefined)?.UserID;
 
-  const [keys, setKeys] = useState<string[]>([]);
+  const [items, setItems] = useState<BottomNavStored[]>([]);
   useEffect(() => {
-    const refresh = () => setKeys(loadBottomNav(userId));
+    const refresh = () => setItems(loadBottomNav(userId));
     refresh();
     window.addEventListener(BOTTOM_NAV_EVENT, refresh);
     return () => window.removeEventListener(BOTTOM_NAV_EVENT, refresh);
   }, [userId]);
 
-  const items = keys.map(itemFor).filter(Boolean) as BottomNavItem[];
   const active = (route?: string) => (!route ? false : route === "/" ? pathname === "/" : pathname.startsWith(route));
-
-  const onItem = (it: BottomNavItem) => {
+  const onItem = (it: BottomNavStored) => {
     if (it.action === "chat") openMessaging();
     else if (it.route) router.push(it.route);
   };
@@ -40,7 +38,7 @@ export default function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="Primary">
       {items.map((it) => {
-        const Icon = it.icon;
+        const Icon = iconForItem(it);
         const showBadge = it.action === "chat" && unread > 0;
         return (
           <button key={it.key} className="bottom-nav-item" data-active={active(it.route)} onClick={() => onItem(it)}>
