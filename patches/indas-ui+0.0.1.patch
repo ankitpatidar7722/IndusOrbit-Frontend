@@ -1,8 +1,8 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..6da3faa 100644
+index 99c0137..21de9bc 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
-@@ -3213,7 +3213,8 @@ function SingleSelect({
+@@ -3213,8 +3213,13 @@ function SingleSelect({
            collisionPadding: 16,
            onOpenAutoFocus: (e) => {
              e.preventDefault();
@@ -10,9 +10,25 @@ index 99c0137..6da3faa 100644
 +            const focusSearch = () => searchInputRef.current?.focus();
 +            requestAnimationFrame(() => { focusSearch(); setTimeout(focusSearch, 60); });
            },
++          // Mobile: tapping the search box opens the phone keyboard, whose focus change makes Radix
++          // dismiss the popover (the reported "keyboard doesn't show + dropdown closes"). Prevent the
++          // focus-driven dismiss on touch; a genuine tap OUTSIDE still closes it (pointer path).
++          onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
            children: [
              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
-@@ -5669,7 +5670,7 @@ function DatePicker({
+               /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Search, { className: "w-3.5 h-3.5 text-[rgb(var(--fg-muted))] flex-shrink-0" }),
+@@ -4866,6 +4871,10 @@ function Dropdown({
+             sticky: "always",
+             collisionPadding: 16,
+             onOpenAutoFocus: (e) => e.preventDefault(),
++            // Mobile: tapping the search box opens the phone keyboard, whose focus change makes
++            // Radix dismiss the popover (search box "closes, keyboard never shows"). Stop the
++            // focus-driven dismiss on touch; a real tap OUTSIDE still closes it (pointer path).
++            onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
+             children: /* @__PURE__ */ jsxRuntime.jsx(
+               MultiSelect,
+               {
+@@ -5669,7 +5678,7 @@ function DatePicker({
      return returnFormat === "string" ? getLocalDateString(date) : date;
    };
    React26__namespace.useEffect(() => {
@@ -21,7 +37,7 @@ index 99c0137..6da3faa 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -7691,7 +7692,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
+@@ -7691,7 +7700,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
  function useSidebarPreferences() {
    const context = React26.useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -30,7 +46,7 @@ index 99c0137..6da3faa 100644
    }
    return context;
  }
-@@ -7940,6 +7941,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -7940,6 +7949,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -42,7 +58,7 @@ index 99c0137..6da3faa 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return lucideReact.Gauge;
    } else if (name.includes("sales")) {
-@@ -8052,7 +8058,7 @@ function DynamicSidebar({
+@@ -8052,7 +8066,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);
@@ -52,7 +68,7 @@ index 99c0137..6da3faa 100644
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..b6c35ce 100644
+index 920f23c..4b26308 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
 @@ -1145,7 +1145,11 @@ function SingleSelect({
@@ -68,7 +84,7 @@ index 920f23c..b6c35ce 100644
            side: "bottom",
            align: "start",
            sideOffset: 4,
-@@ -1154,7 +1158,12 @@ function SingleSelect({
+@@ -1154,8 +1158,17 @@ function SingleSelect({
            collisionPadding: 16,
            onOpenAutoFocus: (e) => {
              e.preventDefault();
@@ -80,9 +96,14 @@ index 920f23c..b6c35ce 100644
 +            const focusSearch = () => searchInputRef.current?.focus();
 +            requestAnimationFrame(() => { focusSearch(); setTimeout(focusSearch, 60); });
            },
++          // Mobile: tapping the search box opens the phone keyboard, whose focus change makes Radix
++          // dismiss the popover (the reported "keyboard doesn't show + dropdown closes"). Prevent the
++          // focus-driven dismiss on touch; a genuine tap OUTSIDE still closes it (pointer path).
++          onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
            children: [
              /* @__PURE__ */ jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
-@@ -1169,7 +1178,8 @@ function SingleSelect({
+               /* @__PURE__ */ jsx(Search, { className: "w-3.5 h-3.5 text-[rgb(var(--fg-muted))] flex-shrink-0" }),
+@@ -1169,7 +1182,8 @@ function SingleSelect({
                    value: searchTerm,
                    onChange: (e) => setSearchTerm(e.target.value),
                    onKeyDown: handleComboKeyDown,
@@ -92,7 +113,7 @@ index 920f23c..b6c35ce 100644
                  }
                ),
                filteredOptions.length > 0 && /* @__PURE__ */ jsxs("span", { className: "text-[0.625rem] font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-subtle))] px-1.5 py-0.5 rounded-md flex-shrink-0 tabular-nums", children: [
-@@ -1293,6 +1303,11 @@ function SingleSelect({
+@@ -1293,6 +1307,11 @@ function SingleSelect({
              avoidCollisions: true,
              sticky: "always",
              collisionPadding: 16,
@@ -104,7 +125,7 @@ index 920f23c..b6c35ce 100644
              children: [
                searchable && /* @__PURE__ */ jsx(
                  DropdownSearch,
-@@ -2463,6 +2478,10 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+@@ -2463,6 +2482,10 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
          className: "w-full text-xs bg-transparent text-[rgb(var(--fg-default))] placeholder:text-[rgb(var(--fg-muted))] focus:outline-none",
          value: searchTerm,
          onChange: (e) => setSearchTerm(e.target.value),
@@ -115,7 +136,7 @@ index 920f23c..b6c35ce 100644
          onKeyDown: (e) => {
            if (stopAllKeyPropagation) {
              if (e.key !== "Escape") {
-@@ -2798,8 +2817,11 @@ function Dropdown({
+@@ -2798,8 +2821,11 @@ function Dropdown({
              ref: dropdownContentRef,
              className: cn(
                getDropdownClassName2.content(),
@@ -127,7 +148,18 @@ index 920f23c..b6c35ce 100644
              side: "bottom",
              align: "start",
              sideOffset: 4,
-@@ -3610,7 +3632,7 @@ function DatePicker({
+@@ -2807,6 +2833,10 @@ function Dropdown({
+             sticky: "always",
+             collisionPadding: 16,
+             onOpenAutoFocus: (e) => e.preventDefault(),
++            // Mobile: tapping the search box opens the phone keyboard, whose focus change makes
++            // Radix dismiss the popover (search box "closes, keyboard never shows"). Stop the
++            // focus-driven dismiss on touch; a real tap OUTSIDE still closes it (pointer path).
++            onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
+             children: /* @__PURE__ */ jsx(
+               MultiSelect,
+               {
+@@ -3610,7 +3640,7 @@ function DatePicker({
      return returnFormat === "string" ? getLocalDateString(date) : date;
    };
    React26.useEffect(() => {
@@ -136,7 +168,7 @@ index 920f23c..b6c35ce 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -4315,6 +4337,11 @@ function DatePicker({
+@@ -4315,6 +4345,11 @@ function DatePicker({
            placeholder: getPlaceholder(),
            disabled,
            error,
@@ -148,7 +180,7 @@ index 920f23c..b6c35ce 100644
            className: cn(
              "pl-2 pr-9 text-xs w-full",
              error && "border-red-300"
-@@ -4329,6 +4356,7 @@ function DatePicker({
+@@ -4329,6 +4364,7 @@ function DatePicker({
          {
            ref: calendarRef,
            className: cn(
@@ -156,7 +188,7 @@ index 920f23c..b6c35ce 100644
              "z-[300] bg-[rgb(var(--bg-surface))] rounded-xl shadow-2xl border border-[rgb(var(--bd-default))] backdrop-blur-sm",
              "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-@@ -4352,7 +4380,13 @@ function DatePicker({
+@@ -4352,7 +4388,13 @@ function DatePicker({
              }
            },
            style: {
@@ -171,7 +203,7 @@ index 920f23c..b6c35ce 100644
            },
            children: [
              /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-3", children: [
-@@ -5632,7 +5666,7 @@ var SidebarPreferencesContext = createContext(void 0);
+@@ -5632,7 +5674,7 @@ var SidebarPreferencesContext = createContext(void 0);
  function useSidebarPreferences() {
    const context = useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -180,7 +212,7 @@ index 920f23c..b6c35ce 100644
    }
    return context;
  }
-@@ -5881,6 +5915,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -5881,6 +5923,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -192,7 +224,7 @@ index 920f23c..b6c35ce 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return Gauge;
    } else if (name.includes("sales")) {
-@@ -5993,7 +6032,7 @@ function DynamicSidebar({
+@@ -5993,7 +6040,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);
@@ -201,7 +233,7 @@ index 920f23c..b6c35ce 100644
          try {
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
-@@ -10119,6 +10158,7 @@ function ModalAlert({
+@@ -10119,6 +10166,7 @@ function ModalAlert({
        DialogPrimitive.Content,
        {
          className: cn(

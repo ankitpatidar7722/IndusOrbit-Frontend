@@ -20,12 +20,14 @@ type Tracker = {
 };
 
 /* ------------------------------------------------------------------ form model */
-type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user" | "aiSummary";
+type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user" | "person" | "aiSummary";
 // dependsOn: for "submodule" — the key of the "module" field it cascades from.
 // compute: derives this field's value from the other form values (read-only, auto-filled) — e.g. Days = To − From.
+// refillWhenEmpty: for a compute field — keep auto-filling a CLEARED field (default off, so the user can blank it).
+// autofill: for a "person" field — on select, also fill the given keys from the chosen app-user (mobile / age-from-DOB).
 // span: grid-column width on a 12-col layout — lets a form pack rows of 3 (span 4) or 4 (span 3) fields; omit for the default 3-up grid.
 // autoGrow: textarea that grows its height to fit the text inside it (no scrollbar, no manual drag handle).
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; locked?: boolean };
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -35,6 +37,19 @@ function daysBetween(from?: unknown, to?: unknown): string {
   if (isNaN(d1) || isNaN(d2)) return "";
   const n = Math.round((d2 - d1) / 86400000) + 1;
   return n > 0 ? String(n) : "";
+}
+
+/** Whole-number age in years from a date of birth (yyyy-mm-dd / ISO); "" if missing/invalid. */
+function ageFromDob(dob?: unknown): string {
+  const s = String(dob ?? "").slice(0, 10);
+  if (!s) return "";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age >= 0 && age < 150 ? String(age) : "";
 }
 
 const inputStyle: React.CSSProperties = {
@@ -121,6 +136,20 @@ async function loadUserNames(): Promise<string[]> {
   return _usersCache;
 }
 
+// Active users WITH mobile + date-of-birth — for a "person" field that auto-fills Mobile + Age.
+type AppUserLite = { fullName: string; mobile?: string | null; dateOfBirth?: string | null };
+let _usersDetailedCache: AppUserLite[] | null = null;
+async function loadUsersDetailed(): Promise<AppUserLite[]> {
+  if (_usersDetailedCache) return _usersDetailedCache;
+  try {
+    const r = await usersApi.list();
+    _usersDetailedCache = r.success
+      ? r.data.filter((u) => u.isActive && u.fullName?.trim()).map((u) => ({ fullName: u.fullName, mobile: u.mobile, dateOfBirth: u.dateOfBirth }))
+      : [];
+  } catch { _usersDetailedCache = []; }
+  return _usersDetailedCache;
+}
+
 /** Textarea + "Summarize with AI" button. Sends the row's filled fields to Gemini (backend) and
  *  drops the returned summary into the field. The text stays fully editable. */
 function AiSummaryField({ value, onChange, entity, fields, values, disabled }: {
@@ -163,10 +192,11 @@ function AiSummaryField({ value, onChange, entity, fields, values, disabled }: {
 }
 
 function EntityFormModal({
-  open, title, fields, initial, saving, onClose, onSave, readOnly = false,
+  open, title, fields, initial, saving, onClose, onSave, readOnly = false, columns,
 }: {
   open: boolean; title: string; fields: FieldDef[]; initial: Record<string, unknown>;
   saving: boolean; onClose: () => void; onSave: (values: Record<string, unknown>) => void; readOnly?: boolean;
+  columns?: number;   // explicit grid column count (e.g. 5-up rows); falls back to spans ? 12 : 3
 }) {
   const { data: session } = useSession();
   const currentUserName = ((session?.user as { name?: string } | undefined)?.name) || "";
@@ -196,6 +226,21 @@ function EntityFormModal({
   const [userNames, setUserNames] = useState<string[]>(_usersCache ?? []);
   useEffect(() => { if (open && needsUsers) loadUserNames().then(setUserNames); }, [open, needsUsers]);
 
+  // Load users WITH mobile + DOB when this form uses a "person" field (Onsite Person Name).
+  const needsPersons = useMemo(() => fields.some((fd) => fd.type === "person"), [fields]);
+  const [persons, setPersons] = useState<AppUserLite[]>(_usersDetailedCache ?? []);
+  useEffect(() => { if (open && needsPersons) loadUsersDetailed().then(setPersons); }, [open, needsPersons]);
+  // Choosing a person also fills the mapped Mobile + Age (from the app-user's DOB) — all stay editable.
+  const setPerson = (fd: FieldDef, name: string) => setF((p) => {
+    const next = { ...p, [fd.key]: name };
+    const u = persons.find((x) => x.fullName === name);
+    if (u && fd.autofill) {
+      if (fd.autofill.mobileKey) next[fd.autofill.mobileKey] = u.mobile ?? "";
+      if (fd.autofill.ageKey) next[fd.autofill.ageKey] = ageFromDob(u.dateOfBirth);
+    }
+    return next;
+  });
+
   // Auto-fill derived (compute) fields when their INPUTS change — but keep them editable:
   // only overwrite when the freshly computed value differs from the last one we filled, so a
   // manual edit survives (editing the field itself doesn't change the computed inputs).
@@ -205,9 +250,13 @@ function EntityFormModal({
       for (const fd of fields) {
         if (!fd.compute) continue;
         const v = fd.compute(prev);
-        // Inputs unchanged → keep a MANUAL value, but still auto-fill an EMPTY computed field
-        // (e.g. Timeline Var Status when the row already has an Actual Start but no status yet).
-        if (v === computedRef.current[fd.key] && String(prev[fd.key] ?? "").trim() !== "") continue;
+        // Inputs unchanged → keep the current value. A CLEARED field is only auto-refilled for fields
+        // that opt in (refillWhenEmpty, e.g. Timeline Var Status); otherwise a blank stays blank so the
+        // user can actually clear it (e.g. Days — was previously un-clearable).
+        if (v === computedRef.current[fd.key]) {
+          const isEmpty = String(prev[fd.key] ?? "").trim() === "";
+          if (!isEmpty || !fd.refillWhenEmpty) continue;
+        }
         computedRef.current[fd.key] = v;
         if (v !== "" && String(prev[fd.key] ?? "") !== v) { if (!changed) { next = { ...prev }; changed = true; } next[fd.key] = v; }
       }
@@ -226,10 +275,10 @@ function EntityFormModal({
 
   // When any field declares an explicit `span`, lay the form on a 12-column grid (12 = lcm of 3 and 4,
   // so rows of 4 fields (span 3) or 3 fields (span 4) both fill a row exactly). Otherwise keep the simple 3-up grid.
-  const gridCols = useMemo(() => (fields.some((fd) => fd.span) ? 12 : 3), [fields]);
+  const gridCols = useMemo(() => columns ?? (fields.some((fd) => fd.span) ? 12 : 3), [fields, columns]);
 
   return (
-    <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size="lg" showFooter={!readOnly}
+    <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size={columns && columns >= 5 ? "xl" : "lg"} showFooter={!readOnly}
       onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving}>
       <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
         {fields.map((fd) => {
@@ -243,7 +292,7 @@ function EntityFormModal({
           return (
             <div key={fd.key} style={{ ...span, ...(fieldLocked ? { pointerEvents: "none", opacity: 0.55 } : {}) }}>
               <label style={labelStyle}>{fd.label}{fieldLocked && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>🔒 view only</span>}</label>
-              {fd.compute ? (
+              {fd.compute && !fd.type ? (
                 <input type="text" value={val} onChange={(e) => set(fd.key, e.target.value)}
                   title="Auto-calculated from the dates — you can override it" style={inputStyle} />
               ) : fd.type === "aiSummary" ? (
@@ -275,6 +324,10 @@ function EntityFormModal({
                 <Dropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                   options={(val && !userNames.includes(val) ? [val, ...userNames] : userNames).map((n) => ({ value: n, label: n }))}
                   placeholder="— select user —" searchable size="md" />
+              ) : fd.type === "person" ? (
+                <Dropdown value={val} onValueChange={(v) => setPerson(fd, String(v))}
+                  options={(() => { const names = persons.map((p) => p.fullName); return (val && !names.includes(val) ? [val, ...names] : names).map((n) => ({ value: n, label: n })); })()}
+                  placeholder="— select person —" searchable size="md" />
               ) : fd.type === "date" ? (
                 <DateField value={val} onChange={(v) => set(fd.key, v)} />
               ) : fd.type === "url" ? (
@@ -430,6 +483,10 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   sendToTask?: (code: string, rowId: number) => Promise<{ success: boolean; message?: string }>;
   // Optional summary block rendered between the header and the grid (e.g. the Milestone progress meter).
   summary?: ReactNode;
+  // Explicit form grid column count (e.g. 5-up rows for Change Request).
+  formColumns?: number;
+  // Optional pre-save validation — return an error string to block the save (e.g. To ≥ From).
+  validate?: (v: Record<string, unknown>) => string | null;
 }) {
   const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint, sendToTask, summary } = props;
   const { openComposer } = useEmailComposer();
@@ -448,6 +505,8 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   const close = () => setModal({ open: false, row: null });
 
   const save = async (values: Record<string, unknown>) => {
+    const verr = props.validate?.(values);
+    if (verr) { showError("Check the form", verr); return; }
     setSaving(true);
     const editing = !!modal.row;
     try {
@@ -754,7 +813,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           persistKey={`tracker-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-v1`}
         />
         <EntityFormModal open={modal.open} title={`${modal.row ? "Edit" : "New"} ${singular}`}
-          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit} />
+          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit} columns={props.formColumns} />
         <ImportPreviewModal open={preview.open} title={title} fields={fields} initialRows={preview.rows}
           onClose={() => setPreview({ open: false, rows: [] })} onImport={doImportRows} />
         <AlertComponent />
@@ -787,11 +846,11 @@ function milestoneVarianceDays(planned: unknown, actual: unknown): string {
   const d = Math.round((Date.parse(act) - Date.parse(est)) / 86400000);
   return Number.isFinite(d) ? String(d) : "";
 }
-/** "On Time" when Actual ≤ Estimated, "Delayed" when Actual is later; "" until both dates are set. */
+/** "On Time" when Actual ≤ Estimated, "Delay" when Actual is later; "" until both dates are set. */
 function milestoneOnTimeStatus(planned: unknown, actual: unknown): string {
   const est = String(planned ?? "").slice(0, 10), act = String(actual ?? "").slice(0, 10);
   if (!est || !act) return "";
-  return act > est ? "Delayed" : "On Time";
+  return act > est ? "Delay" : "On Time";
 }
 
 // Milestone status → bar/legend colour. Status colours are reserved + always shown WITH a text
@@ -901,22 +960,28 @@ const MILESTONE_COLS: ColumnDef<Milestone>[] = [
   { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<Milestone>() },
 ];
 const MILESTONE_FIELDS: FieldDef[] = [
-  { key: "milestoneGroup", label: "Roadmap to Success" },
-  { key: "name", label: "Phases" },
-  { key: "taskTimeline", label: "Task Timeline" },
-  { key: "plannedDate", label: "Estimated Start Date", type: "date" },
-  { key: "actualDate", label: "Actual Start Date", type: "date" },
-  { key: "endDate", label: "End Date", type: "date" },
-  { key: "resPerson", label: "Res. Person (Indus)" },
-  { key: "status", label: "Status", type: "select", options: ["Pending", "In Progress", "Complete", "Delayed", "On Hold"] },
-  // Auto-filled from the dates (still editable): Start Date Variance = Actual − Estimated (days);
-  // Timeline Variance Status = On Time when Actual ≤ Estimated, Delayed when Actual is later.
-  { key: "startDateVariance", label: "Start Date Variance (Days)", compute: (v) => milestoneVarianceDays(v.plannedDate, v.actualDate) },
-  { key: "scheduledStartStatus", label: "Scheduled Start Status" },
-  { key: "timelineVariance", label: "Timeline Variance (Days)" },
-  { key: "timelineVarianceStatus", label: "Timeline Variance Status", compute: (v) => milestoneOnTimeStatus(v.plannedDate, v.actualDate) },
-  { key: "remarkStartDelay", label: "Remark-1 (Start Delay)", type: "textarea" },
-  { key: "remarkDuration", label: "Remark-2 (Duration)", type: "textarea" },
+  // Row 1 — 3 fields (span 4 each = 12)
+  { key: "milestoneGroup", label: "Roadmap to Success", span: 4 },
+  { key: "name", label: "Phases", span: 4 },
+  { key: "taskTimeline", label: "Task Timeline", span: 4 },
+  // Row 2 — dates
+  { key: "plannedDate", label: "Estimated Start Date", type: "date", span: 4 },
+  { key: "actualDate", label: "Actual Start Date", type: "date", span: 4 },
+  { key: "endDate", label: "End Date", type: "date", span: 4 },
+  // Row 3 — Res. Person is an app-user dropdown
+  { key: "resPerson", label: "Res. Person (Indus)", type: "user", span: 4 },
+  { key: "status", label: "Status", type: "select", options: ["Pending", "In Progress", "Complete", "Delayed", "On Hold"], span: 4 },
+  // Auto-filled from the dates (still editable): Start Date Variance = Actual − Estimated (days).
+  { key: "startDateVariance", label: "Start Date Variance (Days)", compute: (v) => milestoneVarianceDays(v.plannedDate, v.actualDate), span: 4 },
+  // Row 4
+  { key: "scheduledStartStatus", label: "Scheduled Start Status", span: 4 },
+  { key: "timelineVariance", label: "Timeline Variance (Days)", span: 4 },
+  // Dropdown (On Time / Delay) with an auto-default from the dates that keeps filling on a new row.
+  { key: "timelineVarianceStatus", label: "Timeline Variance Status", type: "select", options: ["On Time", "Delay"], compute: (v) => milestoneOnTimeStatus(v.plannedDate, v.actualDate), refillWhenEmpty: true, span: 4 },
+  // Row 5 — Remark-1 + Remark-2 side by side (span 6 each = 12)
+  { key: "remarkStartDelay", label: "Remark-1 (Start Delay)", type: "textarea", autoGrow: true, span: 6 },
+  { key: "remarkDuration", label: "Remark-2 (Duration)", type: "textarea", autoGrow: true, span: 6 },
+  // Row 6 — full-width
   { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const MILESTONE_BLANK = { status: "Pending", sortOrder: 0 };
@@ -985,18 +1050,20 @@ const CR_COLS: ColumnDef<ChangeRequest>[] = [
   { accessorKey: "remark", header: "Remark", size: 180 },
   { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<ChangeRequest>() },
 ];
+// Rendered on a 5-column grid (formColumns={5}): Row1 = 5 fields, Row2 = Point Description (full,
+// auto-grow), Row3 = 5 fields, Row4 = Summary (full).
 const CR_FIELDS: FieldDef[] = [
-  { key: "moduleName", label: "Module Name", type: "module" },
-  { key: "subModule", label: "Sub Module Name", type: "submodule", dependsOn: "moduleName" },
-  { key: "description", label: "Point Description", type: "textarea" },
-  { key: "raisedBy", label: "Raised By" },
-  { key: "raisedDate", label: "Raised Date", type: "date" },
-  { key: "reportedBy", label: "Reported By", type: "user" },
-  { key: "queryType", label: "Query Type", type: "select", options: ["Improvement", "Bug", "New Feature", "Configuration"] },
-  { key: "status", label: "Status", type: "select", options: ["Open", "In Progress", "Completed", "Rejected"] },
-  { key: "completionDate", label: "Completion Date", type: "date" },
-  { key: "completionDays", label: "Completion Days" },
-  { key: "remark", label: "Remark", type: "textarea" },
+  { key: "moduleName", label: "Module Name", type: "module", span: 1 },
+  { key: "subModule", label: "Sub Module Name", type: "submodule", dependsOn: "moduleName", span: 1 },
+  { key: "raisedBy", label: "Raised By", span: 1 },
+  { key: "raisedDate", label: "Raised Date", type: "date", span: 1 },
+  { key: "queryType", label: "Query Type", type: "select", options: ["Improvement", "Bug", "New Feature", "Configuration"], span: 1 },
+  { key: "description", label: "Point Description", type: "textarea", autoGrow: true, full: true },
+  { key: "status", label: "Status", type: "select", options: ["Open", "In Progress", "Completed", "Rejected"], span: 1 },
+  { key: "completionDate", label: "Completion Date", type: "date", span: 1 },
+  { key: "completionDays", label: "Completion Days", span: 1 },
+  { key: "reportedBy", label: "Reported By", type: "user", span: 1 },
+  { key: "remark", label: "Remark", type: "textarea", autoGrow: true, span: 1 },
   { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const CR_BLANK = { status: "Open", queryType: "Improvement", emailed: false, tasked: false, pointed: false };
@@ -1023,7 +1090,8 @@ const SEND_MAIL_TASK: ("mail" | "task" | "point")[] = ["mail", "task"];
 const SEND_MAIL_TASK_POINT: ("mail" | "task" | "point")[] = ["mail", "task", "point"];
 const SEND_MAIL: ("mail" | "task" | "point")[] = ["mail"];
 const ONSITE_FIELDS: FieldDef[] = [
-  { key: "person", label: "Person Name" },
+  // Person Name = app-user dropdown; selecting it auto-fills Mobile + Age (from DOB) — both editable.
+  { key: "person", label: "Person Name", type: "person", autofill: { mobileKey: "mobileNo", ageKey: "age" } },
   { key: "age", label: "Age" },
   { key: "mobileNo", label: "Mobile No" },
   { key: "location", label: "Location" },
@@ -1039,7 +1107,7 @@ const ONSITE_FIELDS: FieldDef[] = [
 const ONSITE_BLANK = { status: "Planned" };
 
 /* ------------------------------------------------------------------ panel */
-export default function TrackerPanel({ code, view, clientEmail, clientName, clientCode, clientApplication, canEdit = true }: { code: string; view: "kickoff" | "tracker" | "signoff" | "onsite"; clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; clientApplication?: string | null; canEdit?: boolean }) {
+export default function TrackerPanel({ code, view, clientEmail, clientName, clientCode, clientApplication, clientAddress, canEdit = true }: { code: string; view: "kickoff" | "tracker" | "signoff" | "onsite"; clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; clientApplication?: string | null; clientAddress?: string | null; canEdit?: boolean }) {
   const [data, setData] = useState<Tracker | null>(null);
   const [sub, setSub] = useState("milestones");
   const [err, setErr] = useState<string | null>(null);
@@ -1109,7 +1177,8 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       <div>
         {flashBar}
         <EntityGrid<OnsiteVisit> code={code} title="Onsite Visits" rows={data.onsite} columns={ONSITE_COLS}
-          fields={ONSITE_FIELDS} blank={ONSITE_BLANK} send={SEND_MAIL} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={ONSITE_FIELDS} blank={{ ...ONSITE_BLANK, location: clientAddress ?? "" }} send={SEND_MAIL} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          validate={(v) => { const f = String(v.fromDate ?? "").slice(0, 10), t = String(v.toDate ?? "").slice(0, 10); return f && t && t < f ? "To Date cannot be earlier than From Date." : null; }}
           apiFns={{ add: api.addOnsite, update: api.updateOnsite, del: api.deleteOnsite }} canEdit={canEdit} />
       </div>
     );
@@ -1141,7 +1210,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
           apiFns={{ add: api.addTraining, update: api.updateTraining, del: api.deleteTraining }} canEdit={canEdit} />
       )}
       {sub === "cr" && (
-        <EntityGrid<ChangeRequest> code={code} title="Change Requests" rows={data.changeRequests} columns={CR_COLS}
+        <EntityGrid<ChangeRequest> code={code} title="Change Requests" rows={data.changeRequests} columns={CR_COLS} formColumns={5}
           fields={CR_FIELDS} blank={CR_BLANK} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
           sendToPoint={(cd, id) => api.changeRequestToPoint(cd, id, { clientName: clientName ?? undefined, application: clientApplication ?? undefined })}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "changerequest", id, { clientName: clientName ?? undefined })}

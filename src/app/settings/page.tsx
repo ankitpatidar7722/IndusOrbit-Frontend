@@ -184,8 +184,8 @@ export default function SettingsPage() {
     setPushBusy(true);
     try {
       const p = await import("@/lib/push");
-      if (v) { await p.subscribeToPush(userId, companyId); setPushOn(true); showSuccess("Push on", "Ab app band hone par bhi phone/desktop par notification aayega.", 2800); }
-      else { await p.unsubscribeFromPush(userId, companyId); setPushOn(false); showSuccess("Push off", "Is device par OS notifications band kar diye.", 2200); }
+      if (v) { await p.subscribeToPush(userId, companyId); setPushOn(true); showSuccess("Push enabled", "You'll get notifications on this device even when the app is closed.", 2800); }
+      else { await p.unsubscribeFromPush(userId, companyId); setPushOn(false); showSuccess("Push disabled", "OS notifications turned off on this device.", 2200); }
     } catch (e) {
       showError("Push notifications", e instanceof Error ? e.message : String(e));
       try { const p = await import("@/lib/push"); setPushOn(await p.isPushSubscribed()); } catch { /* ignore */ }
@@ -511,7 +511,7 @@ export default function SettingsPage() {
                   <Row icon={<Mail size={18} />} title="Email Notifications" subtitle="Get notified when a new email arrives in your inbox">
                     <Switch checked={notifSettings.NotifyEmails} onCheckedChange={(v: boolean) => saveNotifSettings({ ...notifSettings, NotifyEmails: v })} />
                   </Row>
-                  <Row icon={<Bell size={18} />} title="Push Notifications (OS)" subtitle={pushSupportedState ? "Phone/desktop par notification — tab app band bhi ho" : "Is browser me push support nahi hai"}>
+                  <Row icon={<Bell size={18} />} title="Push Notifications (OS)" subtitle={pushSupportedState ? "Get notified on your phone or desktop, even when the app is closed" : "Not supported in this browser"}>
                     <Switch checked={pushOn} disabled={pushBusy || !pushSupportedState} onCheckedChange={togglePush} />
                   </Row>
                   <Row icon={<Zap size={18} />} title="System Updates" subtitle="Notifications about system maintenance and updates"><Switch checked={notif.system} onCheckedChange={(v: boolean) => setNotifPref("system", v)} /></Row>

@@ -25,14 +25,14 @@ export function EmailComposerProvider({ children }: { children: React.ReactNode 
 
   const openComposer = useCallback(async (given?: ComposerInit) => {
     let resolved: ComposerInit = given ?? {};
-    // If no explicit recipient/context and we're on a client page, prefill from that client.
+    // On a client page, keep the client CONTEXT (for history/tagging) but do NOT auto-fill the To
+    // field — the user asked that no default recipient appear when composing.
     if (!given?.to && !given?.context) {
       const m = pathname?.match(/^\/clients\/([^/]+)/);
       if (m) {
         try {
           const c = await customersApi.detail(decodeURIComponent(m[1]));
           resolved = {
-            to: c.email ? [{ email: c.email, name: c.companyName ?? undefined }] : [],
             context: { clientCode: c.companyUniqueCode ?? undefined, clientName: c.companyName ?? undefined, module: "Client" },
           };
         } catch { /* open blank if the client can't be resolved */ }

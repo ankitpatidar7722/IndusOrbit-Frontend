@@ -1,7 +1,7 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Badge, Button, StandardModal } from "indas-ui";
+import { Badge, Button, StandardModal, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import {
   Mail, Inbox, Star, Send, Archive, Trash2, RefreshCw, Search, Paperclip,
@@ -53,6 +53,16 @@ export default function EmailPage() {
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? "";
   const { openComposer } = useEmailComposer();
+  const { showConfirmation, AlertComponent } = useModalAlert();
+
+  // Lightweight non-blocking snackbar (delete feedback etc.)
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  }, []);
 
   const [folder, setFolder] = useState<MailFolder>("inbox");
   const [foldersOpen, setFoldersOpen] = useState(false);   // mobile folder drawer
@@ -101,10 +111,21 @@ export default function EmailPage() {
     await mailApi.update(m.id, { email: userEmail, folder, isArchived: true });
     reload();
   };
+  // Delete from any normal folder = move to Trash (recoverable).
   const del = async (e: React.MouseEvent, m: MailMessage) => {
     e.stopPropagation();
     await mailApi.remove(userEmail, folder, m.id);
+    showToast("Email moved to Trash");
     reload();
+  };
+  // Delete from Trash = permanent (confirm first).
+  const permanentDel = (e: React.MouseEvent, m: MailMessage) => {
+    e.stopPropagation();
+    showConfirmation(
+      "Delete permanently",
+      "This email will be permanently deleted from Trash and cannot be recovered. Continue?",
+      async () => { await mailApi.deleteForever(userEmail, folder, m.id); showToast("Email permanently deleted"); reload(); },
+    );
   };
 
   const reply = (m: MailMessage) => { setViewing(null); openComposer({ to: [{ email: m.from.email, name: m.from.name ?? undefined }], subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`, body: quote(m), onSent: () => reload() }); };
@@ -210,8 +231,10 @@ export default function EmailPage() {
                 </div>
                 <div style={{ fontSize: 11.5, color: T.muted, flexShrink: 0, whiteSpace: "nowrap" }}>{mailTime(m.receivedAt)}</div>
                 <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-                  {folder !== "archive" && <button onClick={(e) => archive(e, m)} title="Archive" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.muted }}><Archive size={15} /></button>}
-                  {folder !== "trash" && <button onClick={(e) => del(e, m)} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.muted }}><Trash2 size={15} /></button>}
+                  {folder !== "archive" && folder !== "trash" && <button onClick={(e) => archive(e, m)} title="Archive" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.muted }}><Archive size={15} /></button>}
+                  {folder !== "trash"
+                    ? <button onClick={(e) => del(e, m)} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.muted }}><Trash2 size={15} /></button>
+                    : <button onClick={(e) => permanentDel(e, m)} title="Delete permanently" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#c0392b" }}><Trash2 size={15} /></button>}
                 </div>
               </div>
             ))
@@ -236,7 +259,12 @@ export default function EmailPage() {
         <EmailViewer m={viewing} loading={viewerLoading} email={userEmail} folder={folder} onClose={() => setViewing(null)}
           onReply={() => reply(viewing)} onForward={() => forward(viewing)}
           onArchive={async () => { await mailApi.update(viewing.id, { email: userEmail, folder, isArchived: true }); setViewing(null); reload(); }}
-          onDelete={async () => { await mailApi.remove(userEmail, folder, viewing.id); setViewing(null); reload(); }} />
+          onDelete={folder === "trash"
+            ? () => showConfirmation(
+                "Delete permanently",
+                "This email will be permanently deleted from Trash and cannot be recovered. Continue?",
+                async () => { await mailApi.deleteForever(userEmail, folder, viewing.id); setViewing(null); showToast("Email permanently deleted"); reload(); })
+            : async () => { await mailApi.remove(userEmail, folder, viewing.id); setViewing(null); showToast("Email moved to Trash"); reload(); }} />
       )}
 
       {/* Compose floating action button — mobile only (shown via CSS) */}
@@ -245,6 +273,14 @@ export default function EmailPage() {
           <Pencil size={22} />
         </button>
       )}
+
+      {/* transient snackbar (delete feedback) */}
+      {toast && (
+        <div style={{ position: "absolute", bottom: 18, left: "50%", transform: "translateX(-50%)", background: "rgb(var(--fg-default))", color: "rgb(var(--bg-surface))", padding: "10px 18px", borderRadius: 10, fontSize: 13.5, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,.25)", zIndex: 60, whiteSpace: "nowrap" }}>
+          {toast}
+        </div>
+      )}
+      <AlertComponent />
     </div>
   );
 }

@@ -35,6 +35,10 @@ export interface ChatMessage {
   ParentMessageID: number | null;
   ReplyDepth: number;
   ReplyCount: number;
+  // The message this one replies to (for the WhatsApp-style quote inside a reply bubble).
+  ParentSenderName?: string | null;
+  ParentContent?: string | null;
+  ParentAttachments?: string | null;
   CreatedAt: string;
   EditedAt: string | null;
   IsEdited: boolean;

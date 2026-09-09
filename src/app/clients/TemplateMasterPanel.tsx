@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button, StandardModal, useModalAlert } from "indas-ui";
-import { FileSpreadsheet, Download, Send, Trash2, Upload, RefreshCw, Inbox, Layers } from "lucide-react";
-import { masterTemplatesApi, type MasterTemplate } from "@/lib/masterTemplates";
+import { FileSpreadsheet, Download, Send, Trash2, Upload, RefreshCw, Inbox, Layers, CheckCircle2 } from "lucide-react";
+import { masterTemplatesApi, type MasterTemplate, type TemplateSentStatus } from "@/lib/masterTemplates";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import type { CustomerDetail } from "@/lib/customers";
 
@@ -48,11 +49,25 @@ function TriCheck({ checked, indeterminate, onChange }: { checked: boolean; inde
 export default function TemplateMasterPanel({ client, canEdit = true }: { client: CustomerDetail; canEdit?: boolean }) {
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const { openComposer } = useEmailComposer();
+  const { data: session } = useSession();
+  const sentBy = (session?.user as { UserID?: number } | undefined)?.UserID;
+  const clientCode = client.companyUniqueCode ?? "";
   const [rows, setRows] = useState<MasterTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Per-client "Sent to Client" status, keyed by `${group}/${name}`.
+  const [sentStatus, setSentStatus] = useState<Map<string, TemplateSentStatus>>(new Map());
+  const loadStatus = useCallback(() => {
+    if (!clientCode) return;
+    masterTemplatesApi.listStatus(clientCode).then((r) => {
+      const m = new Map<string, TemplateSentStatus>();
+      (r?.data || []).forEach((s) => m.set(`${s.group}/${s.name}`, s));
+      setSentStatus(m);
+    }).catch(() => {});
+  }, [clientCode]);
+  useEffect(loadStatus, [loadStatus]);
 
   // upload modal
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -101,12 +116,16 @@ export default function TemplateMasterPanel({ client, canEdit = true }: { client
         attachments.push({ filename: t.name, content, contentType: XLSX_CT, size: t.size });
       }
       const listHtml = selectedRows.map((t) => `&bull; ${t.group ? t.group + " / " : ""}${t.name}`).join("<br/>");
+      // Capture which templates go out BEFORE clearing the selection — recorded as "Sent to Client"
+      // only once the email is actually sent (composer onSent).
+      const items = selectedRows.map((t) => ({ group: t.group, name: t.name }));
       openComposer({
         to: client.email ? [{ email: client.email, name: client.companyName ?? undefined }] : [],
         subject: `Master Data Templates — ${client.companyName || "your project"}`,
         body: `Dear ${client.companyName || "Sir/Madam"},<br/><br/>Please find attached the master-data template(s):<br/>${listHtml}<br/><br/>Kindly fill in your data in these Excel sheets and send them back to us for master upload.<br/><br/>Regards,<br/>Indus Analytics`,
         context: { clientCode: client.companyUniqueCode ?? undefined, clientName: client.companyName ?? undefined, module: "Master Template" },
         attachments,
+        onSent: async () => { if (clientCode) { await masterTemplatesApi.markSent(clientCode, sentBy, items); loadStatus(); } },
       });
       setSelected(new Set());
     } catch (e) { showError("Failed to attach templates", String(e)); }
@@ -198,6 +217,15 @@ export default function TemplateMasterPanel({ client, canEdit = true }: { client
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: T.fg, wordBreak: "break-word" }}>{t.name}</div>
                       <div style={{ fontSize: 11.5, color: T.faint, marginTop: 1 }}>{fmtBytes(t.size)} · {fmtDate(t.modifiedAt)}</div>
+                      {(() => {
+                        const st = sentStatus.get(keyOf(t));
+                        return st ? (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#0a7d3c", display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3 }}
+                            title={st.sentBy ? `Sent by ${st.sentBy}` : undefined}>
+                            <CheckCircle2 size={12} /> Sent to Client · {fmtDate(st.sentAt)}
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <a href={masterTemplatesApi.downloadUrl(t.group, t.name)} download style={iconBtn} title="Download"><Download size={15} /></a>

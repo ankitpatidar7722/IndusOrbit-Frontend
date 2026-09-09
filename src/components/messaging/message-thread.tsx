@@ -359,7 +359,7 @@ export function MessageThread({
       {/* Messages area */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto py-2"
+        className="flex-1 overflow-y-auto overflow-x-hidden py-2"
         onScroll={handleScroll}
         style={{
           backgroundImage: 'radial-gradient(rgb(var(--bd-default) / 0.45) 1px, transparent 1px)',

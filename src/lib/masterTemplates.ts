@@ -10,6 +10,14 @@ export interface MasterTemplate {
   modifiedAt: string;
 }
 
+/** Per-client "Sent to Client" status for a template (set when it's emailed to that client). */
+export interface TemplateSentStatus {
+  group: string;
+  name: string;
+  sentAt: string;
+  sentBy?: string | null;
+}
+
 const q = (group: string, name: string) =>
   `name=${encodeURIComponent(name)}&group=${encodeURIComponent(group || "")}`;
 
@@ -39,6 +47,19 @@ export const masterTemplatesApi = {
       success: boolean;
       message: string;
     }>,
+
+  /** Templates already emailed to a given client (for the "Sent to Client" badge). */
+  listStatus: (clientCode: string) =>
+    fetch(`${BASE}/api/master-templates/status?clientCode=${encodeURIComponent(clientCode)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => ({ success: false, data: [] })) as Promise<{ success: boolean; data: TemplateSentStatus[] }>,
+
+  /** Record that templates were emailed to a client (call after a successful send). */
+  markSent: (clientCode: string, sentBy: number | undefined, items: { group: string; name: string }[]) =>
+    fetch(`${BASE}/api/master-templates/status`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientCode, sentBy, items }),
+    }).then((r) => r.json()).catch(() => ({ success: false })) as Promise<{ success: boolean }>,
 
   /** Fetch a template's bytes as base64 (no data: prefix) — for attaching to an email. */
   fetchBase64: async (group: string, name: string): Promise<string> => {

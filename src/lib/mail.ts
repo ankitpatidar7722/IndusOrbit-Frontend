@@ -97,6 +97,10 @@ export const mailApi = {
   /** Delete (move to Trash). */
   remove: (email: string, folder: string, uid: string) =>
     send<null>("DELETE", `/api/email/messages/${enc(uid)}?email=${enc(email)}&folder=${enc(folder)}`),
+
+  /** Permanently delete (expunge) — used from the Trash folder. Not recoverable. */
+  deleteForever: (email: string, folder: string, uid: string) =>
+    send<null>("DELETE", `/api/email/messages/${enc(uid)}/permanent?email=${enc(email)}&folder=${enc(folder)}`),
 };
 
 /** Direct download URL for an attachment — the browser downloads it (Content-Disposition). */

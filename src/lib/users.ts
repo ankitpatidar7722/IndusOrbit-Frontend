@@ -13,6 +13,7 @@ export interface UserListRow {
   isActive: boolean;
   companyId: number;
   employeeCode?: string | null;
+  dateOfBirth?: string | null;   // ISO date — used to auto-calc Age on the Onsite form
 }
 
 export interface UserDetail {

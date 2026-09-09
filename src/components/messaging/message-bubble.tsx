@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo, useCallback, useRef, useEffect, type ReactNode } from 'react'
+import { useState, memo, useCallback, useRef, useEffect, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
 import { Reply, Smile, Pencil, Trash2, Copy, Check, CheckCheck, MoreHorizontal, Forward, Pin, Star, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from 'indas-ui'
@@ -11,6 +11,9 @@ import { getAvatarColor, getInitials, formatClockTime } from './conversation-lis
 // ── Curated reaction emojis ───────────────────────────────────────────────
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '💯']
+
+// Swipe-to-reply thresholds (px): SWIPE_MAX = how far the bubble follows the finger; SWIPE_TRIGGER = release past this fires the reply.
+const SWIPE_MAX = 64, SWIPE_TRIGGER = 48
 
 // ── Component ─────────────────────────────────────────────────────────────
 
@@ -101,6 +104,28 @@ export const MessageBubble = memo(function MessageBubble({
   const [copied, setCopied] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
+  // ── Swipe-to-reply (WhatsApp-style): drag a message left → right to reply to it (touch only) ──
+  const [swipeX, setSwipeX] = useState(0)
+  const swipe = useRef({ x: 0, y: 0, active: false })
+  const onSwipeStart = useCallback((e: ReactTouchEvent) => {
+    const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, active: false }
+  }, [])
+  const onSwipeMove = useCallback((e: ReactTouchEvent) => {
+    const p = e.touches[0]
+    const dx = p.clientX - swipe.current.x, dy = p.clientY - swipe.current.y
+    if (!swipe.current.active) {
+      // only start a swipe once the gesture is clearly horizontal — else let the list scroll vertically
+      if (Math.abs(dx) < 10 || Math.abs(dy) > Math.abs(dx)) return
+      swipe.current.active = true
+    }
+    setSwipeX(dx > 0 ? Math.min(dx, SWIPE_MAX) : 0)
+  }, [])
+  const onSwipeEnd = useCallback(() => {
+    if (swipe.current.active && swipeX >= SWIPE_TRIGGER) { onReply(message); try { navigator.vibrate?.(12) } catch { /* no haptics */ } }
+    swipe.current.active = false
+    setSwipeX(0)
+  }, [swipeX, onReply, message])
+
   const reactions = parseReactions(message.Reactions)
   const attachments = parseAttachments(message.Attachments)
 
@@ -141,14 +166,41 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div
-      className={cn(
-        'group flex gap-2 px-4',
-        showSender ? 'pt-2' : 'pt-0.5',
-        isOwn ? 'justify-end' : 'justify-start'
-      )}
+      className="relative"
+      style={{ touchAction: 'pan-y' }}
+      onTouchStart={onSwipeStart}
+      onTouchMove={onSwipeMove}
+      onTouchEnd={onSwipeEnd}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowReactionPicker(false) }}
     >
+      {/* Swipe-to-reply hint — a reply arrow revealed on the left as the message slides right */}
+      {swipeX > 3 && (
+        <div
+          className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ opacity: Math.min(1, swipeX / SWIPE_TRIGGER) }}
+        >
+          <div
+            className="w-9 h-9 rounded-full bg-[rgb(var(--bg-surface))] border border-[rgb(var(--bd-subtle))] shadow-sm flex items-center justify-center"
+            style={{ transform: `scale(${0.5 + 0.5 * Math.min(1, swipeX / SWIPE_TRIGGER)})` }}
+          >
+            <Reply size={17} className={swipeX >= SWIPE_TRIGGER ? 'text-[rgb(var(--color-primary))]' : 'text-[rgb(var(--fg-muted))]'} />
+          </div>
+        </div>
+      )}
+
+      {/* Sliding message row */}
+      <div
+        className={cn(
+          'group flex gap-2 px-4',
+          showSender ? 'pt-2' : 'pt-0.5',
+          isOwn ? 'justify-end' : 'justify-start'
+        )}
+        style={{
+          transform: swipeX ? `translateX(${swipeX}px)` : undefined,
+          transition: swipe.current.active ? 'none' : 'transform .2s ease',
+        }}
+      >
       {/* Avatar (only for others, only when showing sender) */}
       {!isOwn && (
         <div className="w-8 flex-shrink-0">
@@ -234,6 +286,8 @@ export const MessageBubble = memo(function MessageBubble({
                 : 'bg-[rgb(var(--bg-surface))] text-[rgb(var(--fg-default))] rounded-bl-md border border-[rgb(var(--bd-subtle))]'
             )}
           >
+            {/* Quoted preview of the message this one replies to (WhatsApp-style) */}
+            {message.ParentMessageID != null && <ReplyQuote message={message} isOwn={isOwn} />}
             {isEditing ? (
               <div className="space-y-1.5">
                 <textarea
@@ -328,11 +382,45 @@ export const MessageBubble = memo(function MessageBubble({
           </button>
         )}
       </div>
+      </div>
     </div>
   )
 })
 
 // ── Sub-components ────────────────────────────────────────────────────────
+
+/** WhatsApp-style quoted preview of the message a reply replies to (rendered at the top of the reply bubble). */
+function ReplyQuote({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+  const first = parseAttachments(message.ParentAttachments ?? null)[0]
+  const mime = (first?.mimeType || '').toLowerCase()
+  const text = (message.ParentContent || '').trim()
+  const label = text || (
+    mime.startsWith('image/') ? '📷 Photo' :
+    mime.startsWith('audio/') ? '🎤 Voice message' :
+    mime.startsWith('video/') ? '🎥 Video' :
+    first ? `📄 ${first.fileName || 'Document'}` : 'Message'
+  )
+  const thumb = mime.startsWith('image/') ? first?.fileUrl : undefined
+  return (
+    <div className={cn(
+      'mb-1.5 flex items-stretch gap-2 rounded-md overflow-hidden border-l-[3px] pl-2 pr-1.5 py-1',
+      isOwn ? 'bg-black/15 border-white/80' : 'bg-[rgb(var(--bg-subtle))] border-[rgb(var(--color-primary))]'
+    )}>
+      <div className="flex-1 min-w-0 self-center">
+        <div className={cn('text-xs font-semibold truncate', isOwn ? 'text-white' : 'text-[rgb(var(--color-primary))]')}>
+          {message.ParentSenderName || 'Message'}
+        </div>
+        <div className={cn('text-xs truncate', isOwn ? 'text-white/85' : 'text-[rgb(var(--fg-muted))]')}>
+          {label}
+        </div>
+      </div>
+      {thumb && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumb} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0 self-center" />
+      )}
+    </div>
+  )
+}
 
 function ActionBtn({ icon: Icon, title, onClick }: { icon: any; title: string; onClick: () => void }) {
   return (

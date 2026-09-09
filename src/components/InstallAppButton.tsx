@@ -64,8 +64,8 @@ export default function InstallAppButton({ variant = "drawer" }: { variant?: "dr
               border: variant === "drawer" ? "none" : "1px solid rgb(var(--bd-subtle))",
             }}
           >
-            iPhone/iPad par: neeche <b>Share</b> button (⬆️ box) dabao → scroll karke{" "}
-            <b>&ldquo;Add to Home Screen&rdquo;</b> chuno → <b>Add</b>. App icon home screen par aa jayega.
+            On iPhone/iPad: tap the <b>Share</b> button (⬆️) below, then scroll and choose{" "}
+            <b>&ldquo;Add to Home Screen&rdquo;</b> → <b>Add</b>. The app icon will appear on your home screen.
           </div>
         )}
       </div>

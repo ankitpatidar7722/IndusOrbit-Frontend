@@ -1243,7 +1243,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           {renderDocBar("SignOff", "Sign-Off")}
         </div>
       )}
-      {tab === "onsite" && <TrackerPanel code={trackerCode} view="onsite" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} canEdit={canEdit("onsite")} />}
+      {tab === "onsite" && <TrackerPanel code={trackerCode} view="onsite" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientAddress={c.address} canEdit={canEdit("onsite")} />}
 
       {histKind && (
         <div onClick={() => setHistKind(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,.55)", display: "grid", placeItems: "center", padding: 20 }}>

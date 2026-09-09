@@ -63,17 +63,17 @@ export async function isPushSubscribed(): Promise<boolean> {
  * the backend. Throws an Error (with a readable message) on any blocker so the caller can toast it.
  */
 export async function subscribeToPush(userId: number | string, companyId: number | string = 1): Promise<void> {
-  if (!pushSupported()) throw new Error("Is browser me push notifications support nahi hai.");
+  if (!pushSupported()) throw new Error("Push notifications aren't supported in this browser.");
   if (!(await navigator.serviceWorker.getRegistration()) && !navigator.serviceWorker.controller) {
     // Ensure a registration exists (dev/localhost or first run).
     try { await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }); } catch { /* ignore */ }
   }
   const perm = await Notification.requestPermission();
-  if (perm !== "granted") throw new Error("Notification permission nahi mili (browser settings me allow karo).");
+  if (perm !== "granted") throw new Error("Notification permission denied — allow it in your browser settings.");
 
   const reg = await navigator.serviceWorker.ready;
   const key = await fetchVapidKey();
-  if (!key) throw new Error("Server par push abhi configured nahi hai (VAPID key).");
+  if (!key) throw new Error("Push isn't configured on the server yet.");
 
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
@@ -88,7 +88,7 @@ export async function subscribeToPush(userId: number | string, companyId: number
     headers: { "Content-Type": "application/json", UserID: String(userId), CompanyID: String(companyId) },
     body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
   });
-  if (!r.ok) throw new Error("Subscription server par save nahi hui.");
+  if (!r.ok) throw new Error("Couldn't save the subscription on the server.");
   try { localStorage.setItem(flagKey(userId), "1"); } catch { /* ignore */ }
 }
 
