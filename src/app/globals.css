@@ -48,6 +48,12 @@ body { font-family: var(--font-family-base) !important; }
 .border-bd-subtle  { border-color: rgb(var(--bd-subtle)); }
 .border-bd-strong  { border-color: rgb(var(--bd-strong)); }
 
+/* DataGrid mobile CARD subtitle (the accent client/second-line value). In light mode it's the
+   primary colour; in dark mode the raw navy primary is near-invisible on the dark card surface, so
+   lighten it (mix toward white) for readable contrast. Theme-aware — follows the active primary. */
+.dg-card-subtitle { color: rgb(var(--color-primary)); }
+.dark .dg-card-subtitle { color: color-mix(in srgb, rgb(var(--color-primary)) 42%, white); }
+
 /* The header sits above the AppShell, which hard-codes h-screen (100vh). Make it
    fill the remaining space below the header instead of overflowing the viewport. */
 .app-frame .h-screen { height: 100% !important; }
@@ -271,7 +277,37 @@ button:not(:disabled):not([aria-disabled="true"]),
     height: auto !important;
     max-width: none !important;
     max-height: calc(100vh - 132px) !important;   /* header (~58) + bottom nav (~66) + margins */
+    overflow-x: hidden !important;                 /* never let inner content push the dialog sideways / clip */
     transform: none !important;
+    /* Tailwind v4 centres some dialogs (ModalAlert) via the `translate` property fed by CSS vars —
+       zero those vars AND set translate:none so the dialog isn't pulled off-screen (left:8/right:8
+       already centre it). */
+    translate: none !important;
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+  }
+
+  /* Compose Email (and any rich-text body): a pasted signature/table/image can be wider than the
+     phone. Keep the editor scrollable inside itself and clamp media so it never clips the dialog. */
+  .email-compose-body { max-width: 100%; overflow-x: hidden; }
+  [role="dialog"] [contenteditable] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  [role="dialog"] [contenteditable] img,
+  [role="dialog"] [contenteditable] table { max-width: 100% !important; height: auto !important; }
+
+  /* GuideModal (Help popups: Email SMTP / Gemini setup guides). The CARD carries role=dialog, so the
+     generic dialog rule above pins it — but its body is an iframe with flex:1, which needs a DEFINITE
+     height or it collapses to just the header (the bug). Pin BOTH top and bottom (higher specificity
+     than the generic rule) so the card fills the screen between header and bottom-nav and the guide
+     iframe renders full-height. */
+  [role="dialog"].guide-modal-card {
+    top: 60px !important;
+    bottom: 72px !important;          /* clear the bottom nav */
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    border-radius: 14px !important;
   }
 }
 
@@ -518,4 +554,32 @@ button:not(:disabled):not([aria-disabled="true"]),
    long scroll on a phone). Force 2 columns on phones. !important beats the Tailwind grid-cols-1. */
 @media (max-width: 640px) {
   .pm-breakdown { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* Date-picker calendar on phones: Radix's avoidCollisions does NOT reliably keep a right-anchored
+   calendar inside a narrow viewport (it clips off the right edge — only ~3 of 7 columns show). Pin the
+   whole popover to screen-centre instead (native-date-picker style) so all 7 columns are always fully
+   visible. Targets the Radix popper wrapper that directly holds the calendar content (marker class). */
+@media (max-width: 640px) {
+  [data-radix-popper-content-wrapper]:has(> .indas-mpop) {
+    position: fixed !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: 72px !important;      /* below the app header; deterministic px (no % transform — % resolved wrong) */
+    bottom: auto !important;
+    transform: none !important;   /* drop Radix's translate() which anchored it off-screen */
+    display: flex !important;
+    justify-content: center !important;
+    max-width: none !important;
+  }
+  [data-radix-popper-content-wrapper]:has(> .indas-mpop) > .indas-mpop {
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 88px) !important;
+    overflow: auto !important;
+  }
+
+  /* useModalAlert() success/error/confirm dialog: centres with `left-[50%] translate-x-[-50%]` +
+     `w-[calc(100%-2rem)]`, but `100%` resolves against a wider containing block here so it overflows
+     off the LEFT edge on a phone (success message cut). Re-centre deterministically with inset+margin
+     (no % transform, which resolves wrong) and fit it to the viewport. */
 }

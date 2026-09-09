@@ -2,16 +2,18 @@
 import { useEffect } from "react";
 
 /**
- * Registers the PWA service worker (/sw.js) so the app becomes installable on mobile.
- * Registered only in PRODUCTION so it never interferes with the local dev server (HMR).
- * The SW is a network pass-through (no caching) — see public/sw.js. `updateViaCache:"none"`
- * + the update check make sure a new deploy's SW is picked up immediately, no stale version.
+ * Registers the PWA service worker (/sw.js) so the app becomes installable AND can receive
+ * Web Push notifications. Registered in PRODUCTION, and also on LOCALHOST so push can be
+ * tested during development (localhost is a secure context; the SW is a network pass-through
+ * with NO caching — see public/sw.js — so it doesn't interfere with HMR). On other non-prod
+ * hosts it stays off. `updateViaCache:"none"` + the update check pick up a new SW immediately.
  * Renders nothing.
  */
 export default function ServiceWorkerRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return;
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+    if (process.env.NODE_ENV !== "production" && !isLocalhost) return;
 
     navigator.serviceWorker
       .register("/sw.js", { scope: "/", updateViaCache: "none" })

@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StandardModal, Textarea, Button, Dropdown } from "indas-ui";
-import { pmApi, type PmProduct, type PmCategory, type PointGridRow, type NewPoint } from "@/lib/tms";
+import { Upload, Paperclip, Trash2 } from "lucide-react";
+import { pmApi, type PmProduct, type PmCategory, type PointGridRow, type NewPoint, type AttachmentRow } from "@/lib/tms";
 import { api, type KeylineModule } from "@/lib/api";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 
@@ -16,9 +17,9 @@ const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#33415
  * pre-filled from the grid row. Module / Sub Module dropdowns are typable (custom values accepted).
  * Customer is sent by name (backend resolves name → TMS CustomerID, find-or-create).
  */
-export default function PointEditModal({ open, point, onClose, onSaved, onError }: {
+export default function PointEditModal({ open, point, onClose, onSaved, onError, uploaderId }: {
   open: boolean; point: PointGridRow | null; onClose: () => void;
-  onSaved: (msg: string) => void; onError: (msg: string) => void;
+  onSaved: (msg: string) => void; onError: (msg: string) => void; uploaderId: number;
 }) {
   const [clients, setClients] = useState<CustomerCard[]>([]);
   const [products, setProducts] = useState<PmProduct[]>([]);
@@ -36,6 +37,9 @@ export default function PointEditModal({ open, point, onClose, onSaved, onError 
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const refreshAtt = () => { if (point) pmApi.listAttachments(point.pointID).then(setAttachments).catch(() => {}); };
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +62,8 @@ export default function PointEditModal({ open, point, onClose, onSaved, onError 
     setPriority(point.priority || "Medium");
     setComplexity(point.complexity ?? "");
     setDescription(point.description ?? "");
+    setAttachments([]);
+    pmApi.listAttachments(point.pointID).then(setAttachments).catch(() => {});
   }, [open, point]);
 
   const heads = Array.from(new Set(keyline.map((k) => k.head)));
@@ -125,6 +131,27 @@ export default function PointEditModal({ open, point, onClose, onSaved, onError 
               options={[{ value: "", label: "—" }, ...COMPLEXITIES.map((c) => ({ value: c, label: c }))]} placeholder="—" size="md" /></div>
           <div style={{ ...fieldWrap, gridColumn: "1 / -1" }}><span style={lbl}>Description *</span>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Describe the issue / task…" /></div>
+
+          {/* Attachments — view / add / remove the files that travel with this point */}
+          <div style={{ ...fieldWrap, gridColumn: "1 / -1" }}><span style={lbl}>Attachment</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              {attachments.length === 0 && <span style={{ fontSize: 12.5, color: "#94a3b8" }}>No files attached yet.</span>}
+              {attachments.map((a) => (
+                <span key={a.attachmentID} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", fontSize: 12.5 }}>
+                  <Paperclip size={13} style={{ opacity: 0.55, flexShrink: 0 }} />
+                  <a href={pmApi.attachmentDownloadUrl(a.attachmentID)} target="_blank" rel="noreferrer" style={{ color: "rgb(var(--color-primary))", textDecoration: "none", fontWeight: 600 }}>{a.originalFileName || a.fileName}</a>
+                  <button type="button" onClick={async () => { await pmApi.deleteAttachment(a.attachmentID); refreshAtt(); }} title="Delete"
+                    style={{ display: "inline-flex", alignItems: "center", border: "none", background: "transparent", cursor: "pointer", color: "#c0392b", padding: 0, lineHeight: 0 }}><Trash2 size={13} /></button>
+                </span>
+              ))}
+              <input ref={fileRef} type="file" style={{ display: "none" }}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (f && point) { try { await pmApi.uploadAttachment(point.pointID, f, uploaderId); refreshAtt(); } finally { e.target.value = ""; } }
+                }} />
+              <Button variant="outline" size="sm" icon={Upload} onClick={() => fileRef.current?.click()}>Upload file</Button>
+            </div>
+          </div>
           {err && <div style={{ gridColumn: "1 / -1", color: "#c0392b", fontSize: 12.5 }}>{err}</div>}
         </div>
       )}

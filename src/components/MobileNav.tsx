@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import InstallAppButton from "@/components/InstallAppButton";
 
 /**
  * Mobile sidebar drawer — our own, fully controlled (indas-ui's AppShell drawer can't be opened
@@ -65,6 +66,7 @@ export default function MobileNav({ companyId, userId }: { companyId: number; us
           <button onClick={closeMobileNav} aria-label="Close menu" className="mobile-drawer-close"><X size={20} /></button>
         </div>
         <nav className="mobile-drawer-nav">
+          <InstallAppButton variant="drawer" />
           <button className="mobile-nav-link" data-active={pathname === "/"} onClick={() => go("/")}>Home</button>
           {groups.map((g) => (
             <div key={g.name} className="mobile-nav-group">

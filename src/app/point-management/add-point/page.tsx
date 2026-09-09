@@ -1,15 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Page, Card, CardContent, Textarea, Input, Button, Dropdown } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
-import { Plus, Check, Paperclip, X } from "lucide-react";
+import { Plus, Check, Paperclip, X, Sparkles } from "lucide-react";
 import { PmGuard } from "../PmGuard";
 import { usePmContext } from "../PmContext";
 import { PmHeader } from "../shared";
 import { pmApi, type PmProduct, type PmCategory, type PmUser } from "@/lib/tms";
 import { api, type KeylineModule } from "@/lib/api";
 import { customersApi, type CustomerCard } from "@/lib/customers";
+import { trackerAiApi } from "@/lib/trackerAi";
 
 const PRIORITIES = ["High", "Medium", "Low"];
 const COMPLEXITIES = ["Simple", "Medium", "Complex"];
@@ -24,6 +25,9 @@ const APP_TO_PRODUCT: Record<string, string> = {
 };
 const PRODUCT_TO_APPS: Record<string, string[]> = {};
 for (const [app, product] of Object.entries(APP_TO_PRODUCT)) (PRODUCT_TO_APPS[product] ??= []).push(app);
+
+// Real /clients data has inconsistent casing/spacing in applicationName ("Multiunit" vs "multi unit") — normalize before comparing.
+const normApp = (a?: string | null) => (a ?? "").toLowerCase().replace(/\s+/g, "");
 
 function AddPoint({ reportedById }: { reportedById: number }) {
   const router = useRouter();
@@ -50,6 +54,24 @@ function AddPoint({ reportedById }: { reportedById: number }) {
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [converting, setConverting] = useState(false);          // "Convert in English" (Gemini) in progress
+  const [convertErr, setConvertErr] = useState<string | null>(null);
+
+  // Rewrite the Description into clear professional English via the user's Gemini key.
+  async function convertToEnglish() {
+    const text = description.trim();
+    if (!text || converting) return;
+    setConverting(true); setConvertErr(null);
+    try {
+      const r = await trackerAiApi.rewriteEnglish(text);
+      if (r.success && r.text) setDescription(r.text);
+      else setConvertErr(r.message || "Could not convert. Please try again.");
+    } catch (e) {
+      setConvertErr(String(e));
+    } finally {
+      setConverting(false);
+    }
+  }
 
   useEffect(() => {
     Promise.all([customersApi.list(), pmApi.products(), pmApi.categories(), pmApi.users(), api.keylineModules()])
@@ -57,22 +79,22 @@ function AddPoint({ reportedById }: { reportedById: number }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const heads = Array.from(new Set(keyline.map((k) => k.head)));
-  const subsFor = (h: string) => (h ? Array.from(new Set(keyline.filter((k) => k.head === h).map((k) => k.name))) : []);
-
-  // Real /clients data has inconsistent casing/spacing in applicationName ("Multiunit" vs
-  // "multi unit" vs "MultiUnit") — normalize before comparing against PRODUCT_TO_APPS' keys.
-  const normApp = (a?: string | null) => (a ?? "").toLowerCase().replace(/\s+/g, "");
-
-  // Selected Product → its allowed Application(s), then filter the Customer list down to only
-  // clients on one of those applications (e.g. Indus Print Web → Estimoprime / Multiunit).
-  const selectedProductName = productID ? products.find((p) => p.productID === productID)?.productName : undefined;
-  const allowedApps = selectedProductName ? PRODUCT_TO_APPS[selectedProductName] ?? [] : undefined;
-  const clientsForProduct = allowedApps
-    ? clients.filter((c) => allowedApps.includes(normApp(c.applicationName)))
-    : clients;
-  // Unique client company names for the Customer dropdown (some codes repeat the same name).
-  const clientNames = Array.from(new Set(clientsForProduct.map((c) => c.companyName).filter(Boolean)));
+  // All dropdown option lists are memoized so typing in the Description (which re-renders this whole form on
+  // every keystroke) does NOT rebuild these Sets/maps over the full keyline/clients catalogs — that was the typing lag.
+  const productOptions = useMemo(() => products.map((p) => ({ value: String(p.productID), label: p.productName })), [products]);
+  const categoryOptions = useMemo(() => categories.map((c) => ({ value: c.categoryName, label: c.categoryName })), [categories]);
+  const userOptions = useMemo(() => users.map((u) => ({ value: String(u.userID), label: u.fullName })), [users]);
+  const headOptions = useMemo(() => Array.from(new Set(keyline.map((k) => k.head))).map((h) => ({ value: h, label: h })), [keyline]);
+  const subOptions = useMemo(
+    () => (module ? Array.from(new Set(keyline.filter((k) => k.head === module).map((k) => k.name))).map((n) => ({ value: n, label: n })) : []),
+    [keyline, module],
+  );
+  const clientNameOptions = useMemo(() => {
+    const prodName = productID ? products.find((p) => p.productID === productID)?.productName : undefined;
+    const allowedApps = prodName ? PRODUCT_TO_APPS[prodName] ?? [] : undefined;
+    const forProduct = allowedApps ? clients.filter((c) => allowedApps.includes(normApp(c.applicationName))) : clients;
+    return Array.from(new Set(forProduct.map((c) => c.companyName).filter(Boolean))).map((n) => ({ value: n, label: n }));
+  }, [clients, products, productID]);
 
   // Product picked → clear any Customer selection that no longer matches its application filter.
   const pickProduct = (id: number | "") => {
@@ -144,26 +166,26 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <Field label="Product *">
               <Dropdown value={String(productID || "")} onValueChange={(v) => pickProduct(v ? Number(v) : "")}
-                options={products.map((p) => ({ value: String(p.productID), label: p.productName }))}
+                options={productOptions}
                 placeholder="— Select product —" searchable size="md" />
             </Field>
             <Field label="Customer *">
               <Dropdown value={customerName} onValueChange={(v) => setCustomerName(String(v))}
-                options={clientNames.map((n) => ({ value: n, label: n }))}
+                options={clientNameOptions}
                 placeholder={productID ? "— Select customer —" : "Select a product first"} searchable size="md" disabled={!productID} />
             </Field>
             <Field label="Module *">
               <Dropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
-                options={heads.map((h) => ({ value: h, label: h }))} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
+                options={headOptions} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
             </Field>
             <Field label="Sub Module">
               <Dropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
-                options={subsFor(module).map((n) => ({ value: n, label: n }))}
+                options={subOptions}
                 placeholder={module ? "Select or type…" : "Select a module first"} searchable allowTextInput allowCustomInput size="md" disabled={!module} />
             </Field>
             <Field label="Category">
               <Dropdown value={category} onValueChange={(v) => setCategory(String(v))}
-                options={categories.map((c) => ({ value: c.categoryName, label: c.categoryName }))} size="md" />
+                options={categoryOptions} size="md" />
             </Field>
             <Field label="Priority">
               <Dropdown value={priority} onValueChange={(v) => setPriority(String(v))}
@@ -175,9 +197,16 @@ function AddPoint({ reportedById }: { reportedById: number }) {
             </Field>
           </div>
           <div style={{ marginTop: 16 }}>
-            <Field label="Description *">
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the issue / task…" rows={5} />
-            </Field>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 5 }}>
+              <div style={{ fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600 }}>Description *</div>
+              <button type="button" onClick={convertToEnglish} disabled={converting || !description.trim()}
+                title="Rewrite the description in clear, professional English (AI)"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgb(var(--color-primary))", background: "color-mix(in srgb, rgb(var(--color-primary)) 8%, transparent)", color: "rgb(var(--color-primary))", fontSize: 12, fontWeight: 700, cursor: converting || !description.trim() ? "not-allowed" : "pointer", opacity: !description.trim() ? 0.5 : 1 }}>
+                <Sparkles size={13} /> {converting ? "Converting…" : "Convert in English"}
+              </button>
+            </div>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the issue / task…" rows={5} />
+            {convertErr && <div style={{ fontSize: 12, color: "#c0392b", marginTop: 6 }}>{convertErr}</div>}
           </div>
 
           {/* Attachments — image / Excel / PDF / anything */}
@@ -207,7 +236,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           <div style={{ marginTop: 16, maxWidth: 320 }}>
             <Field label="Reported By *">
               <Dropdown value={String(reportedByID || "")} onValueChange={(v) => setReportedByID(Number(v))}
-                options={users.map((u) => ({ value: String(u.userID), label: u.fullName }))} placeholder="— select user —" searchable size="md" />
+                options={userOptions} placeholder="— select user —" searchable size="md" />
             </Field>
           </div>
 

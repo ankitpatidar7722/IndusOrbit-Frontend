@@ -1,9 +1,9 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StandardModal, Input, Button, Tabs, Badge, Dropdown } from "indas-ui";
+import { StandardModal, Input, Button, Tabs, Badge, Dropdown, Dialog, DialogContent, DialogTitle } from "indas-ui";
 import { DataGrid } from "@/components/datagrid";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Layers, Search, Save, Plus, Trash2, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, Pencil, PackagePlus } from "lucide-react";
+import { Copy, Layers, Search, Save, Plus, Trash2, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, Pencil, PackagePlus, type LucideIcon } from "lucide-react";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 import { modulesApi, type ModuleSettingsRow, type ModuleGroupModuleRow, type ClientDropdownItem, type ClientModuleDto, type IndusToolModuleDto } from "@/lib/modules";
 
@@ -55,7 +55,7 @@ export default function ModuleManagerModal({
       <div style={{ marginTop: 16 }}>
         {tab === "settings" && <ModuleSettingsTab app={app} connStr={connStr} onFlash={onFlash} />}
         {tab === "copy" && <CopyModulesTab source={customer} connStr={connStr} onFlash={onFlash} />}
-        {tab === "groups" && <ModuleGroupsTab app={app} connStr={connStr} onFlash={onFlash} />}
+        {tab === "groups" && <ModuleGroupsTab app={app} connStr={connStr} onFlash={onFlash} clientName={customer?.companyName} />}
         {tab === "newmodule" && <NewModuleTab app={app} connStr={connStr} onFlash={onFlash} />}
         {tab === "toolauth" && <ToolAuthorityTab customer={customer} onFlash={onFlash} />}
       </div>
@@ -154,6 +154,68 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
   );
 }
 
+// A fresh RANDOM subtraction (a>b ⇒ positive answer) — regenerated each open and each wrong attempt so it can't be memorised.
+const makeCaptcha = () => ({ a: 12 + Math.floor(Math.random() * 28), b: 3 + Math.floor(Math.random() * 9) });
+
+/* ── Reusable "solve this to confirm" dialog: a random maths check gates a destructive action.
+   NESTED Radix dialog (indas-ui modals are Radix-based) so its focus-scope is the active/top one and the
+   answer input is typeable — a bare portal sits outside the parent modal's focus trap and loses focus. ── */
+function SecurityConfirmDialog({
+  title, message, note, icon: Icon = Copy, confirmLabel = "Yes, Continue", busyLabel = "Working…",
+  a, b, answer, setAnswer, error, busy, onConfirm, onCancel,
+}: {
+  title: string; message: React.ReactNode; note?: React.ReactNode; icon?: LucideIcon; confirmLabel?: string; busyLabel?: string;
+  a: number; b: number; answer: string; setAnswer: (v: string) => void;
+  error: string | null; busy: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  const primary = "rgb(var(--color-primary))";
+  const tint = (p: number) => `color-mix(in srgb, rgb(var(--color-primary)) ${p}%, white)`;
+
+  // Rendered as a NESTED Radix dialog (indas-ui StandardModal is Radix-based). A nested dialog's focus-scope
+  // becomes the active/top one, so the answer input can hold focus and be typed into — a bare portal would sit
+  // outside the parent modal's focus trap and lose focus. Escape / outside-click close it via onOpenChange.
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onCancel(); }}>
+      <DialogContent hideCloseButton style={{ padding: 0, border: "none", background: "transparent", boxShadow: "none", width: "auto", maxWidth: "none", overflow: "visible" }}>
+        <DialogTitle style={{ position: "absolute", width: 1, height: 1, margin: -1, padding: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}>{title}</DialogTitle>
+        <div style={{ width: "min(92vw, 430px)", background: "rgb(var(--bg-surface))", borderRadius: 18, border: `1.5px solid ${tint(55)}`, boxShadow: "0 26px 64px -18px rgba(16,24,40,.45)", overflow: "hidden" }}>
+        {/* header + message */}
+        <div style={{ padding: "26px 26px 18px", textAlign: "center" }}>
+          <div style={{ width: 58, height: 58, margin: "0 auto 14px", borderRadius: 16, background: tint(12), display: "grid", placeItems: "center" }}>
+            <Icon size={26} color={primary} />
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: .3, color: primary, marginBottom: 10 }}>{title}</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "rgb(var(--fg-default))" }}>{message}</div>
+          {note && <div style={{ fontSize: 11.5, fontWeight: 800, color: "#c0392b", marginTop: 10, letterSpacing: .2 }}>{note}</div>}
+        </div>
+        {/* security check */}
+        <div style={{ margin: "0 26px", padding: 16, background: tint(6), border: `1px solid ${tint(45)}`, borderRadius: 12, textAlign: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: .6, color: primary, marginBottom: 10 }}>SECURITY VERIFICATION — SOLVE THIS</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: primary, marginBottom: 12, fontVariantNumeric: "tabular-nums" }}>
+            {a} <span style={{ opacity: .45 }}>−</span> {b} <span style={{ opacity: .45 }}>=</span> <span style={{ color: "rgb(var(--fg-subtle))" }}>?</span>
+          </div>
+          <input autoFocus value={answer} inputMode="numeric"
+            onChange={(e) => setAnswer(e.target.value.replace(/[^0-9]/g, ""))}
+            onKeyDown={(e) => { if (e.key === "Enter" && !busy) onConfirm(); }}
+            placeholder="Enter answer"
+            style={{ width: "100%", maxWidth: 260, textAlign: "center", padding: "10px 12px", fontSize: 15, fontWeight: 700, border: `1px solid ${error ? "#e0a0a0" : tint(40)}`, borderRadius: 10, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", outline: "none" }} />
+          {error && <div style={{ fontSize: 12, color: "#c0392b", fontWeight: 600, marginTop: 8 }}>{error}</div>}
+        </div>
+        {/* actions */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 14, padding: "20px 26px 24px" }}>
+          <button onClick={onCancel} disabled={busy}
+            style={{ background: "none", border: "none", fontSize: 14, fontWeight: 700, color: "rgb(var(--fg-muted))", cursor: busy ? "default" : "pointer", padding: "10px 16px" }}>Cancel</button>
+          <button onClick={onConfirm} disabled={busy}
+            style={{ background: primary, color: "#fff", border: "none", fontSize: 14, fontWeight: 700, borderRadius: 10, padding: "11px 26px", cursor: busy ? "default" : "pointer", opacity: busy ? .7 : 1, boxShadow: "0 8px 18px -8px rgba(16,24,40,.5)" }}>
+            {busy ? busyLabel : confirmLabel}
+          </button>
+        </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ── Tab 2: Copy Modules ────────────────────────────────── */
 export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerCard | null; connStr: string; onFlash: (m: string) => void }) {
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
@@ -163,6 +225,7 @@ export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerC
   const [msg, setMsg] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<{ a: number; b: number } | null>(null);
   const [answer, setAnswer] = useState("");
+  const [vErr, setVErr] = useState<string | null>(null);
 
   useEffect(() => {
     modulesApi.clientDropdown().then((r) => setClients((r.data || []).filter((c) => c.companyUserID !== source?.companyUserID))).catch(() => {});
@@ -172,22 +235,24 @@ export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerC
     const t = q.trim().toLowerCase();
     return t ? clients.filter((c) => (c.companyName + c.companyUserID).toLowerCase().includes(t)) : clients;
   }, [clients, q]);
+  const targetName = useMemo(() => clients.find((c) => c.companyUserID === target)?.companyName || target, [clients, target]);
 
-  async function doCopy() {
-    if (captcha && parseInt(answer) !== captcha.a - captcha.b) { setMsg("Wrong verification answer."); return; }
-    setBusy(true); setMsg(null); setCaptcha(null);
-    try {
-      const r = await modulesApi.copy(connStr, target);
-      if (r.success) onFlash(r.message || `Copied ${r.copiedCount} modules.`);
-      else setMsg(r.message);
-    } catch (e) { setMsg(String(e)); } finally { setBusy(false); }
+  function start() {
+    if (!target) { setMsg("Select a target client."); return; }
+    setMsg(null); setVErr(null); setAnswer(""); setCaptcha(makeCaptcha());   // open the confirm dialog
   }
 
-  async function start() {
-    if (!target) { setMsg("Select a target client."); return; }
-    // gate destructive overwrite with a subtraction captcha (a-b, deterministic from ids)
-    const a = 30 + (target.length % 20), b = 5 + (target.length % 8);
-    setCaptcha({ a, b }); setAnswer("");
+  async function doCopy() {
+    if (!captcha) return;
+    if (parseInt(answer, 10) !== captcha.a - captcha.b) {                    // wrong → new sum, ask again
+      setVErr("Incorrect answer — please solve the new sum."); setAnswer(""); setCaptcha(makeCaptcha()); return;
+    }
+    setBusy(true); setVErr(null);
+    try {
+      const r = await modulesApi.copy(connStr, target);
+      if (r.success) { setCaptcha(null); onFlash(r.message || `Copied ${r.copiedCount} modules.`); }
+      else setVErr(r.message || "Copy failed. Please try again.");
+    } catch (e) { setVErr(String(e)); } finally { setBusy(false); }
   }
 
   return (
@@ -199,8 +264,8 @@ export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerC
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search target client…" style={{ paddingLeft: 28 }} />
       </div>
       <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid var(--bd-subtle,#eef1f6)", borderRadius: 10 }}>
-        {filtered.map((c) => (
-          <label key={c.companyUserID} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid var(--bd-subtle,#f2f4f8)", cursor: "pointer" }}>
+        {filtered.map((c, i) => (
+          <label key={`${c.companyUserID || "no-id"}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid var(--bd-subtle,#f2f4f8)", cursor: "pointer" }}>
             <input type="radio" name="copytarget" checked={target === c.companyUserID} onChange={() => setTarget(c.companyUserID)} />
             <div><div style={{ fontSize: 13, fontWeight: 600 }}>{c.companyName}</div><div style={{ fontSize: 11, opacity: 0.55 }}>{c.companyUserID} · {c.applicationName}</div></div>
           </label>
@@ -208,30 +273,33 @@ export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerC
         {filtered.length === 0 && <div style={{ padding: 20, textAlign: "center", opacity: 0.6 }}>No clients.</div>}
       </div>
 
-      {captcha ? (
-        <div style={{ marginTop: 12, background: "#fdf3f3", border: "1px solid #f0c9c9", borderRadius: 10, padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#a12c2c", marginBottom: 8 }}>⚠ This overwrites the target&apos;s modules. Solve to confirm: {captcha.a} − {captcha.b} = ?</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input value={answer} onChange={(e) => setAnswer(e.target.value)} style={{ width: 100 }} />
-            <Button size="sm" onClick={doCopy} disabled={busy}>{busy ? "Copying…" : "Confirm Copy"}</Button>
-            <Button size="sm" variant="outline" onClick={() => setCaptcha(null)}>Cancel</Button>
-          </div>
-        </div>
-      ) : (
-        <Button size="sm" onClick={start} disabled={busy} style={{ marginTop: 12 }}><Copy size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Copy to Selected</Button>
+      <Button size="sm" onClick={start} disabled={busy} style={{ marginTop: 12 }}><Copy size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Copy to Selected</Button>
+
+      {captcha && (
+        <SecurityConfirmDialog
+          title="WARNING — DATA OVERWRITE" icon={Copy} confirmLabel="Yes, Continue" busyLabel="Copying…"
+          message={<>Are you sure you want to copy all the modules of <b style={{ color: "rgb(var(--color-primary))" }}>{source?.companyName || "this client"}</b> to <b style={{ color: "#e07a1a" }}>{targetName}</b>?</>}
+          note={<>NOTE: THIS WILL DELETE ALL EXISTING MODULES FOR {String(targetName).toUpperCase()}.</>}
+          a={captcha.a} b={captcha.b} answer={answer} setAnswer={setAnswer}
+          error={vErr} busy={busy}
+          onConfirm={doCopy} onCancel={() => { setCaptcha(null); setVErr(null); }}
+        />
       )}
     </div>
   );
 }
 
 /* ── Tab 3: Module Group Authority ──────────────────────── */
-export function ModuleGroupsTab({ app, connStr, onFlash }: { app: string; connStr: string; onFlash: (m: string) => void }) {
+export function ModuleGroupsTab({ app, connStr, onFlash, clientName }: { app: string; connStr: string; onFlash: (m: string) => void; clientName?: string | null }) {
   const [groupApp, setGroupApp] = useState(app || "estimoprime");
   const [groups, setGroups] = useState<string[]>([]);
   const [group, setGroup] = useState("");
   const [mods, setMods] = useState<ModuleGroupModuleRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<{ a: number; b: number } | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [vErr, setVErr] = useState<string | null>(null);
 
   useEffect(() => { setGroupApp(app || "estimoprime"); }, [app]);
   useEffect(() => {
@@ -246,14 +314,21 @@ export function ModuleGroupsTab({ app, connStr, onFlash }: { app: string; connSt
     try { const r = await modulesApi.groupModules(groupApp, group); setMods(r.success ? r.data : []); }
     catch (e) { setMsg(String(e)); } finally { setBusy(false); }
   }
-  async function apply() {
+  function startApply() {
     if (!group || !connStr) { setMsg("Select a group; client connection required."); return; }
-    setBusy(true); setMsg(null);
+    setMsg(null); setVErr(null); setAnswer(""); setCaptcha(makeCaptcha());   // gate behind the security check
+  }
+  async function doApply() {
+    if (!captcha) return;
+    if (parseInt(answer, 10) !== captcha.a - captcha.b) {                    // wrong → new sum, ask again
+      setVErr("Incorrect answer — please solve the new sum."); setAnswer(""); setCaptcha(makeCaptcha()); return;
+    }
+    setBusy(true); setVErr(null);
     try {
       const r = await modulesApi.applyGroup(groupApp, group, connStr);
-      if (r.success) onFlash(r.message || `Applied ${r.totalModules} modules.`);
-      else setMsg(r.message);
-    } catch (e) { setMsg(String(e)); } finally { setBusy(false); }
+      if (r.success) { setCaptcha(null); onFlash(r.message || `Applied ${r.totalModules} modules.`); }
+      else setVErr(r.message || "Apply failed. Please try again.");
+    } catch (e) { setVErr(String(e)); } finally { setBusy(false); }
   }
 
   const grpLbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, opacity: 0.6, display: "block", marginBottom: 5 };
@@ -278,12 +353,23 @@ export function ModuleGroupsTab({ app, connStr, onFlash }: { app: string; connSt
             placeholder="— select —" searchable size="md" />
         </div>
         <Button size="sm" variant="outline" onClick={loadModules} disabled={!group || busy}>Load Modules</Button>
-        <Button size="sm" onClick={apply} disabled={!group || busy} style={{ marginLeft: "auto" }}><Layers size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Apply to Client</Button>
+        <Button size="sm" onClick={startApply} disabled={!group || busy} style={{ marginLeft: "auto" }}><Layers size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Apply to Client</Button>
       </div>
       {mods.length === 0 ? (
         <div style={{ padding: 20, textAlign: "center", opacity: 0.6, border: "1px solid var(--bd-subtle,#eef1f6)", borderRadius: 10 }}>Select a group and click “Load Modules”.</div>
       ) : (
         <DataGrid<ModuleGroupModuleRow> data={mods} columns={columns} getRowId={(r) => r.moduleName} title={`${group} — modules`} enableSearch enableSorting enablePagination pageSize={15} />
+      )}
+
+      {captcha && (
+        <SecurityConfirmDialog
+          title="APPLY MODULE GROUP" icon={Layers} confirmLabel="Yes, Apply" busyLabel="Applying…"
+          message={<>Apply all modules of the <b style={{ color: "rgb(var(--color-primary))" }}>{group}</b> group to <b style={{ color: "#e07a1a" }}>{clientName || "this client"}</b>?</>}
+          note={<>NOTE: THIS UPDATES THE CLIENT&apos;S LIVE MODULE AUTHORITY{clientName ? ` — ${String(clientName).toUpperCase()}` : ""}.</>}
+          a={captcha.a} b={captcha.b} answer={answer} setAnswer={setAnswer}
+          error={vErr} busy={busy}
+          onConfirm={doApply} onCancel={() => { setCaptcha(null); setVErr(null); }}
+        />
       )}
     </div>
   );

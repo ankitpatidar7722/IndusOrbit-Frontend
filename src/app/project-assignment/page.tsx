@@ -129,7 +129,7 @@ export default function ProjectAssignmentPage() {
             <span style={{ fontWeight: 700, fontSize: 14 }}>Users</span>
             <span style={{ marginLeft: "auto", fontSize: 12, color: "rgb(var(--fg-subtle))" }}>{filteredUsers.length}</span>
           </div>
-          <div style={{ padding: 10, borderBottom: "1px solid #eef1f6" }}>
+          <div style={{ padding: 10, borderBottom: "1px solid rgb(var(--bd-subtle))" }}>
             <SearchBox value={userQ} onChange={setUserQ} placeholder="Search users…" />
           </div>
           <div style={{ overflowY: "auto", flex: 1 }}>
@@ -137,7 +137,7 @@ export default function ProjectAssignmentPage() {
               const active = selUser?.userId === u.userId;
               return (
                 <button key={u.userId} onClick={() => pickUser(u)}
-                  style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", border: "none", borderLeft: `3px solid ${active ? "rgb(var(--color-primary))" : "transparent"}`, background: active ? "color-mix(in srgb, rgb(var(--color-primary)) 8%, white)" : "transparent", cursor: "pointer" }}>
+                  style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", border: "none", borderLeft: `3px solid ${active ? "rgb(var(--color-primary))" : "transparent"}`, background: active ? "color-mix(in srgb, rgb(var(--color-primary)) 12%, rgb(var(--bg-surface)))" : "transparent", cursor: "pointer" }}>
                   <span style={{ width: 34, height: 34, borderRadius: 9, background: avatarBg(u.fullName), color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 12.5, flexShrink: 0 }}>{initials(u.fullName)}</span>
                   <span style={{ minWidth: 0, flex: 1 }}>
                     <span style={{ display: "block", fontWeight: 700, fontSize: 13.5, color: "rgb(var(--fg-default))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.fullName}</span>
@@ -156,7 +156,7 @@ export default function ProjectAssignmentPage() {
           {!selUser ? (
             <div style={{ display: "grid", placeItems: "center", flex: 1, minHeight: 380 }}>
               <div style={{ textAlign: "center", maxWidth: 360 }}>
-                <div style={{ width: 64, height: 64, borderRadius: 16, background: "color-mix(in srgb, rgb(var(--color-primary)) 10%, white)", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center", margin: "0 auto 14px" }}><FolderKanban size={30} /></div>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: "color-mix(in srgb, rgb(var(--color-primary)) 12%, rgb(var(--bg-surface)))", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center", margin: "0 auto 14px" }}><FolderKanban size={30} /></div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: "rgb(var(--fg-default))", marginBottom: 5 }}>Select a user</div>
                 <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", lineHeight: 1.6 }}>Pick a user on the left to assign the client projects they should be able to see.</div>
               </div>
@@ -166,7 +166,7 @@ export default function ProjectAssignmentPage() {
               {/* header */}
               <div style={{ ...panelHead, gap: 12 }}>
                 <button className="pa-back" onClick={() => setSelUser(null)} title="Back to users" aria-label="Back to users"
-                  style={{ display: "none", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f1", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", cursor: "pointer", flexShrink: 0 }}>
+                  style={{ display: "none", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, border: "1px solid rgb(var(--bd-subtle))", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", cursor: "pointer", flexShrink: 0 }}>
                   <ChevronDown size={18} style={{ transform: "rotate(90deg)" }} />
                 </button>
                 <span style={{ width: 30, height: 30, borderRadius: 8, background: avatarBg(selUser.fullName), color: "#fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 11.5, flexShrink: 0 }}>{initials(selUser.fullName)}</span>
@@ -177,14 +177,14 @@ export default function ProjectAssignmentPage() {
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="pa-detail-badge"><Badge variant="info">{selected.size} of {projects.length} assigned</Badge></span>
                   <button onClick={save} disabled={!dirty || saving}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 7, background: dirty ? "rgb(var(--color-primary))" : "#cbd3df", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 700, cursor: dirty && !saving ? "pointer" : "default" }}>
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, background: dirty ? "rgb(var(--color-primary))" : "rgb(var(--bd-strong))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 700, cursor: dirty && !saving ? "pointer" : "default" }}>
                     <Save size={15} /> {saving ? "Saving…" : "Save"}
                   </button>
                 </div>
               </div>
 
               {/* toolbar */}
-              <div className="pa-toolbar" style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderBottom: "1px solid #eef1f6" }}>
+              <div className="pa-toolbar" style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderBottom: "1px solid rgb(var(--bd-subtle))" }}>
                 <div style={{ flex: 1, minWidth: 0 }}><SearchBox value={projQ} onChange={setProjQ} placeholder="Search projects by name, code, or app…" /></div>
                 <ProductFilter selected={productFilter} onChange={setProductFilter} />
                 <button onClick={selectAllFiltered} style={linkBtn}><CheckSquare size={14} /> Select all{(projQ || productFilter.size) ? " (filtered)" : ""}</button>
@@ -194,7 +194,7 @@ export default function ProjectAssignmentPage() {
               {/* project list */}
               <div style={{ overflowY: "auto", flex: 1, minHeight: 300 }}>
                 {projErr ? (
-                  <div style={{ padding: 30, textAlign: "center", color: "#b4472d", fontSize: 13 }}>{projErr}</div>
+                  <div style={{ padding: 30, textAlign: "center", color: "#e0674f", fontSize: 13 }}>{projErr}</div>
                 ) : assignedLoading ? (
                   <div style={{ padding: 30, textAlign: "center", color: "rgb(var(--fg-subtle))", fontSize: 13 }}>Loading assignments…</div>
                 ) : filteredProjects.length === 0 ? (
@@ -203,7 +203,7 @@ export default function ProjectAssignmentPage() {
                   const on = selected.has(p.code);
                   return (
                     <button key={p.code} onClick={() => toggle(p.code)}
-                      style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", border: "none", borderBottom: "1px solid #f1f4f8", background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 5%, white)" : "transparent", cursor: "pointer" }}>
+                      style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", border: "none", borderBottom: "1px solid rgb(var(--bd-subtle))", background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 10%, rgb(var(--bg-surface)))" : "transparent", cursor: "pointer" }}>
                       {on ? <CheckSquare size={19} style={{ color: "rgb(var(--color-primary))", flexShrink: 0 }} /> : <Square size={19} style={{ color: "rgb(var(--fg-subtle))", flexShrink: 0 }} />}
                       <Building2 size={16} style={{ color: "rgb(var(--fg-subtle))", flexShrink: 0 }} />
                       <span style={{ minWidth: 0, flex: 1 }}>
@@ -217,7 +217,7 @@ export default function ProjectAssignmentPage() {
               </div>
 
               {/* footer hint */}
-              <div style={{ padding: "9px 14px", borderTop: "1px solid #eef1f6", fontSize: 12, color: dirty ? "#b4772d" : "#8b96a5", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ padding: "9px 14px", borderTop: "1px solid rgb(var(--bd-subtle))", fontSize: 12, color: dirty ? "#d69133" : "rgb(var(--fg-subtle))", display: "flex", alignItems: "center", gap: 8 }}>
                 {dirty ? <><span style={{ width: 7, height: 7, borderRadius: 999, background: "#e0a63a" }} /> Unsaved changes — click Save to apply.</> : <><Check size={13} /> All changes saved.</>}
               </div>
             </>
@@ -253,18 +253,18 @@ function ProductFilter({ selected, onChange }: { selected: Set<string>; onChange
   return (
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button onClick={() => setOpen((o) => !o)}
-        style={{ ...linkBtn, gap: 7, ...(selected.size ? { border: "1px solid rgb(var(--color-primary))", color: "rgb(var(--color-primary))", background: "color-mix(in srgb, rgb(var(--color-primary)) 7%, white)" } : {}) }}>
+        style={{ ...linkBtn, gap: 7, ...(selected.size ? { border: "1px solid rgb(var(--color-primary))", color: "rgb(var(--color-primary))", background: "color-mix(in srgb, rgb(var(--color-primary)) 12%, rgb(var(--bg-surface)))" } : {}) }}>
         <Package size={14} /> Indus Product{selected.size ? ` (${selected.size})` : ""} <ChevronDown size={13} style={{ opacity: 0.7 }} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 30, background: "rgb(var(--bg-surface))", border: "1px solid #dce2ec", borderRadius: 10, boxShadow: "0 12px 32px rgba(15,23,42,.16)", minWidth: 200, padding: 6 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 30, background: "rgb(var(--bg-surface))", border: "1px solid rgb(var(--bd-subtle))", borderRadius: 10, boxShadow: "0 12px 32px rgba(15,23,42,.16)", minWidth: 200, padding: 6 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, color: "rgb(var(--fg-subtle))", textTransform: "uppercase", letterSpacing: 0.4, padding: "4px 8px 6px" }}>Indus Product</div>
           {PRODUCTS.map((pr) => {
             const on = selected.has(pr);
             return (
               <button key={pr} onClick={() => toggle(pr)}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 7, fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-default))", textAlign: "left" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f7fb")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgb(var(--bg-subtle))")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                 {on ? <CheckSquare size={16} style={{ color: "rgb(var(--color-primary))" }} /> : <Square size={16} style={{ color: "rgb(var(--fg-subtle))" }} />}
                 {pr}
@@ -273,7 +273,7 @@ function ProductFilter({ selected, onChange }: { selected: Set<string>; onChange
           })}
           {selected.size > 0 && (
             <button onClick={() => onChange(new Set())}
-              style={{ width: "100%", padding: "8px 10px", border: "none", borderTop: "1px solid #eef1f6", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", marginTop: 4, textAlign: "left" }}>
+              style={{ width: "100%", padding: "8px 10px", border: "none", borderTop: "1px solid rgb(var(--bd-subtle))", background: "transparent", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", marginTop: 4, textAlign: "left" }}>
               Clear filter
             </button>
           )}
@@ -288,11 +288,11 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
     <div style={{ position: "relative" }}>
       <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "rgb(var(--fg-subtle))" }} />
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", height: 34, padding: "0 10px 0 30px", fontSize: 13, border: "1px solid #d8dee9", borderRadius: 8, outline: "none", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", boxSizing: "border-box" }} />
+        style={{ width: "100%", height: 34, padding: "0 10px 0 30px", fontSize: 13, border: "1px solid rgb(var(--bd-subtle))", borderRadius: 8, outline: "none", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", boxSizing: "border-box" }} />
     </div>
   );
 }
 
-const panel: React.CSSProperties = { display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", border: "1px solid #e6eaf1", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)", overflow: "hidden", maxHeight: "calc(100vh - 180px)" };
-const panelHead: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid #eef1f6", flexShrink: 0 };
-const linkBtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid #dce2ec", borderRadius: 8, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };
+const panel: React.CSSProperties = { display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", border: "1px solid rgb(var(--bd-subtle))", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)", overflow: "hidden", maxHeight: "calc(100vh - 180px)" };
+const panelHead: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid rgb(var(--bd-subtle))", flexShrink: 0 };
+const linkBtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid rgb(var(--bd-subtle))", borderRadius: 8, padding: "6px 11px", fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 };

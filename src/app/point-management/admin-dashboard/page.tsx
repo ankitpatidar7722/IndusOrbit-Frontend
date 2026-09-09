@@ -1,16 +1,19 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Page, StatsGrid, StatsCard, Dropdown, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button, useDevice } from "indas-ui";
-import { Layers, FolderOpen, CheckSquare, AlarmClock, XCircle } from "lucide-react";
+import { Layers, FolderOpen, CheckSquare, AlarmClock, XCircle, Eye } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import { PmGuard } from "../PmGuard";
+import { usePmContext } from "../PmContext";
 import { STATUS_CARDS, STATUS_COLORS, PIPELINE, pointColumns, lblStyle, clearBtnStyle, gridFeatures, PmHeader } from "../shared";
+import { usePointDrawer, PointDrawer } from "../PointDrawer";
 import { pmApi, type AdminDashboardStats, type PointGridRow, type PmUser, type PmCustomer } from "@/lib/tms";
 
 function AdminDashboard() {
   const { isMobile } = useDevice();
+  const { ctx } = usePmContext();
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [devs, setDevs] = useState<PmUser[]>([]);
   const [customers, setCustomers] = useState<PmCustomer[]>([]);
@@ -49,7 +52,16 @@ function AdminDashboard() {
     pmApi.points({ status, ...filter }).then(setRows).catch((e) => setErr(String(e))).finally(() => setGridLoading(false));
   }
 
-  const columns = useMemo(() => pointColumns(), []);
+  const drawer = usePointDrawer(() => { if (activeStatus) loadGrid(activeStatus); });
+  const columns = useMemo(() => {
+    const cols = pointColumns();
+    cols.push({
+      id: "view", header: "", enableSorting: false, enableHiding: false, size: 84,
+      cell: ({ row }) => <Button size="sm" variant="outline" icon={Eye} onClick={() => drawer.open(row.original.pointID)}>View</Button>,
+    });
+    return cols;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawer]);
 
   // ── Chart data derived from the same stats object ──
   const donutData = useMemo(() => {
@@ -152,9 +164,13 @@ function AdminDashboard() {
           data={rows} columns={columns} loading={gridLoading}
           getRowId={(r) => String(r.pointID)}
           mainColumns="customerName"
+          rightFrozenColumns={["view"]}
           {...gridFeatures}
         />
       </StandardModal>
+
+      {/* View a single point (with its attachments) — opens on top of the drill-down list */}
+      <PointDrawer drawer={drawer} actions={null} uploaderId={ctx?.tmsUserId ?? 0} />
     </Page>
   );
 }

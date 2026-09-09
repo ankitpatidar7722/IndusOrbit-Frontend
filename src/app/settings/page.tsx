@@ -7,8 +7,9 @@ import { Card, CardContent, Switch, Input, useModalAlert, ThemeContext, useDevic
 import {
   User, Bell, Settings as SettingsIcon, ArrowLeft, LogOut, Eye, EyeOff, KeyRound, Camera, X,
   CircleUser, PenLine, Mail, Server, Cloud, Zap, CheckCircle2, Database, Type, RotateCcw,
-  Palette, Save, Loader2, Trash2, Check, Smartphone, Sparkles, HelpCircle,
+  Palette, Save, Loader2, Trash2, Check, Smartphone, Sparkles, HelpCircle, LayoutTemplate,
 } from "lucide-react";
+import { LOGIN_SKINS } from "@/app/login/skins";
 import { usersApi, photoUrl, type UserDetail } from "@/lib/users";
 import { emailApi } from "@/lib/email";
 import ImageCropModal from "@/components/ImageCropModal";
@@ -19,6 +20,7 @@ import { bottomNavCandidates, DEFAULT_ITEMS, MAX_BOTTOM_NAV, iconForItem, loadBo
 
 /* ─── palette ─── */
 const NAVY = "rgb(var(--color-primary))";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
 const cardStyle: React.CSSProperties = { background: "rgb(var(--bg-surface))", border: "1px solid #e9edf3", borderRadius: 14, boxShadow: "0 1px 2px rgba(16,24,40,.04), 0 12px 28px -18px rgba(16,24,40,.18)" };
 const label: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-muted))", marginBottom: 6 };
 const readOnlyChip: React.CSSProperties = { fontSize: 13.5, color: "rgb(var(--fg-default))", padding: "9px 12px", background: "rgb(var(--bg-subtle))", borderRadius: 8, border: "1px solid #e6eaf0", minHeight: 38 };
@@ -76,8 +78,9 @@ const shade = (hex: string, amt: number) => {
 export default function SettingsPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const su = (session?.user ?? {}) as { UserID?: number; name?: string; email?: string; Role?: string };
+  const su = (session?.user ?? {}) as { UserID?: number; CompanyID?: number; name?: string; email?: string; Role?: string };
   const userId = su.UserID ?? 0;
+  const companyId = su.CompanyID ?? 1;
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const themeCtx = useContext(ThemeContext);
   const { isMobile } = useDevice();
@@ -143,8 +146,51 @@ export default function SettingsPage() {
     } else showError("Could not save", r.message || "Please try again.");
   };
 
+  /* ── Change Login Page (admin only) — global login-screen DESIGN picker (auth logic unchanged) ── */
+  const isAdmin = String((session?.user as { Role?: string } | undefined)?.Role || "").toLowerCase().includes("admin");
+  const [loginDesign, setLoginDesign] = useState("default");
+  const [savingLoginDesign, setSavingLoginDesign] = useState(false);
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch(`${API}/api/login-design`).then((r) => r.json()).then((d) => setLoginDesign((d?.design as string) || "default")).catch(() => {});
+  }, [isAdmin]);
+  const applyLoginDesign = async (id: string) => {
+    if (savingLoginDesign || id === loginDesign) return;
+    setSavingLoginDesign(true);
+    try {
+      const r = await fetch(`${API}/api/login-design`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ Design: id }) });
+      if (r.ok) { setLoginDesign(id); showSuccess("Login page updated", `Everyone will now see the "${LOGIN_SKINS.find((s) => s.id === id)?.label}" login design.`, 2800); }
+      else showError("Could not update", "Failed to change the login page design.");
+    } catch { showError("Could not update", "Failed to change the login page design."); }
+    finally { setSavingLoginDesign(false); }
+  };
+
   /* ── notifications ── */
   const [notif, setNotif] = useState({ email: true, push: false, system: true });
+  // OS/browser Web Push (real PushSubscription, not just a local pref).
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushSupportedState, setPushSupportedState] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    import("@/lib/push").then(async (p) => {
+      if (!alive) return;
+      setPushSupportedState(p.pushSupported());
+      setPushOn(await p.isPushSubscribed());
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const togglePush = async (v: boolean) => {
+    setPushBusy(true);
+    try {
+      const p = await import("@/lib/push");
+      if (v) { await p.subscribeToPush(userId, companyId); setPushOn(true); showSuccess("Push on", "Ab app band hone par bhi phone/desktop par notification aayega.", 2800); }
+      else { await p.unsubscribeFromPush(userId, companyId); setPushOn(false); showSuccess("Push off", "Is device par OS notifications band kar diye.", 2200); }
+    } catch (e) {
+      showError("Push notifications", e instanceof Error ? e.message : String(e));
+      try { const p = await import("@/lib/push"); setPushOn(await p.isPushSubscribed()); } catch { /* ignore */ }
+    } finally { setPushBusy(false); }
+  };
   // Server-persisted chat/email notification prefs (drive whether notifications are raised at all).
   const { settings: notifSettings, saveSettings: saveNotifSettings } = useNotifications();
 
@@ -465,7 +511,9 @@ export default function SettingsPage() {
                   <Row icon={<Mail size={18} />} title="Email Notifications" subtitle="Get notified when a new email arrives in your inbox">
                     <Switch checked={notifSettings.NotifyEmails} onCheckedChange={(v: boolean) => saveNotifSettings({ ...notifSettings, NotifyEmails: v })} />
                   </Row>
-                  <Row icon={<Bell size={18} />} title="Push Notifications" subtitle="Show desktop notifications in your browser"><Switch checked={notif.push} onCheckedChange={(v: boolean) => setNotifPref("push", v)} /></Row>
+                  <Row icon={<Bell size={18} />} title="Push Notifications (OS)" subtitle={pushSupportedState ? "Phone/desktop par notification — tab app band bhi ho" : "Is browser me push support nahi hai"}>
+                    <Switch checked={pushOn} disabled={pushBusy || !pushSupportedState} onCheckedChange={togglePush} />
+                  </Row>
                   <Row icon={<Zap size={18} />} title="System Updates" subtitle="Notifications about system maintenance and updates"><Switch checked={notif.system} onCheckedChange={(v: boolean) => setNotifPref("system", v)} /></Row>
                 </div>
               </CardContent>
@@ -526,6 +574,37 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Change Login Page — admin only, global design picker (login logic unchanged) */}
+              {isAdmin && (
+                <Card style={cardStyle}>
+                  <CardContent style={{ padding: 22 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ ...iconBox, background: NAVY, color: "#fff" }}><LayoutTemplate size={18} /></div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "rgb(var(--fg-default))" }}>Change Login Page</div>
+                        <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))" }}>Pick the sign-in design everyone sees. Design only — the login itself works exactly the same.</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0,1fr))" : "repeat(3, minmax(0,1fr))", gap: 12, marginTop: 16 }}>
+                      {LOGIN_SKINS.map((s) => {
+                        const on = loginDesign === s.id;
+                        return (
+                          <button key={s.id} onClick={() => applyLoginDesign(s.id)} disabled={savingLoginDesign}
+                            style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, padding: 14, borderRadius: 12, cursor: savingLoginDesign ? "default" : "pointer", textAlign: "left",
+                              background: on ? "#f6f8fb" : "rgb(var(--bg-surface))", border: on ? `2px solid ${NAVY}` : "2px solid #e6eaf0", opacity: savingLoginDesign && !on ? 0.6 : 1 }}>
+                            <div style={{ fontSize: 30, lineHeight: 1 }}>{s.preview}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{s.label}{on && <Check size={14} color={NAVY} />}</div>
+                            <div style={{ fontSize: 11.5, color: "rgb(var(--fg-muted))" }}>{s.description}</div>
+                            <span style={{ fontSize: 11, fontWeight: on ? 700 : 600, color: on ? NAVY : "rgb(var(--fg-subtle))" }}>{on ? "● Active" : "Tap to apply"}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))", marginTop: 12 }}>Applies to everyone (global). Open the login page in a private window to preview.</div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Clear data */}
               <Row icon={<Database size={18} />} title="Clear App Data" subtitle="Sign out and wipe cookies, cache and local storage on this device" tint="#ef4444">

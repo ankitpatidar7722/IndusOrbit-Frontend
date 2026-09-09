@@ -156,8 +156,8 @@ export default function CustomersPage() {
       </div>
 
       <Grid columns={{ sm: 1, md: 2, lg: 3 }} gap={4}>
-        {filtered.map((c) => (
-          <Card key={c.companyUserID}>
+        {filtered.map((c, i) => (
+          <Card key={`${c.companyUserID || c.companyUniqueCode || "no-id"}-${i}`}>
             <CardContent>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(135deg,rgb(var(--color-primary)),color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, flexShrink: 0 }}>

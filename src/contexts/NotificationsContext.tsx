@@ -109,6 +109,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission();
     } catch { /* ignore */ }
+    // If the user turned ON OS push earlier (and permission still granted), silently re-ensure the
+    // subscription — push endpoints can expire/rotate, so refresh it on each load. Best-effort.
+    import("@/lib/push").then((p) => p.ensurePushIfPreferred(userId, companyId)).catch(() => {});
   }, [userId, companyId, refresh]);
 
   // Dedicated SignalR connection to receive real-time "Notification" pushes (own the user group).

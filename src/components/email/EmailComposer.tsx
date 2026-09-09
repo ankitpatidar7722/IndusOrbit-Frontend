@@ -22,7 +22,7 @@ export interface ComposerInit {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const input: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #d6dbe3", borderRadius: 8, fontSize: 13.5, outline: "none", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))" };
-const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, background: "rgb(var(--bg-subtle))", color: "rgb(var(--color-primary))", borderRadius: 999, padding: "3px 6px 3px 10px", fontSize: 12, fontWeight: 600 };
+const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, background: "rgb(var(--bg-subtle))", color: "rgb(var(--color-primary))", borderRadius: 999, padding: "3px 6px 3px 10px", fontSize: 12, fontWeight: 600, maxWidth: "100%", minWidth: 0 };
 const tbtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 28, border: "1px solid #e2e7ef", background: "rgb(var(--bg-surface))", borderRadius: 7, cursor: "pointer", color: "#334" };
 const rowLabel: React.CSSProperties = { width: 44, fontSize: 12, fontWeight: 700, color: "rgb(var(--fg-muted))", flexShrink: 0, paddingTop: 8 };
 
@@ -63,12 +63,12 @@ function ChipField({ value, onChange, suggestions = [] }: { value: EmailAddress[
   }, [open]);
 
   return (
-    <div ref={boxRef} style={{ position: "relative" }}>
-      <div style={{ ...input, display: "flex", flexWrap: "wrap", gap: 6, padding: 6, minHeight: 38 }}>
+    <div ref={boxRef} style={{ position: "relative", minWidth: 0 }}>
+      <div style={{ ...input, display: "flex", flexWrap: "wrap", gap: 6, padding: 6, minHeight: 38, minWidth: 0 }}>
         {value.map((a) => (
           <span key={a.email} style={chip}>
-            {a.name ? `${a.name} <${a.email}>` : a.email}
-            <button onClick={() => onChange(value.filter((x) => x.email !== a.email))} style={{ border: "none", background: "transparent", cursor: "pointer", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center" }}><X size={12} /></button>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{a.name ? `${a.name} <${a.email}>` : a.email}</span>
+            <button onClick={() => onChange(value.filter((x) => x.email !== a.email))} style={{ border: "none", background: "transparent", cursor: "pointer", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center", flexShrink: 0 }}><X size={12} /></button>
           </span>
         ))}
         <input
@@ -95,7 +95,7 @@ function ChipField({ value, onChange, suggestions = [] }: { value: EmailAddress[
           onFocus={() => { if (text) setOpen(true); }}
           onBlur={() => commit(text)}
           placeholder={value.length ? "" : "name@example.com"}
-          style={{ flex: 1, minWidth: 140, border: "none", outline: "none", fontSize: 13.5, background: "transparent" }}
+          style={{ flex: 1, minWidth: 120, border: "none", outline: "none", fontSize: 13.5, background: "transparent" }}
         />
       </div>
 
@@ -283,13 +283,13 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
         saveIcon={Mail}
         saving={sending}
       >
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="email-compose-body" style={{ display: "grid", gap: 10, minWidth: 0 }}>
           {/* From — the actual sending mailbox (read-only, from server config) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
             <div style={{ width: 44, fontSize: 12, fontWeight: 700, color: "rgb(var(--fg-muted))", flexShrink: 0 }}>From</div>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 9, background: "rgb(var(--bg-subtle))", border: "1px solid #e6eaf0", borderRadius: 8, padding: "8px 12px" }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "rgb(var(--bg-subtle))", border: "1px solid #e6eaf0", borderRadius: 8, padding: "8px 12px" }}>
               <Mail size={14} style={{ opacity: 0.55, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-default))" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-default))", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {sender.email
                   ? (sender.name ? `${sender.name} <${sender.email}>` : sender.email)
                   : (cfg ? (cfg.configured ? cfg.mailbox : "No mailbox configured") : "Loading…")}
@@ -308,22 +308,22 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
           )}
 
           {/* To + Cc/Bcc toggles */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, minWidth: 0 }}>
             <div style={rowLabel}>To</div>
-            <div style={{ flex: 1 }}><ChipField value={to} onChange={setTo} suggestions={suggestions} /></div>
-            <div style={{ display: "flex", gap: 6, paddingTop: 8 }}>
+            <div style={{ flex: 1, minWidth: 0 }}><ChipField value={to} onChange={setTo} suggestions={suggestions} /></div>
+            <div style={{ display: "flex", gap: 6, paddingTop: 8, flexShrink: 0 }}>
               {!showCc && <button onClick={() => setShowCc(true)} style={{ ...tbtn, width: "auto", padding: "0 8px", fontSize: 12, fontWeight: 700 }}>Cc</button>}
               {!showBcc && <button onClick={() => setShowBcc(true)} style={{ ...tbtn, width: "auto", padding: "0 8px", fontSize: 12, fontWeight: 700 }}>Bcc</button>}
             </div>
           </div>
-          {showCc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Cc</div><div style={{ flex: 1 }}><ChipField value={cc} onChange={setCc} suggestions={suggestions} /></div></div>}
-          {showBcc && <div style={{ display: "flex", gap: 8 }}><div style={rowLabel}>Bcc</div><div style={{ flex: 1 }}><ChipField value={bcc} onChange={setBcc} suggestions={suggestions} /></div></div>}
+          {showCc && <div style={{ display: "flex", gap: 8, minWidth: 0 }}><div style={rowLabel}>Cc</div><div style={{ flex: 1, minWidth: 0 }}><ChipField value={cc} onChange={setCc} suggestions={suggestions} /></div></div>}
+          {showBcc && <div style={{ display: "flex", gap: 8, minWidth: 0 }}><div style={rowLabel}>Bcc</div><div style={{ flex: 1, minWidth: 0 }}><ChipField value={bcc} onChange={setBcc} suggestions={suggestions} /></div></div>}
 
           {/* Template picker */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={rowLabel}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><FileText size={13} /></span></div>
-            <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ width: 280 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", minWidth: 0 }}>
+            <div style={{ ...rowLabel, paddingTop: 8 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><FileText size={13} /></span></div>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 180px", minWidth: 0, maxWidth: 280 }}>
                 <Dropdown
                   value={templateId}
                   onValueChange={(v) => pickTemplate(String(v))}
@@ -333,7 +333,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
                   size="md"
                 />
               </div>
-              {template && <button onClick={applyTemplate} style={{ ...tbtn, width: "auto", padding: "0 14px", fontWeight: 700, background: "rgb(var(--color-primary))", color: "#fff", border: "none" }}>Apply template</button>}
+              {template && <button onClick={applyTemplate} style={{ ...tbtn, width: "auto", padding: "0 14px", fontWeight: 700, background: "rgb(var(--color-primary))", color: "#fff", border: "none", whiteSpace: "nowrap", flexShrink: 0 }}>Apply template</button>}
             </div>
           </div>
           {template && template.variables.length > 0 && (
@@ -355,9 +355,9 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
           )}
 
           {/* Subject */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, minWidth: 0 }}>
             <div style={{ ...rowLabel, paddingTop: 9 }}>Subject</div>
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={input} />
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={{ ...input, flex: 1, minWidth: 0 }} />
           </div>
 
           {/* Toolbar + body */}

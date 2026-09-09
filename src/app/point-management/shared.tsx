@@ -70,6 +70,7 @@ export function pointColumns(extra?: ColumnDef<PointGridRow>[]): ColumnDef<Point
     { accessorKey: "productName", header: "Product", cell: ({ row }) => row.original.productName ?? "—" },
     { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge> },
     { accessorKey: "priority", header: "Priority", cell: ({ row }) => <Badge variant={priorityVariant(row.original.priority)}>{row.original.priority}</Badge> },
+    { accessorKey: "reportedByName", header: "Reported By", size: 150, cell: ({ row }) => row.original.reportedByName ?? "—" },
     { accessorKey: "assignedToName", header: "Assigned To", cell: ({ row }) => row.original.assignedToName ?? "—" },
     { accessorKey: "expectedMinutes", header: "Est (m)", cell: ({ row }) => row.original.expectedMinutes ?? "—" },
     { accessorKey: "totalTimeSpent", header: "Spent (m)", cell: ({ row }) => row.original.totalTimeSpent ?? "—" },

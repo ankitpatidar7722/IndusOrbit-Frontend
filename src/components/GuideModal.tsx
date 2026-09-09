@@ -11,12 +11,14 @@ export default function GuideModal({ src, title, onClose }: { src: string | null
   return (
     <div
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+      className="guide-modal-backdrop"
       style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,.55)", display: "grid", placeItems: "center", padding: "min(4vw, 40px)" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        className="guide-modal-card"
         style={{ width: "min(940px, 100%)", height: "min(90vh, 100%)", background: "rgb(var(--bg-surface))", border: "1px solid rgba(148,163,184,.25)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 32px 90px rgba(0,0,0,.45)" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 16px", borderBottom: "1px solid rgba(148,163,184,.22)", background: "rgb(var(--color-primary))", color: "#fff" }}>

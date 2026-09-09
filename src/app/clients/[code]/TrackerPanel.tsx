@@ -23,7 +23,9 @@ type Tracker = {
 type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "module" | "submodule" | "user" | "aiSummary";
 // dependsOn: for "submodule" — the key of the "module" field it cascades from.
 // compute: derives this field's value from the other form values (read-only, auto-filled) — e.g. Days = To − From.
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; locked?: boolean };
+// span: grid-column width on a 12-col layout — lets a form pack rows of 3 (span 4) or 4 (span 3) fields; omit for the default 3-up grid.
+// autoGrow: textarea that grows its height to fit the text inside it (no scrollbar, no manual drag handle).
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; locked?: boolean };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -42,6 +44,21 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600, marginBottom: 5, display: "block",
 };
+
+/** Textarea that auto-sizes its height to fit its content — grows as you type, no scrollbar, no drag handle. */
+function AutoGrowTextarea({ value, onChange, minHeight = 44 }: { value: string; onChange: (v: string) => void; minHeight?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";                               // reset so shrinking works too
+    el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`;
+  }, [value, minHeight]);
+  return (
+    <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)}
+      style={{ ...inputStyle, minHeight, resize: "none", overflow: "hidden", lineHeight: 1.5 }} />
+  );
+}
 
 /* fast 3-dropdown time picker (Hour / Minute / AM-PM) — replaces the slow native scroll wheel */
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -207,13 +224,19 @@ function EntityFormModal({
     return next;
   });
 
+  // When any field declares an explicit `span`, lay the form on a 12-column grid (12 = lcm of 3 and 4,
+  // so rows of 4 fields (span 3) or 3 fields (span 4) both fill a row exactly). Otherwise keep the simple 3-up grid.
+  const gridCols = useMemo(() => (fields.some((fd) => fd.span) ? 12 : 3), [fields]);
+
   return (
     <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size="lg" showFooter={!readOnly}
       onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving}>
-      <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
+      <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
         {fields.map((fd) => {
           const val = (f[fd.key] as string) ?? "";
-          const span = fd.full || fd.type === "textarea" ? { gridColumn: "1 / -1" } : undefined;
+          // A textarea / summary spans the whole row UNLESS it carries an explicit `span`; an explicit span always wins.
+          const isFull = fd.full || ((fd.type === "textarea" || fd.type === "aiSummary") && !fd.span);
+          const span = isFull ? { gridColumn: "1 / -1" } : (fd.span ? { gridColumn: `span ${fd.span}` } : undefined);
           // Per-field lock: this field is view-only for users without the authority, while the
           // rest of the form stays editable. (Whole-form readOnly already disables everything.)
           const fieldLocked = !!fd.locked && !readOnly;
@@ -226,7 +249,11 @@ function EntityFormModal({
               ) : fd.type === "aiSummary" ? (
                 <AiSummaryField value={val} onChange={(v) => set(fd.key, v)} entity={title} fields={fields} values={f} disabled={readOnly || fieldLocked} />
               ) : fd.type === "textarea" ? (
-                <textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={val} onChange={(e) => set(fd.key, e.target.value)} />
+                fd.autoGrow ? (
+                  <AutoGrowTextarea value={val} onChange={(v) => set(fd.key, v)} minHeight={isFull ? 76 : 44} />
+                ) : (
+                  <textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={val} onChange={(e) => set(fd.key, e.target.value)} />
+                )
               ) : fd.type === "time" ? (
                 <TimeSelect value={val} onChange={(v) => set(fd.key, v)} />
               ) : fd.type === "select" ? (
@@ -922,18 +949,23 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
   { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<TrainingUpdate>() },
 ];
 const TRAINING_FIELDS: FieldDef[] = [
-  { key: "moduleName", label: "Main Module", type: "module" },
-  { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName" },
-  { key: "timelineDays", label: "Timeline in Days" },
-  { key: "logDate", label: "Schedule Date", type: "date" },
-  { key: "startTime", label: "Start Time", type: "time" },
-  { key: "endTime", label: "End Time", type: "time" },
-  { key: "trainee", label: "Trainee Name" },
-  { key: "trainer", label: "Trainer from Indas", type: "user" },
-  { key: "status", label: "Status", type: "select", options: ["Scheduled", "Running", "Complete", "Hold"] },
-  { key: "details", label: "Details of Covered Modules in Training", type: "textarea" },
-  { key: "videoUrl", label: "YouTube Link Attachment", type: "url", full: true },
-  { key: "remark", label: "Remark", type: "textarea" },
+  // Row 1 — 4 fields (span 3 each = 12)
+  { key: "moduleName", label: "Main Module", type: "module", span: 3 },
+  { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName", span: 3 },
+  { key: "timelineDays", label: "Timeline in Days", span: 3 },
+  { key: "logDate", label: "Schedule Date", type: "date", span: 3 },
+  // Row 2 — 3 fields (span 4 each = 12)
+  { key: "startTime", label: "Start Time", type: "time", span: 4 },
+  { key: "endTime", label: "End Time", type: "time", span: 4 },
+  { key: "trainee", label: "Trainee Name", span: 4 },
+  // Row 3 — 4 fields (span 3 each = 12)
+  { key: "trainer", label: "Trainer from Indas", type: "user", span: 3 },
+  { key: "status", label: "Status", type: "select", options: ["Scheduled", "Running", "Complete", "Hold"], span: 3 },
+  { key: "videoUrl", label: "YouTube Link Attachment", type: "url", span: 3 },
+  { key: "remark", label: "Remark", type: "textarea", span: 3, autoGrow: true },
+  // Row 4 — full-width, auto-sizing (grows with the text typed in it)
+  { key: "details", label: "Details of Covered Modules in Training", type: "textarea", full: true, autoGrow: true },
+  // Row 5 — full-width
   { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
 const TRAINING_BLANK = { status: "Scheduled" };

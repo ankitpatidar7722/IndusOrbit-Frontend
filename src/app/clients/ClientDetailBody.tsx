@@ -148,6 +148,23 @@ function patchDocVersion(doc: Document, version: string) {
   }
 }
 
+/** Show a prominent, auto-dismissing banner at the top of a document window (used for Save
+ *  success / failure). The doc opens in its own window so the main-app toast is hidden behind it. */
+function showDocBanner(w: Window, message: string, bg: string) {
+  const doc = w.document;
+  doc.getElementById("indus-doc-banner")?.remove();
+  const el = doc.createElement("div");
+  el.id = "indus-doc-banner";
+  el.textContent = message;
+  el.setAttribute("style",
+    `position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2147483647;` +
+    `background:${bg};color:#fff;font:700 14px 'Segoe UI',system-ui,sans-serif;` +
+    `padding:12px 22px;border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.28);` +
+    `max-width:92vw;text-align:center;`);
+  doc.body.appendChild(el);
+  w.setTimeout(() => { try { el.remove(); } catch { /* window closed */ } }, 4200);
+}
+
 /** Inject the in-window action bar (Save in edit mode + Print + Close) and set the sheet's
  *  editability. Removes the template's own toolbar so there's exactly one. */
 function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLButtonElement) => void, lockTemplate = false) {
@@ -747,14 +764,18 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         refreshDocMeta();
         if (historyFor === docType) loadHistory(docType);
         setFlash(`${docType === "SignOff" ? "Sign-Off" : "Kick-Off"} document saved.`);
+        // The doc opens in its OWN window (the main-app flash banner is hidden behind it), and on the
+        // server a save can take several seconds — so show a clear, prominent success banner INSIDE the
+        // doc window itself, otherwise the only cue is a brief button-text flip the user often misses.
+        try { showDocBanner(w, `✓ ${docType === "SignOff" ? "Sign-Off" : "Kick-Off"} saved successfully`, "#0a7d3c"); } catch { /* window closed */ }
         setTimeout(() => { try { btn.textContent = orig; btn.style.background = "#137a44"; btn.disabled = false; } catch { /* window closed */ } }, 2200);
       } else {
         btn.textContent = orig; btn.disabled = false;
-        try { w.alert("Save failed: " + (res?.message || "unknown error")); } catch { /* window closed */ }
+        try { showDocBanner(w, "✕ Save failed: " + (res?.message || "unknown error"), "#c0392b"); } catch { try { w.alert("Save failed: " + (res?.message || "unknown error")); } catch { /* window closed */ } }
       }
     } catch (e) {
       btn.textContent = orig; btn.disabled = false;
-      try { w.alert("Save failed: " + e); } catch { /* window closed */ }
+      try { showDocBanner(w, "✕ Save failed — check your connection and retry", "#c0392b"); } catch { try { w.alert("Save failed: " + e); } catch { /* window closed */ } }
     }
   };
 
@@ -1205,7 +1226,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           {!canEdit("authority") && <div style={{ fontSize: 12, color: T.muted, marginBottom: 10, display: "flex", alignItems: "center", gap: 5 }}><Eye size={13} /> View only — you can browse module authority but not change it.</div>}
           <div style={!canEdit("authority") ? { pointerEvents: "none", opacity: 0.92 } : undefined}>
             {subTab === "settings" && <ModuleSettingsTab app={app} connStr={conn} onFlash={setFlash} source={c} />}
-            {subTab === "groups" && <ModuleGroupsTab app={app} connStr={conn} onFlash={setFlash} />}
+            {subTab === "groups" && <ModuleGroupsTab app={app} connStr={conn} onFlash={setFlash} clientName={c?.companyName} />}
             {subTab === "newmodule" && <NewModuleTab app={app} connStr={conn} onFlash={setFlash} />}
           </div>
         </div>

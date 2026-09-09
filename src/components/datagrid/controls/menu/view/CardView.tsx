@@ -313,7 +313,7 @@ export function CardView<TData>({
                             {displayColumns.length > 0 && getDisplayValue(item, (displayColumns[0] as any).accessorKey as string)}
                           </p>
                           {displayColumns.length > 1 && (
-                            <p className={`${cfg.subtitleText} text-[rgb(var(--color-primary))] font-medium truncate min-w-0`}>
+                            <p className={`${cfg.subtitleText} dg-card-subtitle font-medium truncate min-w-0`}>
                               {getDisplayValue(item, (displayColumns[1] as any).accessorKey as string)}
                             </p>
                           )}

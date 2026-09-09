@@ -193,6 +193,7 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
       <PointEditModal
         open={editPoint !== null}
         point={editPoint}
+        uploaderId={tmsUserId}
         onClose={() => setEditPoint(null)}
         onSaved={(m) => { showSuccess("Point updated", m, 2500); load(); }}
         onError={(m) => showError("Could not update", m)}

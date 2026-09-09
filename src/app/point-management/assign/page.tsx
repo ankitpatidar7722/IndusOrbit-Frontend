@@ -4,10 +4,11 @@ import { Page, Input, Button, Card, CardContent, Dropdown } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
-import { Send, Check } from "lucide-react";
+import { Send, Check, Eye } from "lucide-react";
 import { PmGuard } from "../PmGuard";
 import { usePmContext } from "../PmContext";
 import { pointColumns, lblStyle, gridFeatures, PmHeader } from "../shared";
+import { usePointDrawer, PointDrawer } from "../PointDrawer";
 import { pmApi, type PointGridRow, type PmUser } from "@/lib/tms";
 
 function AssignPage({ createdById }: { createdById: number }) {
@@ -49,7 +50,15 @@ function AssignPage({ createdById }: { createdById: number }) {
     finally { setSaving(false); }
   }
 
-  const columns = useMemo(() => pointColumns(), []);
+  const drawer = usePointDrawer(load);
+  const columns = useMemo(() => {
+    const cols = pointColumns();
+    cols.push({
+      id: "view", header: "", enableSorting: false, enableHiding: false, size: 84,
+      cell: ({ row }) => <Button size="sm" variant="outline" icon={Eye} onClick={() => drawer.open(row.original.pointID)}>View</Button>,
+    });
+    return cols;
+  }, [drawer]);
   if (loading) return <BrandedLoader size="lg" text="Loading queue…" />;
 
   return (
@@ -85,9 +94,11 @@ function AssignPage({ createdById }: { createdById: number }) {
           getRowId={(r) => String(r.pointID)}
           onRowSelect={setSelected}
           mainColumns="customerName"
+          rightFrozenColumns={["view"]}
           {...gridFeatures}
         />
       </div>
+      <PointDrawer drawer={drawer} actions={null} uploaderId={createdById} />
     </Page>
   );
 }

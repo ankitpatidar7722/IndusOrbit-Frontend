@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Page, Button, StandardModal, Textarea, useModalAlert } from "indas-ui";
 import { DataGrid } from "@/components/datagrid";
-import { Check, X, RotateCcw } from "lucide-react";
+import { Check, X, RotateCcw, Eye } from "lucide-react";
 import { PmGuard } from "../PmGuard";
+import { usePmContext } from "../PmContext";
 import { gridFeatures, PmHeader, managePointColumns } from "../shared";
+import { usePointDrawer, PointDrawer } from "../PointDrawer";
 import { pmApi, type PointGridRow } from "@/lib/tms";
 
-function VerifyTickets() {
+function VerifyTickets({ tmsUserId }: { tmsUserId: number }) {
   const [tab, setTab] = useState<0 | 2>(0); // 0 = Active (pending), 2 = Un-Active
   const [rows, setRows] = useState<PointGridRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ function VerifyTickets() {
     pmApi.verificationQueue(tab).then(setRows).catch((e) => setErr(String(e))).finally(() => setLoading(false));
   }
   useEffect(reload, [tab]);
+  const drawer = usePointDrawer(reload);
 
   async function verify(id: number) {
     setBusy(id);
@@ -63,9 +66,10 @@ function VerifyTickets() {
     // …plus a frozen Verify / Reject action column (Active tab only).
     if (tab === 0) {
       base.push({
-        id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 190,
+        id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 270,
         cell: ({ row }) => (
           <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+            <Button size="sm" variant="outline" icon={Eye} onClick={() => drawer.open(row.original.pointID)}>View</Button>
             <Button size="sm" variant="action-save" icon={Check} onClick={() => verify(row.original.pointID)} disabled={busy === row.original.pointID}>
               Verify
             </Button>
@@ -82,9 +86,10 @@ function VerifyTickets() {
         cell: ({ row }) => { const v = (row.original.adminRemark ?? "").trim(); return v ? v : "—"; },
       });
       base.push({
-        id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 140,
+        id: "actions", header: "Actions", enableSorting: false, enableHiding: false, size: 220,
         cell: ({ row }) => (
-          <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+            <Button size="sm" variant="outline" icon={Eye} onClick={() => drawer.open(row.original.pointID)}>View</Button>
             <Button size="sm" variant="action-save" icon={RotateCcw} onClick={() => reactivate(row.original.pointID)} disabled={busy === row.original.pointID}>
               Activate
             </Button>
@@ -137,11 +142,13 @@ function VerifyTickets() {
         <Textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={4} placeholder="Why is this being rejected?" />
       </StandardModal>
 
+      <PointDrawer drawer={drawer} actions={null} uploaderId={tmsUserId} />
       <AlertComponent />
     </Page>
   );
 }
 
 export default function Page_() {
-  return <PmGuard module="/point-management/verify"><VerifyTickets /></PmGuard>;
+  const { ctx } = usePmContext();
+  return <PmGuard module="/point-management/verify">{ctx ? <VerifyTickets tmsUserId={ctx.tmsUserId} /> : null}</PmGuard>;
 }

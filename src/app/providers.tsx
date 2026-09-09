@@ -17,6 +17,7 @@ import NotificationToaster from "@/components/NotificationToaster";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import MobileNav from "@/components/MobileNav";
 import BottomNav from "@/components/BottomNav";
+import PullToRefresh from "@/components/PullToRefresh";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
 
 /**
@@ -71,6 +72,8 @@ function Shell({ children }: { children: React.ReactNode }) {
             {/* Native-app bottom navigation — mobile only (hidden ≥ lg via CSS). */}
             <BottomNav />
           </div>
+          {/* Pull-down-to-refresh (touch devices only). */}
+          <PullToRefresh />
           <NotificationToaster />
         </MessagingPanelProvider>
       </EmailComposerProvider>

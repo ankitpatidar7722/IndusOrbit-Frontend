@@ -9,6 +9,12 @@ export interface SummarizeResult {
   message?: string;
 }
 
+export interface RewriteResult {
+  success: boolean;
+  text?: string;
+  message?: string;
+}
+
 export const trackerAiApi = {
   /** Quick AI overview of an email (a few short bullet points). Uses the acting user's Gemini key. */
   summarizeEmail: async (email: { subject?: string; from?: string; body: string }): Promise<SummarizeResult> => {
@@ -35,6 +41,21 @@ export const trackerAiApi = {
         cache: "no-store",
       });
       return (await res.json()) as SummarizeResult;
+    } catch (e) {
+      return { success: false, message: `Could not reach the AI service: ${e}` };
+    }
+  },
+
+  /** Rewrite free text into clear, professional English. Uses the acting user's Gemini key. */
+  rewriteEnglish: async (text: string): Promise<RewriteResult> => {
+    try {
+      const res = await fetch(`${BASE}/api/tracker-ai/rewrite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...userIdHeader() },
+        body: JSON.stringify({ text }),
+        cache: "no-store",
+      });
+      return (await res.json()) as RewriteResult;
     } catch (e) {
       return { success: false, message: `Could not reach the AI service: ${e}` };
     }
