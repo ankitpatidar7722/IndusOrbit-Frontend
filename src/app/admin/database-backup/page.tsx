@@ -16,6 +16,10 @@ const PRODUCT_LABEL: Record<string, string> = {
 const normApp = (a?: string | null) => (a ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const DEFAULT_PRODUCT = "estimoprime";
 
+// Database name (parsed by the backend from the connection string) so same-named clients stay
+// distinguishable in the picker + card heading.
+const dbNameOf = (c: CustomerCard): string => (c.databaseName ?? "").trim();
+
 type Phase = "idle" | "running" | "done" | "error";
 
 export default function DatabaseBackupPage() {
@@ -62,17 +66,25 @@ export default function DatabaseBackupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, productOptions]);
 
+  // Dropdown stays clean: Client Name (Code) only — same as before.
   const clientOptions = useMemo(
     () => clients
       .filter((c) => c.companyUserID && (product === "__none__" ? normApp(c.applicationName) === "" : normApp(c.applicationName) === product))
-      .map((c) => ({ value: c.companyUserID, label: `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}` })),
+      .map((c) => ({
+        value: c.companyUserID,
+        label: `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}`,
+      })),
     [clients, product]
   );
 
-  const selectedLabel = useMemo(
-    () => clientOptions.find((o) => o.value === clientId)?.label ?? "",
-    [clientOptions, clientId]
-  );
+  // Card heading also appends the database name (so same-named clients stay distinguishable) — but
+  // ONLY in the heading, not in the dropdown list.
+  const selectedLabel = useMemo(() => {
+    const c = clients.find((x) => x.companyUserID === clientId);
+    if (!c) return "";
+    const db = dbNameOf(c);
+    return `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}${db ? ` (${db})` : ""}`;
+  }, [clients, clientId]);
 
   const stopTimers = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }

@@ -357,13 +357,20 @@ export function ColumnContextMenu<TData>({
     // Detect if submenu should open left or right based on available space
     const spaceOnRight = window.innerWidth - position.x - 250
     const openLeft = spaceOnRight < 320
+    // …and up or down: a value-filter submenu (search + up-to-256px list + Apply button) can be
+    // ~440px tall. If there isn't that much room below the trigger, anchor to the bottom so it
+    // grows UPWARD — otherwise the Apply button falls off the bottom of the screen and is
+    // unreachable (the box itself is off-viewport, so it can't be scrolled to). max-height +
+    // overflow keep the whole panel inside the viewport in every case.
+    const openUp = window.innerHeight - position.y < 440
 
     return (
       <motion.div
         initial={{ opacity: 0, x: openLeft ? 10 : -10 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: openLeft ? 10 : -10 }}
-        className={`absolute ${openLeft ? 'right-full mr-1' : 'left-full ml-1'} top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-[10000] min-w-[12rem] max-w-[20rem] w-max`}
+        style={{ maxHeight: 'calc(100vh - 24px)' }}
+        className={`absolute ${openLeft ? 'right-full mr-1' : 'left-full ml-1'} ${openUp ? 'bottom-0' : 'top-0'} overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-[10000] min-w-[12rem] max-w-[20rem] w-max`}
       >
         {activeItem.submenu.map((item, index) => {
           if (item.id === 'separator') {
@@ -484,14 +491,18 @@ export function ColumnContextMenu<TData>({
                         </div>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={handleValueFilter}
-                      disabled={selectedValues.size === 0}
-                      className="w-full h-7 text-xs"
-                    >
-                      Apply Filter ({selectedValues.size})
-                    </Button>
+                    {/* Sticky footer so the Apply button stays visible even when the value list /
+                        submenu scrolls (large datasets pushed it off-screen before). */}
+                    <div className="sticky bottom-0 bg-white pt-1 -mx-2 px-2">
+                      <Button
+                        size="sm"
+                        onClick={handleValueFilter}
+                        disabled={selectedValues.size === 0}
+                        className="w-full h-7 text-xs"
+                      >
+                        Apply Filter ({selectedValues.size})
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )

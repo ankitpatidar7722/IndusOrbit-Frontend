@@ -165,7 +165,9 @@ export function AdvancedFilterModal<TData>({
 
         const uniqueValues = [...new Set(sampleValues.map(val => String(val)))].sort()
         let label = key
-        if (typeof col.header === 'string') label = col.header
+        const metaTitle = (col.meta as any)?.title
+        if (typeof metaTitle === 'string') label = metaTitle
+        else if (typeof col.header === 'string') label = col.header
 
         return { key, label, type, uniqueValues: uniqueValues.slice(0, 50) }
       })

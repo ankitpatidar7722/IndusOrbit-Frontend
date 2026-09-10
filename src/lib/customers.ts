@@ -28,6 +28,8 @@ export interface CustomerCard {
   userLimit?: number | null;
   lastLoginDateTime?: string | null;
   cloudSubscriptionStatus?: string | null;
+  /** DB name parsed from the connection string by the backend (never the full string). */
+  databaseName?: string | null;
 }
 
 export interface CustomerDetail extends CustomerCard {

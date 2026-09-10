@@ -18,6 +18,9 @@ declare module "@tanstack/react-table" {
     type?: "text" | "number" | "date" | "boolean" | "currency";
     /** Exclude this column from the grid's global search index. */
     skipSearch?: boolean;
+    /** Human label for UIs that can't render a non-string `header` (e.g. mobile CardView field label,
+     *  advanced-filter column list) — set when `header` is a function/component. */
+    title?: string;
     /** Internal marker: this is the actions (view/edit/delete) column. */
     isActionColumn?: boolean;
     /** Internal marker: this is the row-selection checkbox column. */

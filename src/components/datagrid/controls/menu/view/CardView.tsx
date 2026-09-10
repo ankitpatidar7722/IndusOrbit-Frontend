@@ -197,6 +197,8 @@ export function CardView<TData>({
   }, [t])
 
   const getFieldLabel = useCallback((column: ColumnDef<TData>) => {
+    const metaTitle = (column.meta as any)?.title
+    if (typeof metaTitle === 'string') return t(metaTitle)
     if (typeof column.header === 'string') return t(column.header)
     return (column as any).accessorKey as string || column.id || t('Field')
   }, [t])

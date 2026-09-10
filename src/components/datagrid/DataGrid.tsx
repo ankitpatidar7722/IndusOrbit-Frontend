@@ -1258,7 +1258,11 @@ export function DataGrid<TData>({
 
     const { operator, value, type } = filterValue
     const cellValue = row.getValue(columnId)
-    const cellString = String(cellValue || '')
+    // Use ?? (not ||) so falsy-but-valid values keep their real string: boolean `false`, 0, and ''
+    // must become "false"/"0"/"" — with `|| ''` they collapsed to '', so "Filter by Values" → false
+    // (operator 'in') matched nothing even though the grid had many false rows. (The string-search
+    // branch above already uses ?? — this aligns the object/advanced-filter branch with it.)
+    const cellString = String(cellValue ?? '')
 
     // Handle 'type' field (from Quick Filter)
     if (type && !operator) {

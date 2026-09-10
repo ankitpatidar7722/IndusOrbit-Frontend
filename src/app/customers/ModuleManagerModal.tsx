@@ -1,13 +1,42 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StandardModal, Input, Button, Tabs, Badge, Dropdown, Dialog, DialogContent, DialogTitle } from "indas-ui";
-import { DataGrid } from "@/components/datagrid";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Layers, Search, Save, Plus, Trash2, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, Pencil, PackagePlus, type LucideIcon } from "lucide-react";
+import { DataGrid, createActionsColumn } from "@/components/datagrid";
+import type { ColumnDef, Table as RTTable } from "@tanstack/react-table";
+import { Copy, Layers, Search, Save, Plus, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, PackagePlus, type LucideIcon } from "lucide-react";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 import { modulesApi, type ModuleSettingsRow, type ModuleGroupModuleRow, type ClientDropdownItem, type ClientModuleDto, type IndusToolModuleDto } from "@/lib/modules";
 
 const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP"];
+
+/**
+ * Header "select-all" checkbox for the Enabled column. Operates on the CURRENTLY FILTERED rows
+ * (all pages) via the table's filtered row model — so with a filter active it toggles just those
+ * rows, and with no filter it toggles every row. Checked when all filtered rows are enabled,
+ * indeterminate when only some are.
+ */
+function EnabledHeaderToggle({ table, setStatusMany }: {
+  table: RTTable<ModuleSettingsRow>;
+  setStatusMany: (moduleNames: string[], status: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const rows = table.getFilteredRowModel().rows;
+  const enabledCount = rows.reduce((n, r) => n + (r.original.status ? 1 : 0), 0);
+  const all = rows.length > 0 && enabledCount === rows.length;
+  const some = enabledCount > 0 && !all;
+  useEffect(() => { if (ref.current) ref.current.indeterminate = some; }, [some]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      title={all ? "Disable all rows in the current filter" : "Enable all rows in the current filter"}
+      style={{ width: 16, height: 16, cursor: "pointer" }}
+      checked={all}
+      onClick={(e) => e.stopPropagation()}
+      onChange={() => setStatusMany(rows.map((r) => r.original.moduleName), !all)}
+    />
+  );
+}
 const APP_LBL: Record<string, string> = { estimoprime: "Estimoprime", multiunit: "MultiUnit", printudeerp: "PrintudeERP" };
 const appLbl = (a: string) => APP_LBL[a.toLowerCase()] ?? a;
 
@@ -84,11 +113,23 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
   useEffect(() => { load(); }, [load]);
 
   const toggle = useCallback((name: string) => setRows((p) => p.map((r) => r.moduleName === name ? { ...r, status: !r.status } : r)), []);
+  // Bulk set status for a set of modules (used by the header select-all, scoped to filtered rows).
+  const setStatusMany = useCallback((moduleNames: string[], status: boolean) => {
+    const names = new Set(moduleNames);
+    setRows((p) => p.map((r) => names.has(r.moduleName) ? { ...r, status } : r));
+  }, []);
   const enabled = rows.filter((r) => r.status).length;
 
   const columns = useMemo<ColumnDef<ModuleSettingsRow>[]>(() => [
     {
-      id: "status", header: "Enabled", size: 80,
+      // accessorKey (not just id) so the column has a real value → per-column search + the
+      // Enabled True/False filter work (the filter fn reads row.getValue("status"); without an
+      // accessor that was undefined, so filtering by "true" matched nothing). The checkbox cell
+      // still renders the boolean.
+      // Header is a "select-all" checkbox: ticks/unticks the current FILTERED rows (all pages) —
+      // or every row when no filter is active.
+      accessorKey: "status", size: 80, enableSorting: false, meta: { title: "Enabled" },
+      header: ({ table }) => <EnabledHeaderToggle table={table} setStatusMany={setStatusMany} />,
       cell: ({ row }) => (
         <input type="checkbox" style={{ width: 16, height: 16, cursor: "pointer" }}
           checked={row.original.status} onChange={() => toggle(row.original.moduleName)} />
@@ -97,7 +138,7 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
     { accessorKey: "moduleHeadName", header: "Module Head" },
     { accessorKey: "moduleDisplayName", header: "Module Display Name" },
     { accessorKey: "moduleName", header: "Module Name" },
-  ], [toggle]);
+  ], [toggle, setStatusMany]);
 
   async function save() {
     const changes = rows.filter((r) => { const o = orig.find((x) => x.moduleName === r.moduleName); return !o || o.status !== r.status; })
@@ -133,6 +174,7 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
           title="Modules"
           cardColumns={["moduleDisplayName", "moduleName", "status"]}
           enableSearch
+          enableFilterRow
           enableSorting
           enablePagination
           pageSize={15}
@@ -570,15 +612,19 @@ export function NewModuleTab({ app, connStr, onFlash }: { app: string; connStr: 
     { accessorKey: "moduleName", header: "Module Name" },
     { accessorKey: "setGroupIndex", header: "Group Index", size: 90 },
     { accessorKey: "moduleHeadDisplayOrder", header: "Order", size: 70 },
-    {
-      id: "actions", header: "", size: 96,
-      cell: ({ row }) => (
-        <div style={{ display: "flex", gap: 4 }}>
-          <Button size="sm" variant="ghost" title="Edit" onClick={() => editRow(row.original)}><Pencil size={13} /></Button>
-          <Button size="sm" variant="ghost" title="Remove" onClick={() => remove(row.original.moduleId)}><Trash2 size={13} /></Button>
-        </div>
-      ),
-    },
+    // Same standard Edit/Delete action buttons as the /users grid (createActionsColumn).
+    createActionsColumn<ClientModuleDto>({
+      onEdit: (m) => editRow(m),
+      onDelete: (m) => remove(m.moduleId),
+      showView: false, showEdit: true, showDelete: true,
+      mode: "buttons",
+      primaryActions: ["edit", "delete"],
+      confirmDelete: true,
+      deleteConfirmation: {
+        title: "Delete Module",
+        description: (m) => `Remove "${m.moduleDisplayName || m.moduleName}" from this client's modules? This action cannot be undone.`,
+      },
+    }),
   ], []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -673,8 +719,16 @@ export function NewModuleTab({ app, connStr, onFlash }: { app: string; connStr: 
           columns={columns}
           getRowId={(r) => String(r.moduleId)}
           title="Client Modules"
-          enableSearch
+          mainColumns="moduleDisplayName"
+          onRowClick={(m) => editRow(m)}
+          enableColumnResizing
+          enableColumnReordering
+          enableColumnFreezing
+          enableColumnVisibility
           enableSorting
+          enableSearch
+          enableFilterRow
+          enableExport
           enablePagination
           pageSize={15}
         />
