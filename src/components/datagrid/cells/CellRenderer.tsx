@@ -3,7 +3,6 @@
 import React from 'react'
 import { Cell, flexRender } from '@tanstack/react-table'
 import { ChevronRight, ChevronDown } from 'lucide-react'
-import { TooltipProvider } from 'indas-ui'
 
 interface CellRendererProps<TData> {
   cell: Cell<TData, unknown>
@@ -165,7 +164,9 @@ export function CellRenderer<TData>({
         // No maxWidth - allows user to drag columns wider than predefined width
         // Use box-shadow instead of border to prevent subpixel rendering issues at different zoom levels.
         // When keyboard-focused, an inset primary ring highlights the active cell.
-        boxShadow: `${isFocused ? 'inset 0 0 0 2px rgb(var(--color-primary)), ' : ''}inset 0 -1px 0 rgb(var(--bd-default))${isLastFrozenCell ? ', 2px 0 5px -2px rgba(0,0,0,0.1)' : ''}${isFirstPinnedRightCell ? ', -2px 0 5px -2px rgba(0,0,0,0.1)' : ''}`,
+        boxShadow: `inset 0 -1px 0 rgb(var(--bd-default))${isLastFrozenCell ? ', 2px 0 5px -2px rgba(0,0,0,0.1)' : ''}${isFirstPinnedRightCell ? ', -2px 0 5px -2px rgba(0,0,0,0.1)' : ''}`,
+        // Containing block for the keyboard-focus ring overlay (spread below overrides to sticky for frozen cells).
+        position: 'relative',
         ...(isCellFrozen && {
           position: 'sticky',
           left: `${leftPosition}px`,
@@ -186,7 +187,6 @@ export function CellRenderer<TData>({
         })
       }}
     >
-      <TooltipProvider>
       <div className="relative" title={typeof cellValue === 'string' ? cellValue : undefined}>
         <div className="whitespace-nowrap overflow-hidden text-ellipsis">
           {/* Handle grouped cells */}
@@ -253,7 +253,11 @@ export function CellRenderer<TData>({
           )}
         </div>
       </div>
-      </TooltipProvider>
+      {/* Keyboard-focus ring — an absolute overlay painted OVER any cell content (incl. validation-
+          coloured bulk-import cells), so arrow-key navigation stays clearly visible. */}
+      {isFocused && (
+        <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 2px rgb(var(--color-primary))', pointerEvents: 'none', zIndex: 2 }} />
+      )}
     </td>
   )
 }

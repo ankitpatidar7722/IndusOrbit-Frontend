@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# BulkImport content-authority images (96MB) — ship to server public/ separately for prod
+/public/bulk-assets/

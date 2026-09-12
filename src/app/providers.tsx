@@ -19,6 +19,11 @@ import MobileNav from "@/components/MobileNav";
 import BottomNav from "@/components/BottomNav";
 import PullToRefresh from "@/components/PullToRefresh";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
+import { suppressBenignIndasUiWarnings } from "@/lib/suppressBenignWarnings";
+
+// Silence known-benign React-19 dev warnings from indas-ui's Radix-based dropdowns (see the util). Runs
+// once on the client when this module loads — early, before any Dropdown renders. No-op on server/prod.
+suppressBenignIndasUiWarnings();
 
 /**
  * Renders the app shell (with the DB-driven sidebar) only when authenticated.

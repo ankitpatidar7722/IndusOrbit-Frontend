@@ -101,6 +101,18 @@ body { font-family: var(--font-family-base) !important; }
   backdrop-filter: none !important;
 }
 
+/* indas-ui COLLAPSED-sidebar group flyout (absolute, z-[10000], min-w-[12rem], max-w-[20rem]) ships with
+   no max-height and is anchored top-0 to its (often low) group icon, so a group with many items (Bulk
+   Import: 9, Point Management: 14) grows past the viewport bottom with the hidden items unreachable.
+   Cap the height BELOW the content height so a scrollbar always appears, and keep the box inside the
+   viewport for the lower groups. min() keeps it from ever exceeding the available viewport height. */
+.z-\[10000\].min-w-\[12rem\] {
+  max-height: min(26rem, calc(100vh - 3rem)) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}
+
 /* ---- Premium client cards (/clients) ---- */
 .client-card{
   position:relative; background:rgb(var(--bg-surface)); border:1px solid rgb(var(--bd-subtle)); border-radius:16px;

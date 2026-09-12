@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react'
-import { Input, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from 'indas-ui'
+import { Input } from 'indas-ui'
 import { Dropdown } from 'indas-ui'
 import { cn } from '@/lib/utils'
 
@@ -206,32 +206,25 @@ export function EditableCell({
     displayValue = value
   }
 
+  // Native `title` hint instead of a floating-ui Tooltip: at bulk-import scale (thousands of editable
+  // cells) a Tooltip per cell made every click/focus re-render janky. A title attribute is free.
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            onDoubleClick={handleDoubleClick}
-            className={cn(
-              'cursor-pointer px-2 py-0.5 rounded transition-colors h-6',
-              // Edited field highlighting
-              isEdited
-                ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-400 dark:border-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/40'
-                : 'hover:bg-[rgb(var(--color-primary-subtle))]',
-              type === 'number' ? 'text-right' : '',
-              className
-            )}
-            data-editable-cell="true"
-            data-is-edited={isEdited}
-          >
-            {displayValue || '\u00A0'}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{isEdited ? "Manually edited - Double-click to edit" : "Double-click to edit"}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div
+      onDoubleClick={handleDoubleClick}
+      title={isEdited ? "Manually edited \u2014 double-click to edit" : "Double-click to edit"}
+      className={cn(
+        'cursor-pointer px-2 py-0.5 rounded transition-colors h-6',
+        isEdited
+          ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-400 dark:border-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/40'
+          : 'hover:bg-[rgb(var(--color-primary-subtle))]',
+        type === 'number' ? 'text-right' : '',
+        className
+      )}
+      data-editable-cell="true"
+      data-is-edited={isEdited}
+    >
+      {displayValue || '\u00A0'}
+    </div>
   )
 }
 

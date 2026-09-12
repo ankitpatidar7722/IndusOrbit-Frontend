@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ExcelJet — Indus Admin Portal User Manual</title>
+<style>
+:root{--acc:#f97316;--acc2:#ea580c;--navy:#0f172a;--navy2:#1e293b;--navy3:#334155;--bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--green:#16a34a;--red:#dc2626;--blue:#2563eb;--amber:#d97706;--pill-r:#fee2e2;--pill-rt:#dc2626;--pill-g:#dcfce7;--pill-gt:#16a34a;--pill-b:#dbeafe;--pill-bt:#2563eb;--pill-o:#fff7ed;--pill-ot:#ea580c;}
+@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--pill-r:#450a0a;--pill-rt:#f87171;--pill-g:#052e16;--pill-gt:#4ade80;--pill-b:#1e3a5f;--pill-bt:#60a5fa;--pill-o:#431407;--pill-ot:#fb923c;}}
+:root[data-theme="light"]{--bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--pill-r:#fee2e2;--pill-rt:#dc2626;--pill-g:#dcfce7;--pill-gt:#16a34a;--pill-b:#dbeafe;--pill-bt:#2563eb;--pill-o:#fff7ed;--pill-ot:#ea580c;}
+:root[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--pill-r:#450a0a;--pill-rt:#f87171;--pill-g:#052e16;--pill-gt:#4ade80;--pill-b:#1e3a5f;--pill-bt:#60a5fa;--pill-o:#431407;--pill-ot:#fb923c;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+body.lang-en .hi{display:none}
+body.lang-hi .en{display:none}
+a{color:var(--acc);text-decoration:none}
+/* Layout */
+.shell{display:flex;min-height:100vh}
+aside{width:280px;background:var(--navy);color:#e2e8f0;padding:0;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.aside-logo{padding:20px 18px 14px;border-bottom:1px solid #334155}
+.aside-logo .badge{display:inline-block;background:var(--acc);color:#fff;font-size:11px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:4px;margin-bottom:6px}
+.aside-logo h1{font-size:17px;font-weight:700;color:#fff}
+.aside-logo p{font-size:11px;color:#94a3b8;margin-top:2px}
+.lang-switch{display:flex;gap:6px;padding:12px 18px;border-bottom:1px solid #1e293b}
+.lang-btn{flex:1;padding:5px 8px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;font-size:12px;cursor:pointer;transition:.15s}
+.lang-btn.active{background:var(--acc);border-color:var(--acc);color:#fff}
+nav{padding:10px 0 20px}
+.nav-section{padding:10px 18px 4px;font-size:10px;font-weight:700;letter-spacing:1.2px;color:#64748b;text-transform:uppercase}
+nav a{display:block;padding:6px 18px 6px 24px;font-size:13px;color:#cbd5e1;border-left:2px solid transparent;transition:.15s}
+nav a:hover,nav a.active{color:#fff;border-left-color:var(--acc);background:rgba(249,115,22,.08)}
+main{flex:1;padding:32px 36px;min-width:0;overflow-x:hidden}
+/* Hero */
+.hero{background:linear-gradient(135deg,var(--navy) 0%,#1e3a5f 100%);border-radius:14px;padding:36px 40px;margin-bottom:36px;color:#fff;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(249,115,22,.12);pointer-events:none}
+.hero .tag{display:inline-block;background:var(--acc);color:#fff;font-size:11px;font-weight:700;letter-spacing:.8px;padding:3px 10px;border-radius:20px;margin-bottom:14px}
+.hero h1{font-size:28px;font-weight:800;margin-bottom:8px}
+.hero p{color:#94a3b8;font-size:15px;max-width:560px}
+/* Section */
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px 30px;margin-bottom:28px}
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--border)}
+.section-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.icon-orange{background:var(--pill-o);color:var(--acc)}
+.icon-blue{background:var(--pill-b);color:var(--blue)}
+.icon-green{background:var(--pill-g);color:var(--green)}
+.icon-red{background:var(--pill-r);color:var(--red)}
+.icon-navy{background:#1e293b;color:#e2e8f0}
+.section-header h2{font-size:20px;font-weight:700}
+.section-header .ch{font-size:13px;font-weight:600;color:var(--acc);background:var(--pill-o);padding:2px 10px;border-radius:20px}
+h3{font-size:16px;font-weight:700;margin:22px 0 12px;color:var(--text)}
+h4{font-size:14px;font-weight:700;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+p{margin-bottom:12px;color:var(--text)}
+ul,ol{padding-left:20px;margin-bottom:12px}
+li{margin-bottom:5px}
+/* Field table */
+.field-table{width:100%;border-collapse:collapse;margin:10px 0 20px;font-size:14px}
+.field-table th{background:var(--navy2);color:#e2e8f0;padding:9px 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.3px}
+.field-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.field-table tr:last-child td{border-bottom:none}
+.field-table tr:hover td{background:rgba(249,115,22,.04)}
+.req{display:inline-block;background:#fef2f2;color:#dc2626;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px}
+.opt{display:inline-block;background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px}
+.auto{display:inline-block;background:#eff6ff;color:#2563eb;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px}
+/* Steps */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:14px;margin:14px 0 20px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step-num{counter-increment:step;width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-body{flex:1}
+.step-body strong{display:block;font-size:14px;font-weight:700;margin-bottom:3px}
+/* Wizard steps indicator */
+.wizard-steps{display:flex;gap:0;margin:14px 0 22px;overflow-x:auto}
+.ws{flex:1;min-width:90px;text-align:center;padding:10px 6px;background:var(--border);font-size:11px;font-weight:600;color:var(--muted);border-right:1px solid #fff;position:relative}
+.ws:first-child{border-radius:8px 0 0 8px}
+.ws:last-child{border-radius:0 8px 8px 0;border-right:none}
+.ws.done{background:var(--acc);color:#fff}
+.ws .wsn{font-size:16px;font-weight:800;display:block}
+/* Tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 20px}
+.tab{padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1.5px solid var(--border);color:var(--muted);background:var(--bg)}
+.tab.active{background:var(--acc);border-color:var(--acc);color:#fff}
+/* Note/warning */
+.note{background:var(--pill-b);border-left:4px solid var(--blue);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:14px}
+.warn{background:#fffbeb;border-left:4px solid var(--amber);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:14px}
+.danger{background:#fef2f2;border-left:4px solid var(--red);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:14px}
+/* Pill badges */
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.pill-g{background:var(--pill-g);color:var(--pill-gt)}
+.pill-r{background:var(--pill-r);color:var(--pill-rt)}
+.pill-b{background:var(--pill-b);color:var(--pill-bt)}
+.pill-o{background:var(--pill-o);color:var(--pill-ot)}
+/* Button docs */
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.btn-doc{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;min-width:140px}
+.btn-doc .btn-label{font-weight:700;display:block;margin-bottom:3px}
+.btn-doc.orange .btn-label{color:var(--acc)}
+.btn-doc.blue .btn-label{color:var(--blue)}
+.btn-doc.green .btn-label{color:var(--green)}
+.btn-doc.red .btn-label{color:var(--red)}
+/* Column grid */
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:12px 0}
+@media(max-width:700px){.col2{grid-template-columns:1fr}.shell{flex-direction:column}aside{width:100%;height:auto;position:relative}}
+code{background:var(--border);padding:1px 5px;border-radius:3px;font-size:13px;font-family:monospace}
+.sep{border:none;border-top:1px solid var(--border);margin:24px 0}
+</style>
+</head>
+<body class="lang-en">
+<div class="shell">
+<aside>
+  <div class="aside-logo">
+    <div class="badge">INDUS ADMIN</div>
+    <h1>ExcelJet Admin Portal</h1>
+    <p class="en">Complete User Manual</p>
+    <p class="hi">पूर्ण उपयोगकर्ता मैनुअल</p>
+  </div>
+  <div class="lang-switch">
+    <button class="lang-btn active" id="btnEn" onclick="setLang('en')">🇬🇧 English</button>
+    <button class="lang-btn" id="btnHi" onclick="setLang('hi')">🇮🇳 हिंदी</button>
+  </div>
+  <nav>
+    <div class="nav-section en">Overview</div>
+    <div class="nav-section hi">सिंहावलोकन</div>
+    <a href="#intro">Ch 1 · <span class="en">Introduction</span><span class="hi">परिचय</span></a>
+    <div class="nav-section en">Company Subscription</div>
+    <div class="nav-section hi">कंपनी सदस्यता</div>
+    <a href="#cs-grid">Ch 2 · <span class="en">Main Grid</span><span class="hi">मुख्य ग्रिड</span></a>
+    <a href="#cs-wizard">Ch 3 · <span class="en">Create New Client</span><span class="hi">नया क्लाइंट बनाएं</span></a>
+    <a href="#tab1">Ch 4 · <span class="en">Edit → Company Detail</span><span class="hi">कंपनी विवरण</span></a>
+    <a href="#tab2">Ch 5 · <span class="en">Edit → Module Settings</span><span class="hi">मॉड्यूल सेटिंग्स</span></a>
+    <a href="#tab3">Ch 6 · <span class="en">Edit → Module Group Auth</span><span class="hi">मॉड्यूल ग्रुप</span></a>
+    <a href="#tab4">Ch 7 · <span class="en">Edit → New Module Addition</span><span class="hi">नया मॉड्यूल</span></a>
+    <a href="#tab5">Ch 8 · <span class="en">Edit → Indus Tool Authority</span><span class="hi">इंडस टूल</span></a>
+    <div class="nav-section en">Other Pages</div>
+    <div class="nav-section hi">अन्य पृष्ठ</div>
+    <a href="#plans">Ch 9 · <span class="en">Manage Plans</span><span class="hi">प्लान प्रबंधन</span></a>
+    <a href="#sahay">Ch 10 · <span class="en">Sahay & Email Subscriptions</span><span class="hi">सहाय और ईमेल</span></a>
+    <a href="#mga">Ch 11 · <span class="en">Module Group Authority</span><span class="hi">मॉड्यूल ग्रुप अथॉरिटी</span></a>
+    <a href="#trouble">Ch 12 · <span class="en">Troubleshooting</span><span class="hi">समस्या निवारण</span></a>
+  </nav>
+</aside>
+<main>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="tag">INDUS ADMIN PORTAL</div>
+  <h1 class="en">Indus Admin User Manual</h1>
+  <h1 class="hi">इंडस एडमिन उपयोगकर्ता मैनुअल</h1>
+  <p class="en">Complete guide to managing clients, plans, modules, and subscriptions in the ExcelJet Admin Portal. Designed for Indus admins — no technical knowledge required.</p>
+  <p class="hi">ExcelJet एडमिन पोर्टल में क्लाइंट, प्लान, मॉड्यूल और सदस्यता प्रबंधित करने की पूरी गाइड। इंडस एडमिन के लिए बनाई गई — कोई तकनीकी ज्ञान आवश्यक नहीं।</p>
+</div>
+
+<!-- CH 1: INTRO -->
+<div class="section" id="intro">
+  <div class="section-header">
+    <div class="section-icon icon-navy">🏢</div>
+    <div><span class="ch">Ch 1</span><h2 class="en">Introduction — What is the Indus Admin Portal?</h2><h2 class="hi">परिचय — इंडस एडमिन पोर्टल क्या है?</h2></div>
+  </div>
+  <div class="en">
+    <p>The <strong>Indus Admin Portal</strong> is a special section of ExcelJet that only Indus administrators can access. It is used to:</p>
+    <ul>
+      <li>Register and manage <strong>client companies</strong> (who use ExcelJet)</li>
+      <li>Set up client databases and configure their login credentials</li>
+      <li>Control which <strong>modules/features</strong> each client can access</li>
+      <li>Manage <strong>subscription plans</strong> for different features</li>
+      <li>Assign <strong>Sahay (AI assistant)</strong> and <strong>Email</strong> feature subscriptions</li>
+      <li>Manage <strong>module groups</strong> that can be applied across multiple clients</li>
+    </ul>
+    <h3>How to Access</h3>
+    <p>Open the ExcelJet app → On the Company Login screen, select <strong>"Indus"</strong> as the login type → Enter your Indus admin username and password → You will land on the <strong>Company Subscription</strong> page automatically.</p>
+    <div class="note">ℹ️ <strong>Note:</strong> Indus admin accounts cannot access the regular client dashboard. They only see the 4 pages in the left sidebar.</div>
+    <h3>Sidebar Pages Available</h3>
+    <div class="btn-row">
+      <div class="btn-doc orange"><span class="btn-label">📋 Company Subscription</span>Main page — manage all client records</div>
+      <div class="btn-doc blue"><span class="btn-label">💳 Manage Plans</span>Create and edit subscription plan catalog</div>
+      <div class="btn-doc green"><span class="btn-label">🤖 Sahay & Email Subscriptions</span>Assign AI and email features to clients</div>
+      <div class="btn-doc"><span class="btn-label">🔧 Module Group Authority</span>Manage reusable module group templates</div>
+    </div>
+  </div>
+  <div class="hi">
+    <p><strong>इंडस एडमिन पोर्टल</strong> ExcelJet का एक विशेष हिस्सा है जो केवल इंडस प्रशासक उपयोग कर सकते हैं। इसका उपयोग किया जाता है:</p>
+    <ul>
+      <li>क्लाइंट कंपनियों को <strong>रजिस्टर और प्रबंधित</strong> करने के लिए</li>
+      <li>क्लाइंट डेटाबेस सेट करने और लॉगिन क्रेडेंशियल कॉन्फ़िगर करने के लिए</li>
+      <li>प्रत्येक क्लाइंट के लिए <strong>मॉड्यूल/फीचर</strong> नियंत्रित करने के लिए</li>
+      <li>विभिन्न फीचर के लिए <strong>सदस्यता प्लान</strong> प्रबंधित करने के लिए</li>
+      <li><strong>सहाय (AI सहायक)</strong> और <strong>ईमेल</strong> सदस्यता असाइन करने के लिए</li>
+      <li>कई क्लाइंटों पर लागू होने वाले <strong>मॉड्यूल ग्रुप</strong> प्रबंधित करने के लिए</li>
+    </ul>
+    <h3>कैसे एक्सेस करें</h3>
+    <p>ExcelJet ऐप खोलें → Company Login स्क्रीन पर <strong>"Indus"</strong> लॉगिन प्रकार चुनें → अपना इंडस एडमिन यूज़रनेम और पासवर्ड दर्ज करें → आप स्वचालित रूप से <strong>Company Subscription</strong> पृष्ठ पर पहुंचेंगे।</p>
+    <div class="note">ℹ️ <strong>नोट:</strong> इंडस एडमिन अकाउंट नियमित क्लाइंट डैशबोर्ड एक्सेस नहीं कर सकते। वे केवल बाईं साइडबार के 4 पृष्ठ देखते हैं।</div>
+  </div>
+</div>
+
+<!-- CH 2: COMPANY SUBSCRIPTION GRID -->
+<div class="section" id="cs-grid">
+  <div class="section-header">
+    <div class="section-icon icon-orange">📋</div>
+    <div><span class="ch">Ch 2</span><h2 class="en">Company Subscription — Main Grid</h2><h2 class="hi">कंपनी सदस्यता — मुख्य ग्रिड</h2></div>
+  </div>
+  <div class="en">
+    <p>This is the main landing page for Indus admins. It shows a list of <strong>all registered client companies</strong> (e.g., "Manage your 302 registered clients").</p>
+    <h3>Top Toolbar Buttons</h3>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">🔄 Refresh</span>Reload the grid with fresh data from the server</div>
+      <div class="btn-doc orange"><span class="btn-label">➕ Create New</span>Open the 6-step wizard to register a new client company</div>
+      <div class="btn-doc blue"><span class="btn-label">✏️ Edit</span>Open the Edit modal for the selected (clicked) row</div>
+      <div class="btn-doc red"><span class="btn-label">🗑 Delete</span>Delete the selected client (requires authentication)</div>
+    </div>
+    <div class="note">💡 <strong>Tip:</strong> You can also <strong>double-click any row</strong> to open the Edit Subscription modal directly.</div>
+    <h3>Grid Columns</h3>
+    <table class="field-table">
+      <tr><th>Column</th><th>Description</th><th>Example</th></tr>
+      <tr><td>#</td><td>Row number (auto-counted)</td><td>1, 2, 3…</td></tr>
+      <tr><td>Client Code</td><td>Unique code assigned to each client</td><td>IA00206</td></tr>
+      <tr><td>Status</td><td>Subscription status — <span class="pill pill-g">Active</span> or <span class="pill pill-r">Expired</span></td><td>Active</td></tr>
+      <tr><td>Client Name</td><td>Name of the client company</td><td>Novel Boxworks Pvt Ltd</td></tr>
+      <tr><td>Application</td><td>Which ExcelJet product they use</td><td>estimoprime</td></tr>
+      <tr><td>Client Address</td><td>Full address of the company</td><td>PU 54, Near Vijay Nagar Square</td></tr>
+      <tr><td>City / State / Country</td><td>Location details</td><td>Indore / MP / India</td></tr>
+      <tr><td>Company Code</td><td>Internal company code (if set)</td><td>NOVEL001</td></tr>
+      <tr><td>Company Login Name</td><td>The username clients use to log in</td><td>NovelBoxworks</td></tr>
+      <tr><td>From / To Date</td><td>Subscription validity period</td><td>01/04/2025 – 31/03/2026</td></tr>
+      <tr><td>Payment Due</td><td>Date when payment is expected</td><td>15/04/2025</td></tr>
+      <tr><td>Login Allowed</td><td>Max simultaneous users allowed to log in</td><td>9</td></tr>
+      <tr><td>GSTIN</td><td>Client's GST number</td><td>GST12345</td></tr>
+      <tr><td>Email / Mobile</td><td>Contact details</td><td>info@novel.com / 9876543567</td></tr>
+      <tr><td>Status Description</td><td>Internal note about current status</td><td>Payment Reminder</td></tr>
+      <tr><td>ERP Message</td><td>Message shown to client inside their ERP</td><td>Your subscription expires soon.</td></tr>
+      <tr><td>Actions</td><td>Contains a <strong>Backup</strong> button per row to download the client's database as a ZIP file</td><td>⬇ Backup</td></tr>
+    </table>
+    <h3>Grid Features (Header Bar)</h3>
+    <ul>
+      <li><strong>Search Box (top right):</strong> Type any word to instantly filter all rows</li>
+      <li><strong>Column Chooser (⊞ icon):</strong> Show or hide specific columns</li>
+      <li><strong>Drag column header:</strong> Drag any column header to the bar above the grid to group rows by that column</li>
+      <li><strong>Filter row:</strong> A search box under each column header lets you filter by that specific column</li>
+      <li><strong>Pagination (bottom):</strong> Choose 100 / 500 / 1000 / 2000 rows per page; navigate with ‹ › arrows</li>
+    </ul>
+    <h3>Backup Button (per row)</h3>
+    <p>Each row has a <span class="pill pill-b">⬇ Backup</span> button in the Actions column. Clicking it automatically downloads the client's database as a <code>.zip</code> file to your computer. This is useful before making major changes to a client account.</p>
+    <h3>Delete Client (with Authentication)</h3>
+    <p>Clicking <strong>Delete</strong> first shows a browser confirmation popup. If you confirm, a <strong>Delete Authentication modal</strong> opens requiring:</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th></tr>
+      <tr><td>User Name</td><td>Your Indus admin username</td><td><span class="req">REQUIRED</span></td></tr>
+      <tr><td>Password</td><td>Your Indus admin password</td><td><span class="req">REQUIRED</span></td></tr>
+      <tr><td>Reason for Deletion</td><td>Written explanation of why you are deleting this client</td><td><span class="req">REQUIRED</span></td></tr>
+    </table>
+    <div class="danger">⚠️ <strong>Warning:</strong> Deleting a client subscription is permanent. This does not delete the database itself but removes the client's record from the system. Always take a Backup before deleting.</div>
+  </div>
+  <div class="hi">
+    <p>यह इंडस एडमिन के लिए मुख्य लैंडिंग पेज है। यह <strong>सभी पंजीकृत क्लाइंट कंपनियों</strong> की सूची दिखाता है।</p>
+    <h3>टॉप टूलबार बटन</h3>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">🔄 Refresh</span>सर्वर से ताज़ा डेटा के साथ ग्रिड रीलोड करें</div>
+      <div class="btn-doc orange"><span class="btn-label">➕ Create New</span>नया क्लाइंट रजिस्टर करने के लिए 6-चरण विज़ार्ड खोलें</div>
+      <div class="btn-doc blue"><span class="btn-label">✏️ Edit</span>चयनित पंक्ति के लिए Edit मोडल खोलें</div>
+      <div class="btn-doc red"><span class="btn-label">🗑 Delete</span>चयनित क्लाइंट हटाएं (प्रमाणीकरण आवश्यक)</div>
+    </div>
+    <div class="note">💡 <strong>टिप:</strong> Edit Subscription मोडल सीधे खोलने के लिए किसी भी पंक्ति पर <strong>डबल-क्लिक</strong> करें।</div>
+    <h3>ग्रिड कॉलम</h3>
+    <table class="field-table">
+      <tr><th>कॉलम</th><th>विवरण</th><th>उदाहरण</th></tr>
+      <tr><td>Client Code</td><td>प्रत्येक क्लाइंट को दिया गया अनूठा कोड</td><td>IA00206</td></tr>
+      <tr><td>Status</td><td>सदस्यता स्थिति — <span class="pill pill-g">Active</span> या <span class="pill pill-r">Expired</span></td><td>Active</td></tr>
+      <tr><td>Client Name</td><td>क्लाइंट कंपनी का नाम</td><td>Novel Boxworks Pvt Ltd</td></tr>
+      <tr><td>Login Allowed</td><td>अधिकतम एक साथ लॉगिन करने वाले उपयोगकर्ता</td><td>9</td></tr>
+      <tr><td>From / To Date</td><td>सदस्यता वैधता अवधि</td><td>01/04/2025 – 31/03/2026</td></tr>
+      <tr><td>Actions</td><td>प्रत्येक पंक्ति में डेटाबेस ZIP के रूप में डाउनलोड करने के लिए Backup बटन</td><td>⬇ Backup</td></tr>
+    </table>
+    <div class="danger">⚠️ <strong>चेतावनी:</strong> क्लाइंट सदस्यता हटाना स्थायी है। हटाने से पहले हमेशा Backup लें।</div>
+  </div>
+</div>
+
+<!-- CH 3: WIZARD -->
+<div class="section" id="cs-wizard">
+  <div class="section-header">
+    <div class="section-icon icon-green">🧙</div>
+    <div><span class="ch">Ch 3</span><h2 class="en">Create New Client — 6-Step Wizard</h2><h2 class="hi">नया क्लाइंट बनाएं — 6-चरण विज़ार्ड</h2></div>
+  </div>
+  <div class="en">
+    <p>Clicking <strong>+ Create New</strong> opens a wizard with 6 steps. You can click the step pills at the top to jump back to a completed step.</p>
+    <div class="wizard-steps">
+      <div class="ws done"><span class="wsn">1</span>Database Setup</div>
+      <div class="ws done"><span class="wsn">2</span>Subscription Details</div>
+      <div class="ws done"><span class="wsn">3</span>Company Master</div>
+      <div class="ws done"><span class="wsn">4</span>Branch Master</div>
+      <div class="ws done"><span class="wsn">5</span>Production Unit</div>
+      <div class="ws done"><span class="wsn">✓</span>Success</div>
+    </div>
+
+    <h3>Step 1 — Database Setup</h3>
+    <p>This step creates a new database for the client on the server.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Server</td><td>The SQL Server where the database will be created. Type to search from available servers.</td><td><span class="req">REQUIRED</span></td><td>INDUS-SERVER-01</td></tr>
+      <tr><td>Application Name</td><td>Which ExcelJet product this client will use</td><td><span class="req">REQUIRED</span></td><td>estimoprime</td></tr>
+      <tr><td>Backup Type</td><td>Type of printing/packaging process the client uses</td><td><span class="req">REQUIRED</span></td><td>Offset</td></tr>
+      <tr><td>Client Name</td><td>Company name — used to auto-generate the Database Name</td><td><span class="req">REQUIRED</span></td><td>Novel Boxworks</td></tr>
+      <tr><td>Database Name</td><td>Name of the database to create. Auto-generated as <code>IndusEnterprise{ClientName}</code> but you can change it.</td><td><span class="req">REQUIRED</span></td><td>IndusEnterpriseNovelBoxworks</td></tr>
+      <tr><td>Backup Database Name</td><td>An existing backup database to restore from (pre-fills client data). Select from dropdown.</td><td><span class="opt">OPTIONAL</span></td><td>IndusEnterpriseDemo</td></tr>
+      <tr><td>Use HTTP Transfer</td><td>Enable this if the destination server is on a different network (cross-server transfer). Reveals two extra fields below.</td><td><span class="opt">OPTIONAL</span></td><td>Checked for remote servers</td></tr>
+      <tr><td>Destination Server URL</td><td>(Only when HTTP Transfer is checked) Full URL of the remote server's API</td><td>Conditional</td><td>http://15.206.241.195:5050</td></tr>
+      <tr><td>API Key</td><td>(Only when HTTP Transfer is checked) Secret key to authenticate with the remote server</td><td>Conditional</td><td>••••••••</td></tr>
+    </table>
+    <div class="note">ℹ️ When <strong>HTTP Transfer</strong> is enabled, a live progress bar appears showing transfer stage, percentage, and bytes transferred. Wait for it to complete before proceeding.</div>
+    <p>Click <strong>"Create Database & Continue"</strong> to proceed to Step 2.</p>
+
+    <h3>Step 2 — Subscription Details</h3>
+    <p>Fill in all the client's account and subscription information.</p>
+    <h4>Client Information</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Client Code</td><td>Auto-generated unique code. Read-only.</td><td><span class="auto">AUTO</span></td><td>IA00275</td></tr>
+      <tr><td>Client Name</td><td>Full company name</td><td><span class="req">REQUIRED</span></td><td>Novel Boxworks Pvt Ltd</td></tr>
+      <tr><td>Company Code</td><td>Internal code for the company (optional)</td><td><span class="opt">OPTIONAL</span></td><td>NOVEL001</td></tr>
+      <tr><td>Application Name</td><td>Product assigned to this client</td><td><span class="req">REQUIRED</span></td><td>estimoprime</td></tr>
+    </table>
+    <h4>Address & Contact</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>GSTIN</td><td><span class="req">REQUIRED</span></td><td>27AAAAA0000A1Z5</td></tr>
+      <tr><td>Address</td><td><span class="req">REQUIRED</span></td><td>PU 54 Near Vijay Nagar Square</td></tr>
+      <tr><td>City / State / Country</td><td><span class="req">REQUIRED</span></td><td>Indore / Madhya Pradesh / India</td></tr>
+      <tr><td>Email</td><td><span class="req">REQUIRED</span> — must be a valid email format</td><td>info@novel.com</td></tr>
+      <tr><td>Mobile</td><td><span class="req">REQUIRED</span> — numbers only, no spaces</td><td>9876543210</td></tr>
+    </table>
+    <h4>Subscription</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Status</td><td>Active or Expired</td><td><span class="req">REQUIRED</span></td><td>Active</td></tr>
+      <tr><td>From Date / To Date</td><td>Subscription validity period</td><td><span class="opt">OPTIONAL</span></td><td>01/04/2025 – 31/03/2026</td></tr>
+      <tr><td>Payment Due</td><td>When the next payment is expected</td><td><span class="opt">OPTIONAL</span></td><td>15/04/2025</td></tr>
+      <tr><td>Message Active (toggle)</td><td>Turn ON to show a reminder message to the client inside their ERP app. Reveals Duration and Duration Type fields when ON.</td><td><span class="opt">OPTIONAL</span></td><td>ON</td></tr>
+      <tr><td>Message Duration</td><td>How often the message repeats (only if Message Active is ON)</td><td>Conditional</td><td>30</td></tr>
+      <tr><td>Message Duration Type</td><td>Unit for the duration (Seconds / Minutes / Hours / Days)</td><td>Conditional</td><td>Minutes</td></tr>
+      <tr><td>Status Description</td><td>Internal note about the subscription status</td><td><span class="opt">OPTIONAL</span></td><td>Payment Reminder</td></tr>
+      <tr><td>ERP Message</td><td>The actual message text shown to the client in their ERP. Click <strong>"Format Message"</strong> to choose from saved templates.</td><td><span class="opt">OPTIONAL</span></td><td>Your subscription expires in 30 days.</td></tr>
+    </table>
+    <h4>Login & Access</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Company Login Name</td><td>Username the client will use to log in. No spaces allowed.</td><td><span class="req">REQUIRED</span></td><td>NovelBoxworks</td></tr>
+      <tr><td>Password</td><td>Login password for the client. No spaces allowed.</td><td><span class="req">REQUIRED</span></td><td>Novel@2025</td></tr>
+      <tr><td>Connection String</td><td>Database connection string — auto-filled from Step 1. Read-only.</td><td><span class="auto">AUTO</span></td><td>(auto)</td></tr>
+      <tr><td>Login Allowed</td><td>Maximum number of users who can be logged in at the same time</td><td><span class="opt">OPTIONAL</span></td><td>9</td></tr>
+    </table>
+
+    <h3>Step 3 — Company Master</h3>
+    <p>Enter the client company's official legal details. Most fields auto-fill from Step 2.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Company ID</td><td><span class="opt">OPTIONAL</span> (numeric)</td><td>1</td></tr>
+      <tr><td>Company Name</td><td><span class="req">REQUIRED</span></td><td>Novel Boxworks Private Limited</td></tr>
+      <tr><td>GSTIN / PAN / CIN No / State TIN No</td><td><span class="opt">OPTIONAL</span></td><td>27AAAAA0000A1Z5</td></tr>
+      <tr><td>Address 1, 2, 3</td><td><span class="opt">OPTIONAL</span></td><td>PU 54, Near Vijay Nagar Square</td></tr>
+      <tr><td>City / State / Country / Pincode</td><td><span class="opt">OPTIONAL</span></td><td>Indore / MP / India / 452010</td></tr>
+      <tr><td>Contact No / Mobile No / Email / Website</td><td><span class="opt">OPTIONAL</span></td><td>9876543210</td></tr>
+      <tr><td>Production Unit Name / Address</td><td><span class="opt">OPTIONAL</span></td><td>Unit 1, MPIDC Area</td></tr>
+    </table>
+
+    <h3>Step 4 — Branch Master</h3>
+    <p>Set up the client's main branch. Most fields are auto-filled from Step 3.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Branch ID</td><td><span class="opt">OPTIONAL</span></td><td>1</td></tr>
+      <tr><td>Branch Name</td><td><span class="req">REQUIRED</span></td><td>Indore Main Branch</td></tr>
+      <tr><td>Mailing Name / Address 1-3 / City / State / Country / Pincode</td><td><span class="opt">OPTIONAL</span> (auto-filled)</td><td>–</td></tr>
+      <tr><td>Mobile No / Email / GSTIN / State TIN No</td><td><span class="opt">OPTIONAL</span> (auto-filled)</td><td>–</td></tr>
+    </table>
+
+    <h3>Step 5 — Production Unit</h3>
+    <p>Enter the client's production unit (manufacturing location) details.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Production Unit Name</td><td><span class="req">REQUIRED</span></td><td>Unit 1</td></tr>
+      <tr><td>Address / City / State / Country / Pincode</td><td><span class="opt">OPTIONAL</span> (auto-filled)</td><td>–</td></tr>
+      <tr><td>GST No / PAN</td><td><span class="opt">OPTIONAL</span></td><td>–</td></tr>
+    </table>
+
+    <h3>Step 6 — Success Screen</h3>
+    <p>After all steps are saved, a success screen appears showing the client's login credentials:</p>
+    <ul>
+      <li>Company Name</li>
+      <li>Login URL</li>
+      <li>Company Login Name and Password (masked)</li>
+    </ul>
+    <div class="btn-row">
+      <div class="btn-doc green"><span class="btn-label">📋 Copy Credentials</span>Copies all login information to clipboard — share this with the client</div>
+      <div class="btn-doc"><span class="btn-label">✓ Done</span>Close the wizard; the grid refreshes automatically</div>
+    </div>
+  </div>
+  <div class="hi">
+    <p><strong>+ Create New</strong> पर क्लिक करने से 6 चरणों वाला विज़ार्ड खुलता है।</p>
+    <div class="wizard-steps">
+      <div class="ws done"><span class="wsn">1</span>डेटाबेस सेटअप</div>
+      <div class="ws done"><span class="wsn">2</span>सदस्यता विवरण</div>
+      <div class="ws done"><span class="wsn">3</span>कंपनी मास्टर</div>
+      <div class="ws done"><span class="wsn">4</span>ब्रांच मास्टर</div>
+      <div class="ws done"><span class="wsn">5</span>प्रोडक्शन यूनिट</div>
+      <div class="ws done"><span class="wsn">✓</span>सफलता</div>
+    </div>
+    <h3>चरण 1 — डेटाबेस सेटअप</h3>
+    <p>यह चरण सर्वर पर क्लाइंट के लिए एक नया डेटाबेस बनाता है।</p>
+    <table class="field-table">
+      <tr><th>फ़ील्ड</th><th>उद्देश्य</th><th>आवश्यक?</th></tr>
+      <tr><td>Server</td><td>वह SQL सर्वर जहाँ डेटाबेस बनाया जाएगा</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Application Name</td><td>क्लाइंट कौन सा ExcelJet उत्पाद उपयोग करेगा</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Client Name</td><td>कंपनी का नाम — डेटाबेस नाम स्वचालित बनाने के लिए उपयोग</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Database Name</td><td>बनाए जाने वाले डेटाबेस का नाम (स्वचालित भरा जाता है)</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Backup Database Name</td><td>मौजूदा बैकअप डेटाबेस से पुनर्स्थापित करें</td><td><span class="opt">वैकल्पिक</span></td></tr>
+      <tr><td>Use HTTP Transfer</td><td>अलग नेटवर्क पर सर्वर के लिए सक्षम करें</td><td><span class="opt">वैकल्पिक</span></td></tr>
+    </table>
+    <h3>चरण 2 — सदस्यता विवरण</h3>
+    <p>क्लाइंट की सभी खाता और सदस्यता जानकारी भरें। महत्वपूर्ण फ़ील्ड: Client Name, GSTIN, Address, Email, Mobile (सभी आवश्यक), Company Login Name और Password (कोई स्पेस नहीं)।</p>
+    <h3>चरण 3-5</h3>
+    <p>कंपनी मास्टर, ब्रांच मास्टर, और प्रोडक्शन यूनिट — अधिकांश फ़ील्ड पिछले चरणों से स्वचालित भरे जाते हैं। केवल Company Name और Branch Name अनिवार्य हैं।</p>
+    <h3>चरण 6 — सफलता स्क्रीन</h3>
+    <p>लॉगिन क्रेडेंशियल दिखाता है। <strong>"Copy Credentials"</strong> पर क्लिक करके क्लाइंट के साथ साझा करें।</p>
+  </div>
+</div>
+
+<!-- CH 4: EDIT TAB 1 -->
+<div class="section" id="tab1">
+  <div class="section-header">
+    <div class="section-icon icon-orange">📝</div>
+    <div><span class="ch">Ch 4</span><h2 class="en">Edit Subscription — Tab 1: Company Detail</h2><h2 class="hi">सदस्यता संपादित करें — टैब 1: कंपनी विवरण</h2></div>
+  </div>
+  <div class="en">
+    <p>To open: Click a row in the main grid → click <strong>Edit</strong> button (or double-click the row). The Edit Subscription modal opens with 5 tabs at the top.</p>
+    <div class="tabs">
+      <span class="tab active">Company Detail</span>
+      <span class="tab">Module Settings</span>
+      <span class="tab">Module Group Authority</span>
+      <span class="tab">New Module Addition</span>
+      <span class="tab">Indus Tool Authority</span>
+    </div>
+    <p>The <strong>Company Detail</strong> tab lets you update any information for the selected client. It has 3 sections:</p>
+
+    <h4>Section A — Client & Login</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Client Code</td><td>Unique client identifier — cannot be changed</td><td><span class="auto">READ-ONLY</span></td><td>IA00274</td></tr>
+      <tr><td>Client Name</td><td>Full company name</td><td><span class="req">REQUIRED</span></td><td>AnkitTesting</td></tr>
+      <tr><td>Company Login Name</td><td>Username the client uses to log in to ExcelJet. No spaces allowed.</td><td><span class="req">REQUIRED</span></td><td>Testing</td></tr>
+      <tr><td>Password</td><td>Client's login password. No spaces allowed.</td><td><span class="opt">OPTIONAL</span> (leave blank to keep unchanged)</td><td>••••</td></tr>
+      <tr><td>Company Code</td><td>Internal company code (optional)</td><td><span class="opt">OPTIONAL</span></td><td>ANKIT001</td></tr>
+      <tr><td>Application</td><td>Which product the client uses. Select from dropdown.</td><td><span class="opt">OPTIONAL</span></td><td>estimoprime</td></tr>
+      <tr><td>Login Allowed</td><td>Max simultaneous logins. Enter a number.</td><td><span class="opt">OPTIONAL</span></td><td>9</td></tr>
+      <tr><td>GSTIN</td><td>Client's GST registration number</td><td><span class="opt">OPTIONAL</span></td><td>GST12345</td></tr>
+    </table>
+
+    <h4>Section B — Address & Contact</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Address</td><td>Full street address of the client</td><td><span class="opt">OPTIONAL</span></td><td>PU 54 Opposite aakash Dress behind C21 Mall</td></tr>
+      <tr><td>Email</td><td>Client's contact email address</td><td><span class="opt">OPTIONAL</span></td><td>test@gmail.com</td></tr>
+      <tr><td>Mobile</td><td>Client's mobile number (numbers only)</td><td><span class="opt">OPTIONAL</span></td><td>9876543567</td></tr>
+      <tr><td>City / State / Country</td><td>Location of the client company</td><td><span class="opt">OPTIONAL</span></td><td>Indore / Rajasthan / India</td></tr>
+    </table>
+
+    <h4>Section C — Subscription</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Status</td><td>Current subscription status. Choose Active or Expired from dropdown.</td><td><span class="opt">OPTIONAL</span></td><td>Active</td></tr>
+      <tr><td>From Date</td><td>Start date of the subscription. Click the calendar icon to pick.</td><td><span class="opt">OPTIONAL</span></td><td>01/04/2025</td></tr>
+      <tr><td>To Date</td><td>End date of the subscription. Click the calendar icon to pick.</td><td><span class="opt">OPTIONAL</span></td><td>31/03/2026</td></tr>
+      <tr><td>Payment Due</td><td>Expected payment date. Click the calendar icon to pick.</td><td><span class="opt">OPTIONAL</span></td><td>15/04/2025</td></tr>
+      <tr><td>Message Active (toggle)</td><td>Turn ON to display a popup message to the client inside their ERP app. When ON, reveals Duration and Duration Type fields.</td><td><span class="opt">OPTIONAL</span></td><td>OFF (default)</td></tr>
+      <tr><td>Message Duration</td><td>How frequently the message appears (number). Only visible when Message Active is ON.</td><td>Conditional</td><td>30</td></tr>
+      <tr><td>Message Duration Type</td><td>Unit for the duration. Options: Seconds / Minutes / Hours / Days</td><td>Conditional</td><td>Minutes</td></tr>
+      <tr><td>Status Description</td><td>Internal note about the subscription (not shown to client)</td><td><span class="opt">OPTIONAL</span></td><td>Payment Reminder</td></tr>
+      <tr><td>ERP Message + Format Message button</td><td>The text message shown inside the client's ERP. Click <strong>"Format Message"</strong> to choose a pre-saved template from the list. You can also type a custom message.</td><td><span class="opt">OPTIONAL</span></td><td>Your subscription expires on 31 March 2026.</td></tr>
+    </table>
+
+    <div class="btn-row">
+      <div class="btn-doc orange"><span class="btn-label">💾 Save Changes</span>Save all edits made on this tab. Button turns orange with a save icon.</div>
+      <div class="btn-doc"><span class="btn-label">✕ Close</span>Close the modal without saving. Unsaved changes will be lost.</div>
+    </div>
+  </div>
+  <div class="hi">
+    <p>किसी पंक्ति पर डबल-क्लिक करने या Edit बटन दबाने पर यह मोडल खुलता है। <strong>Company Detail</strong> टैब में 3 सेक्शन हैं:</p>
+    <p><strong>Section A (Client &amp; Login):</strong> Client Code (केवल पढ़ें), Client Name (आवश्यक), Company Login Name (आवश्यक, स्पेस नहीं), Password, Application, Login Allowed, GSTIN</p>
+    <p><strong>Section B (Address &amp; Contact):</strong> Address, Email, Mobile, City, State, Country</p>
+    <p><strong>Section C (Subscription):</strong> Status, From/To Date, Payment Due, Message Active toggle (चालू होने पर Duration और Duration Type फ़ील्ड दिखती हैं), Status Description, ERP Message (Format Message बटन से टेम्पलेट चुनें)</p>
+    <div class="btn-row">
+      <div class="btn-doc orange"><span class="btn-label">💾 Save Changes</span>सभी बदलाव सहेजें</div>
+      <div class="btn-doc"><span class="btn-label">✕ Close</span>बिना सहेजे बंद करें</div>
+    </div>
+  </div>
+</div>
+
+<!-- CH 5: TAB 2 MODULE SETTINGS -->
+<div class="section" id="tab2">
+  <div class="section-header">
+    <div class="section-icon icon-blue">⚙️</div>
+    <div><span class="ch">Ch 5</span><h2 class="en">Edit Subscription — Tab 2: Module Settings</h2><h2 class="hi">टैब 2: मॉड्यूल सेटिंग्स</h2></div>
+  </div>
+  <div class="en">
+    <p>This tab controls which modules (pages/features) are enabled or disabled for the client. A stats bar at the top shows how many modules are currently active (e.g., "12 / 25 enabled").</p>
+    <h3>Module Grid</h3>
+    <table class="field-table">
+      <tr><th>Column</th><th>Description</th></tr>
+      <tr><td>Module Head Name</td><td>The category/group this module belongs to (e.g., Masters, Reports)</td></tr>
+      <tr><td>Module Display Name</td><td>The name of the module as it appears to the client</td></tr>
+      <tr><td>Status (checkbox)</td><td>Tick to enable, untick to disable this module for the client. Click the header checkbox to toggle ALL visible rows at once.</td></tr>
+    </table>
+    <h3>How to Enable/Disable Modules</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Tick or untick checkboxes</strong> for individual modules as needed.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>To select all:</strong> Click the checkbox in the Status column header to toggle all filtered rows.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Save Module"</strong> (bottom of modal). Only changed rows are sent to the server. If no changes were made, a "No Changes" message appears.</div></div>
+    </div>
+    <h3>Copy As — Copy Module Settings to Another Client</h3>
+    <p>The <strong>"Copy As"</strong> button copies this client's current module configuration to another client, overwriting their settings.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Click "Copy As"</strong> — a popup opens with a searchable list of all clients.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Search and select</strong> the target client you want to copy to.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Save"</strong>. If the target client already has modules set up, a <strong>confirmation popup</strong> appears with a math CAPTCHA (e.g., "43 − 7 = ?"). Solve it correctly and click "Yes, Continue" to overwrite.</div></div>
+    </div>
+    <div class="danger">⚠️ <strong>Important:</strong> Copying modules OVERWRITES the target client's existing module settings. This cannot be undone. Solve the CAPTCHA only if you are sure.</div>
+  </div>
+  <div class="hi">
+    <p>यह टैब नियंत्रित करता है कि क्लाइंट के लिए कौन से मॉड्यूल सक्षम या अक्षम हैं। स्टेटस बार दिखाता है कितने मॉड्यूल वर्तमान में सक्रिय हैं।</p>
+    <h3>मॉड्यूल सक्षम/अक्षम करने का तरीका</h3>
+    <ol>
+      <li>व्यक्तिगत मॉड्यूल के लिए चेकबॉक्स टिक/अनटिक करें</li>
+      <li>सभी टॉगल करने के लिए Status कॉलम हेडर चेकबॉक्स पर क्लिक करें</li>
+      <li><strong>"Save Module"</strong> पर क्लिक करें — केवल बदली हुई पंक्तियाँ सर्वर को भेजी जाती हैं</li>
+    </ol>
+    <h3>Copy As — दूसरे क्लाइंट को कॉपी करें</h3>
+    <p>"Copy As" बटन इस क्लाइंट की मॉड्यूल सेटिंग दूसरे क्लाइंट को ओवरराइट करके कॉपी करती है। अगर लक्ष्य क्लाइंट में पहले से मॉड्यूल हैं, तो CAPTCHA हल करके पुष्टि करें।</p>
+    <div class="danger">⚠️ <strong>महत्वपूर्ण:</strong> कॉपी करने से लक्ष्य क्लाइंट की मौजूदा मॉड्यूल सेटिंग्स ओवरराइट हो जाती हैं। यह पूर्ववत नहीं किया जा सकता।</div>
+  </div>
+</div>
+
+<!-- CH 6: TAB 3 MODULE GROUP AUTH -->
+<div class="section" id="tab3">
+  <div class="section-header">
+    <div class="section-icon icon-navy">🏗️</div>
+    <div><span class="ch">Ch 6</span><h2 class="en">Edit Subscription — Tab 3: Module Group Authority</h2><h2 class="hi">टैब 3: मॉड्यूल ग्रुप अथॉरिटी</h2></div>
+  </div>
+  <div class="en">
+    <p>This tab lets you apply a pre-configured <strong>Module Group</strong> (a saved template of modules) to this client's account. Instead of enabling/disabling modules one by one, you select a group and apply it all at once.</p>
+    <h3>Controls</h3>
+    <table class="field-table">
+      <tr><th>Control</th><th>Purpose</th><th>Example</th></tr>
+      <tr><td>Application Name (dropdown)</td><td>Select which application's module groups to show. Changes the Module Group dropdown options.</td><td>estimoprime</td></tr>
+      <tr><td>Module Group (dropdown)</td><td>Select the group template you want to apply. Only enabled after selecting an Application.</td><td>Standard Offset Package</td></tr>
+      <tr><td>Load Module (button)</td><td>Click to preview which modules are in the selected group. Shows them in the grid below.</td><td>–</td></tr>
+    </table>
+    <h3>How to Apply a Module Group to a Client</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Select Application Name</strong> from the dropdown.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Select Module Group</strong> — the template you want to apply.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Load Module"</strong> to see which modules are in this group.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Apply to Client"</strong>. If the client already has modules, a <strong>confirmation CAPTCHA</strong> appears (math subtraction). Solve it to confirm overwrite.</div></div>
+    </div>
+    <div class="danger">⚠️ Applying a module group REPLACES the client's current module settings. The CAPTCHA confirms you intend this.</div>
+  </div>
+  <div class="hi">
+    <p>यह टैब एक पूर्व-कॉन्फ़िगर <strong>मॉड्यूल ग्रुप</strong> टेम्पलेट को क्लाइंट के अकाउंट पर लागू करने देता है।</p>
+    <ol>
+      <li>Application Name चुनें</li>
+      <li>Module Group चुनें</li>
+      <li>"Load Module" पर क्लिक करके पूर्वावलोकन देखें</li>
+      <li>"Apply to Client" पर क्लिक करें — CAPTCHA हल करके पुष्टि करें</li>
+    </ol>
+    <div class="danger">⚠️ मॉड्यूल ग्रुप लागू करने से क्लाइंट की मौजूदा मॉड्यूल सेटिंग्स बदल जाती हैं।</div>
+  </div>
+</div>
+
+<!-- CH 7: TAB 4 NEW MODULE ADDITION -->
+<div class="section" id="tab4">
+  <div class="section-header">
+    <div class="section-icon icon-green">➕</div>
+    <div><span class="ch">Ch 7</span><h2 class="en">Edit Subscription — Tab 4: New Module Addition</h2><h2 class="hi">टैब 4: नया मॉड्यूल जोड़ें</h2></div>
+  </div>
+  <div class="en">
+    <p>This tab manages the individual modules installed in the <strong>client's database</strong> — not just toggling visibility, but actually creating or removing module records in their system.</p>
+    <h3>List View</h3>
+    <p>Shows all modules currently installed in the client's database. Columns:</p>
+    <table class="field-table">
+      <tr><th>Column</th><th>Description</th></tr>
+      <tr><td>Module Head Name</td><td>The group/category the module belongs to</td></tr>
+      <tr><td>Module Name</td><td>Technical filename of the module (e.g., LedgerMaster.aspx)</td></tr>
+      <tr><td>Module Display Name</td><td>Friendly name shown in the client's app</td></tr>
+      <tr><td>Group Index</td><td>Numeric position within the module head group</td></tr>
+    </table>
+    <p>Row action buttons:</p>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">⊞ Manage Groups</span>Only shown for Masters.aspx, LedgerMaster.aspx, ToolMaster.aspx. Opens a popup to sync Item/Ledger/Tool groups between Indus source DB and client DB.</div>
+      <div class="btn-doc blue"><span class="btn-label">✏️ Edit</span>Switch to Form View pre-filled with this module's data to edit it</div>
+      <div class="btn-doc red"><span class="btn-label">🗑 Delete</span>Delete this module from the client's database (requires confirmation)</div>
+    </div>
+    <p>Other buttons: <strong>Refresh</strong> (reload list) | <strong>+ Create Module</strong> (switch to blank Form View)</p>
+
+    <h3>Form View — Create or Edit a Module</h3>
+    <p>The form has two columns: <strong>Module Identity</strong> (left) and <strong>Display Order &amp; Print Settings</strong> (right).</p>
+    <h4>Left Panel — Module Identity</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Notes</th></tr>
+      <tr><td>Module Head Name</td><td>Category/group for this module. Searchable dropdown from Indus master list.</td><td><span class="req">REQUIRED</span></td><td>Selecting auto-fills Head Display Name</td></tr>
+      <tr><td>Module Display Name</td><td>The user-friendly name shown in the app. Searchable dropdown.</td><td><span class="opt">OPTIONAL</span></td><td>Auto-filled when Module Name is selected</td></tr>
+      <tr><td>Module Name (Filename)</td><td>Technical filename of the module (e.g., LedgerMaster.aspx). Searchable dropdown. <strong>Read-only in edit mode.</strong></td><td><span class="req">REQUIRED</span></td><td>Selecting this auto-fills ALL other fields from Indus master. Also triggers duplicate check after 600ms.</td></tr>
+      <tr><td>Head Display Name</td><td>Display name for the module head/category</td><td><span class="auto">AUTO-FILLED</span></td><td>Read-only</td></tr>
+      <tr><td>Set Group Index</td><td>Numeric index for grouping modules under the same head. <strong>Locked (read-only) in edit mode if it was previously set.</strong></td><td><span class="req">REQUIRED</span></td><td>Triggers conflict check after 600ms. If another head already uses this index, an error is shown.</td></tr>
+    </table>
+    <h4>Right Panel — Display Order</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Notes</th></tr>
+      <tr><td>Head Display Order</td><td>Position of this module head in the sidebar menu. Lower = appears first.</td><td><span class="req">REQUIRED</span></td><td>Triggers conflict check after 600ms. If the order is taken by another head, a warning appears ("will shift existing").</td></tr>
+      <tr><td>Module Display Order</td><td>Position within the head group</td><td><span class="auto">AUTO-SYNCED</span></td><td>Auto-matches Head Display Order</td></tr>
+    </table>
+    <h4>Right Panel — Print Settings (Optional)</h4>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th></tr>
+      <tr><td>Print Web Page</td><td>URL of the print template page associated with this module</td><td><span class="opt">OPTIONAL</span></td></tr>
+      <tr><td>Document Name</td><td>Name of the document that prints from this module</td><td><span class="opt">OPTIONAL</span></td></tr>
+    </table>
+    <h3>Live Validation (automatic checks)</h3>
+    <ul>
+      <li><strong>Duplicate Module Name:</strong> If you select a Module Name that already exists in the client DB, a red error appears below the field. You cannot save until it's resolved.</li>
+      <li><strong>Display Order Conflict:</strong> If the Head Display Order you entered is already used by another module head, an amber warning appears. You can still save — the existing module will shift.</li>
+      <li><strong>Group Index Conflict:</strong> If the Set Group Index is already used by a different module head, a red error appears. You must change the index before saving.</li>
+    </ul>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">← Back</span>Return to List View without saving</div>
+      <div class="btn-doc"><span class="btn-label">↺ Reset Form</span>Clear all fields and start fresh</div>
+      <div class="btn-doc green"><span class="btn-label">💾 Save Module / Update Module</span>Save the new module or save edits to existing module</div>
+    </div>
+    <h3>Manage Groups Popup (Group Sync)</h3>
+    <p>Available for <strong>Masters.aspx</strong> (Items), <strong>LedgerMaster.aspx</strong> (Ledger), and <strong>ToolMaster.aspx</strong> (Tools).</p>
+    <p>This popup shows a comparison between groups in the <strong>Indus source database</strong> and groups in the <strong>client's database</strong>. The grid shows each group name, its status (Active/Inactive), and sync details.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Click ⊞ Manage Groups</strong> on the appropriate module row.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Review the comparison grid. You can edit the Status column inline.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Save Changes"</strong> to sync the groups to the client's database. Click <strong>"Close"</strong> to cancel.</div></div>
+    </div>
+  </div>
+  <div class="hi">
+    <p>यह टैब क्लाइंट के डेटाबेस में इंस्टॉल मॉड्यूल को प्रबंधित करता है।</p>
+    <h3>List View</h3>
+    <p>Module Head Name, Module Name, Module Display Name, Group Index कॉलम दिखाता है। प्रत्येक पंक्ति में: Manage Groups (केवल Masters/Ledger/Tool के लिए), Edit, Delete बटन।</p>
+    <h3>Form View — फ़ील्ड</h3>
+    <table class="field-table">
+      <tr><th>फ़ील्ड</th><th>विवरण</th><th>आवश्यक?</th></tr>
+      <tr><td>Module Head Name</td><td>मॉड्यूल की श्रेणी (खोज योग्य ड्रॉपडाउन)</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Module Name (Filename)</td><td>तकनीकी फ़ाइल नाम। चुनने पर सभी फ़ील्ड स्वचालित भरते हैं।</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Set Group Index</td><td>ग्रुप इंडेक्स नंबर। Edit मोड में पहले सेट होने पर लॉक।</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Head Display Order</td><td>साइडबार मेनू में स्थिति (कम = पहले)</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Print Web Page / Document Name</td><td>प्रिंट टेम्पलेट विवरण</td><td><span class="opt">वैकल्पिक</span></td></tr>
+    </table>
+    <h3>स्वचालित जाँच</h3>
+    <ul>
+      <li><strong>डुप्लिकेट मॉड्यूल:</strong> Module Name पहले से है तो लाल त्रुटि — सहेज नहीं सकते</li>
+      <li><strong>Display Order टकराव:</strong> Order पहले से है तो एम्बर चेतावनी — सहेज सकते हैं</li>
+      <li><strong>Group Index टकराव:</strong> Index पहले से है तो लाल त्रुटि — बदलना जरूरी</li>
+    </ul>
+  </div>
+</div>
+
+<!-- CH 8: TAB 5 INDUS TOOL AUTHORITY -->
+<div class="section" id="tab5">
+  <div class="section-header">
+    <div class="section-icon icon-navy">🔧</div>
+    <div><span class="ch">Ch 8</span><h2 class="en">Edit Subscription — Tab 5: Indus Tool Authority</h2><h2 class="hi">टैब 5: इंडस टूल अथॉरिटी</h2></div>
+  </div>
+  <div class="en">
+    <p>This tab controls which <strong>sidebar pages of the Indus Admin Portal</strong> this client company's admin can see and access. Each module is shown as a checkbox card.</p>
+    <h3>How It Works</h3>
+    <ul>
+      <li>Each card shows a <strong>Module Name</strong> and its <strong>Module Path</strong> (technical route)</li>
+      <li>Tick a checkbox to <strong>allow</strong> that module; untick to <strong>restrict</strong> it</li>
+      <li>If <strong>all checkboxes are left unchecked</strong>, the client can see <strong>all modules</strong> (no restriction)</li>
+    </ul>
+    <div class="note">ℹ️ Leaving all unchecked = full access. Only check boxes when you want to explicitly restrict to specific modules.</div>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">🔄 Refresh</span>Reload the module list</div>
+      <div class="btn-doc green"><span class="btn-label">💾 Save</span>Save the selected module access permissions for this client</div>
+    </div>
+  </div>
+  <div class="hi">
+    <p>यह टैब नियंत्रित करता है कि इस क्लाइंट के एडमिन को <strong>इंडस एडमिन पोर्टल की कौन सी साइडबार पेज</strong> दिखेंगी।</p>
+    <ul>
+      <li>प्रत्येक कार्ड में मॉड्यूल नाम और पथ दिखता है</li>
+      <li>चेकबॉक्स टिक = उस मॉड्यूल तक पहुंच की अनुमति</li>
+      <li><strong>सभी चेकबॉक्स खाली = सभी मॉड्यूल दिखेंगे</strong> (कोई प्रतिबंध नहीं)</li>
+    </ul>
+    <div class="note">ℹ️ सभी अनचेक छोड़ें = पूरी पहुंच। केवल तब चेक करें जब विशिष्ट मॉड्यूल तक सीमित करना हो।</div>
+  </div>
+</div>
+
+<!-- CH 9: MANAGE PLANS -->
+<div class="section" id="plans">
+  <div class="section-header">
+    <div class="section-icon icon-blue">💳</div>
+    <div><span class="ch">Ch 9</span><h2 class="en">Manage Plans</h2><h2 class="hi">प्लान प्रबंधन</h2></div>
+  </div>
+  <div class="en">
+    <p>The <strong>Manage Plans</strong> page is the global catalog for all subscription plans that Indus offers to its clients. Plans are organized into <strong>Features</strong> (categories like "Sahay" or "Email") with multiple <strong>Plans</strong> under each feature.</p>
+
+    <h3>Feature Section</h3>
+    <p>At the top is a <strong>Feature</strong> dropdown to switch between feature categories. Each item shows as "Feature Name (Feature Code)".</p>
+    <h4>Adding a New Feature</h4>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body">Enter a <strong>Code</strong> (short identifier, e.g., "Sahay") and <strong>Name</strong> (e.g., "Sahay AI Assistant") in the inline form next to the dropdown.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Add"</strong>. The feature is created and auto-selected in the dropdown.</div></div>
+    </div>
+
+    <h3>Plans List</h3>
+    <p>Below the feature selector, all plans for the selected feature are shown as cards. Each card displays:</p>
+    <ul>
+      <li>Plan display name + plan code (in monospace) + "Most Popular" badge (if highlighted)</li>
+      <li>Monthly and Annual prices</li>
+      <li>Up to 5 feature bullet points</li>
+      <li><strong>Edit</strong> button and <strong>🗑 Delete</strong> button</li>
+    </ul>
+    <div class="btn-row">
+      <div class="btn-doc green"><span class="btn-label">➕ New Plan</span>Open the plan editor to create a new plan under the current feature</div>
+    </div>
+
+    <h3>Plan Editor — All Fields</h3>
+    <p>Opens when you click <strong>New Plan</strong> or <strong>Edit</strong> on a plan card.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Feature</td><td>Which feature category this plan belongs to. Changing it updates the plan code.</td><td><span class="req">REQUIRED</span></td><td>Sahay</td></tr>
+      <tr><td>Plan name (internal)</td><td>Internal name used for admin identification. Also auto-generates the Plan Code.</td><td><span class="req">REQUIRED</span></td><td>Premium Plan</td></tr>
+      <tr><td>Display name (on card)</td><td>Customer-facing name shown on the pricing card</td><td><span class="opt">OPTIONAL</span></td><td>Sahay Premium</td></tr>
+      <tr><td>Plan code (checkout id)</td><td>Unique code used in checkout and API calls. Auto-generated from feature + plan name, but editable. Example: <code>sahay_premium_plan</code></td><td><span class="req">REQUIRED</span></td><td>sahay_premium_plan</td></tr>
+      <tr><td>Billing cycle</td><td>How the plan is billed: MONTHLY or ANNUAL</td><td><span class="opt">OPTIONAL</span></td><td>MONTHLY</td></tr>
+      <tr><td>Monthly (₹)</td><td>Price per month in Indian Rupees</td><td><span class="opt">OPTIONAL</span></td><td>999</td></tr>
+      <tr><td>Annual (₹)</td><td>Annual price in Indian Rupees</td><td><span class="opt">OPTIONAL</span></td><td>9999</td></tr>
+      <tr><td>Priced per user (seat-based)</td><td>Check this if the price multiplies by number of users (seats)</td><td><span class="opt">OPTIONAL</span></td><td>☑ (checked for Sahay)</td></tr>
+      <tr><td>Per-user note</td><td>Text shown on the card explaining per-user pricing</td><td><span class="opt">OPTIONAL</span></td><td>Priced per user (seat).</td></tr>
+      <tr><td>Blurb (above cards)</td><td>Short description of what this feature/plan offers</td><td><span class="opt">OPTIONAL</span></td><td>AI-powered billing assistant for your team</td></tr>
+      <tr><td>Highlight (most popular)</td><td>Check to add a "Most Popular" badge to this plan's card</td><td><span class="opt">OPTIONAL</span></td><td>☑</td></tr>
+      <tr><td>Badge</td><td>Text of the highlight badge</td><td><span class="opt">OPTIONAL</span></td><td>Most popular</td></tr>
+      <tr><td>Card bullets (one per line)</td><td>Feature bullet points shown on the plan card. Enter one feature per line.</td><td><span class="opt">OPTIONAL</span></td><td>Unlimited AI queries<br>Priority support<br>Custom branding</td></tr>
+      <tr><td>Sub-features</td><td>Multi-select checkbox dropdown to choose specific sub-features included in this plan. Selected items shown as chips below.</td><td><span class="opt">OPTIONAL</span></td><td>Invoice Scanning, Auto-fill</td></tr>
+      <tr><td>Active (toggle)</td><td>Mark this plan as active or inactive</td><td><span class="opt">OPTIONAL</span></td><td>ON</td></tr>
+    </table>
+    <div class="btn-row">
+      <div class="btn-doc green"><span class="btn-label">💾 Save Plan</span>Save the new or edited plan</div>
+      <div class="btn-doc"><span class="btn-label">✕ Cancel</span>Close without saving</div>
+    </div>
+    <div class="note">💡 The plan code is auto-generated: feature code (lowercase) + "_" + plan name (slugified). Example: Feature "Sahay" + Plan "Premium Plan" → <code>sahay_premium_plan</code>. You can manually override it.</div>
+    <div class="warn">⚠️ Clicking 🗑 Delete on a plan card deletes it immediately without a confirmation prompt. There is no undo — proceed carefully.</div>
+  </div>
+  <div class="hi">
+    <p><strong>Manage Plans</strong> पेज उन सभी सदस्यता प्लान का वैश्विक कैटलॉग है जो इंडस अपने क्लाइंटों को प्रदान करता है।</p>
+    <h3>फीचर सेक्शन</h3>
+    <p>शीर्ष पर Feature ड्रॉपडाउन से श्रेणी चुनें। नई फीचर जोड़ने के लिए Code और Name भरकर "Add" पर क्लिक करें।</p>
+    <h3>प्लान एडिटर फ़ील्ड</h3>
+    <table class="field-table">
+      <tr><th>फ़ील्ड</th><th>विवरण</th><th>आवश्यक?</th></tr>
+      <tr><td>Plan name (internal)</td><td>आंतरिक पहचान नाम; Plan Code स्वचालित बनाता है</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Plan code</td><td>चेकआउट में उपयोग होने वाला अनूठा कोड (स्वचालित भरा)</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Monthly / Annual (₹)</td><td>भारतीय रुपये में मूल्य</td><td><span class="opt">वैकल्पिक</span></td></tr>
+      <tr><td>Priced per user</td><td>यदि मूल्य उपयोगकर्ताओं की संख्या से गुणा होता है</td><td><span class="opt">वैकल्पिक</span></td></tr>
+      <tr><td>Card bullets</td><td>प्लान कार्ड पर दिखने वाले फीचर बिंदु (प्रति पंक्ति एक)</td><td><span class="opt">वैकल्पिक</span></td></tr>
+      <tr><td>Sub-features</td><td>इस प्लान में शामिल विशिष्ट उप-फीचर</td><td><span class="opt">वैकल्पिक</span></td></tr>
+    </table>
+    <div class="warn">⚠️ प्लान हटाना (🗑) तत्काल और स्थायी है — कोई पुष्टि नहीं मांगी जाती।</div>
+  </div>
+</div>
+
+<!-- CH 10: SAHAY & EMAIL -->
+<div class="section" id="sahay">
+  <div class="section-header">
+    <div class="section-icon icon-green">🤖</div>
+    <div><span class="ch">Ch 10</span><h2 class="en">Sahay &amp; Email Subscriptions</h2><h2 class="hi">सहाय और ईमेल सदस्यता</h2></div>
+  </div>
+  <div class="en">
+    <p>This page assigns or updates <strong>Sahay (AI Assistant)</strong> and <strong>Email</strong> feature subscriptions for individual client companies. These are separate from the main module settings.</p>
+
+    <h3>Company Selector</h3>
+    <p>At the top, select a client company from the <strong>Company</strong> dropdown. It shows all clients as "Company Name (Company Login Name)". After selecting, both the Sahay and Email panels load automatically.</p>
+
+    <h3>Sahay Panel (AI Assistant — per seat)</h3>
+    <p>Sahay is priced per user (seat-based). You assign it to specific users within the client company.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Plan Name</td><td>Name of the Sahay plan being assigned</td><td><span class="req">REQUIRED</span></td><td>Sahay Standard</td></tr>
+      <tr><td>Billing Cycle</td><td>How often the client is billed: MONTHLY or ANNUAL</td><td><span class="opt">OPTIONAL</span></td><td>MONTHLY</td></tr>
+      <tr><td>Price / seat (₹)</td><td>Price per user per billing cycle</td><td><span class="req">REQUIRED</span> (must be &gt; 0)</td><td>499</td></tr>
+      <tr><td>Start Date</td><td>When the Sahay subscription starts</td><td><span class="opt">OPTIONAL</span></td><td>01/07/2025</td></tr>
+      <tr><td>End Date</td><td>When the Sahay subscription ends</td><td><span class="opt">OPTIONAL</span></td><td>30/06/2026</td></tr>
+      <tr><td>Users (seats)</td><td>Scrollable checkbox list of all users in this client company. Tick the users who will have Sahay access.</td><td><span class="req">REQUIRED</span> (at least 1 user must be selected)</td><td>☑ Rahul, ☑ Priya, ☐ Amit</td></tr>
+    </table>
+    <p>A <strong>live total</strong> is shown: <em>"Total: ₹998 (₹499 × 2 seats)"</em></p>
+
+    <h3>Email Panel (company-wide)</h3>
+    <p>Email is priced for the entire company (not per user).</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Example</th></tr>
+      <tr><td>Plan Name</td><td>Name of the Email plan being assigned</td><td><span class="req">REQUIRED</span></td><td>Email Standard</td></tr>
+      <tr><td>Billing Cycle</td><td>MONTHLY or ANNUAL</td><td><span class="opt">OPTIONAL</span></td><td>ANNUAL</td></tr>
+      <tr><td>Price (₹)</td><td>Total price for the company (not per user)</td><td><span class="req">REQUIRED</span> (must be &gt; 0)</td><td>2999</td></tr>
+      <tr><td>Start / End Date</td><td>Subscription validity period</td><td><span class="opt">OPTIONAL</span></td><td>01/04/2025 – 31/03/2026</td></tr>
+    </table>
+    <p>No user selection — email access applies to the entire company.</p>
+
+    <h3>Status Badge</h3>
+    <p>Each panel shows the current subscription status in the top-right corner: <span class="pill pill-g">ACTIVE</span> or <span class="pill pill-r">SUSPENDED</span></p>
+
+    <h3>Buttons</h3>
+    <table class="field-table">
+      <tr><th>Button</th><th>When Shown</th><th>Purpose</th></tr>
+      <tr><td>Assign</td><td>First time (no existing subscription)</td><td>Create a new feature subscription for this client</td></tr>
+      <tr><td>Update</td><td>Subscription already exists</td><td>Update the existing subscription details. All fields are pre-filled with current values.</td></tr>
+      <tr><td>Suspend</td><td>Subscription is currently ACTIVE</td><td>Temporarily pause the subscription. Client loses access to this feature.</td></tr>
+      <tr><td>Resume</td><td>Subscription is currently SUSPENDED</td><td>Re-activate a suspended subscription. Client regains access.</td></tr>
+    </table>
+
+    <h3>Step-by-Step: Assigning Sahay to a Client</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Select the client</strong> from the Company dropdown.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Fill in the Sahay panel:</strong> Plan Name, Price/seat, optional Billing Cycle and dates.</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body"><strong>Select users</strong> from the checkbox list (at least one must be ticked).</div></div>
+      <div class="step"><div class="step-num"></div><div class="step-body">Click <strong>"Assign"</strong>. A status message appears confirming success. The button changes to "Update" for future edits.</div></div>
+    </div>
+  </div>
+  <div class="hi">
+    <p>यह पेज व्यक्तिगत क्लाइंट कंपनियों के लिए <strong>सहाय (AI सहायक)</strong> और <strong>ईमेल</strong> फीचर सदस्यता असाइन या अपडेट करता है।</p>
+    <h3>Company चुनें</h3>
+    <p>शीर्ष पर Company ड्रॉपडाउन से क्लाइंट चुनें। चुनने के बाद दोनों पैनल स्वचालित लोड होते हैं।</p>
+    <h3>सहाय पैनल (प्रति उपयोगकर्ता)</h3>
+    <table class="field-table">
+      <tr><th>फ़ील्ड</th><th>विवरण</th><th>आवश्यक?</th></tr>
+      <tr><td>Plan Name</td><td>सहाय प्लान का नाम</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Price / seat (₹)</td><td>प्रति उपयोगकर्ता प्रति चक्र मूल्य</td><td><span class="req">आवश्यक</span></td></tr>
+      <tr><td>Users (seats)</td><td>क्लाइंट कंपनी के उपयोगकर्ताओं की चेकबॉक्स सूची। सहाय पहुंच के लिए उपयोगकर्ता चुनें।</td><td><span class="req">न्यूनतम 1</span></td></tr>
+      <tr><td>Start / End Date</td><td>सदस्यता वैधता अवधि</td><td><span class="opt">वैकल्पिक</span></td></tr>
+    </table>
+    <h3>ईमेल पैनल (पूरी कंपनी)</h3>
+    <p>ईमेल पूरी कंपनी के लिए होता है — प्रति उपयोगकर्ता नहीं। Plan Name, Price (₹) आवश्यक।</p>
+    <h3>बटन</h3>
+    <ul>
+      <li><strong>Assign:</strong> पहली बार सदस्यता बनाएं</li>
+      <li><strong>Update:</strong> मौजूदा सदस्यता अपडेट करें</li>
+      <li><strong>Suspend:</strong> सदस्यता अस्थायी रूप से रोकें</li>
+      <li><strong>Resume:</strong> निलंबित सदस्यता पुनः सक्रिय करें</li>
+    </ul>
+  </div>
+</div>
+
+<!-- CH 11: MODULE GROUP AUTHORITY -->
+<div class="section" id="mga">
+  <div class="section-header">
+    <div class="section-icon icon-navy">🔧</div>
+    <div><span class="ch">Ch 11</span><h2 class="en">Module Group Authority (Standalone Page)</h2><h2 class="hi">मॉड्यूल ग्रुप अथॉरिटी (स्वतंत्र पृष्ठ)</h2></div>
+  </div>
+  <div class="en">
+    <p>This page manages the <strong>master library of Module Groups</strong> — reusable templates that bundle specific modules together. These groups can then be applied to multiple clients from the "Module Group Authority" tab inside Edit Subscription (Chapter 6).</p>
+    <div class="note">ℹ️ This is the <em>master catalog</em> of groups. The tab inside Edit Subscription (Ch 6) is where you <em>apply</em> a group to a specific client.</div>
+
+    <h3>Header Buttons</h3>
+    <div class="btn-row">
+      <div class="btn-doc green"><span class="btn-label">➕ Create Group</span>Open the Create Group modal to define a new module group template</div>
+      <div class="btn-doc blue"><span class="btn-label">✏️ Edit Group</span>Edit the currently selected group (disabled if no group is selected)</div>
+      <div class="btn-doc red"><span class="btn-label">🗑 Delete Group</span>Delete the selected group (requires authentication)</div>
+    </div>
+
+    <h3>Main Content Controls</h3>
+    <table class="field-table">
+      <tr><th>Control</th><th>Purpose</th><th>Example</th></tr>
+      <tr><td>Application Name (dropdown)</td><td>Filter groups by application. Changing this reloads the Module Group dropdown.</td><td>estimoprime</td></tr>
+      <tr><td>Module Group (dropdown)</td><td>Select a group to view its modules. Disabled until an application is selected.</td><td>Standard Offset Package</td></tr>
+      <tr><td>Load Module (button)</td><td>Click to display the modules included in the selected group in the grid below.</td><td>–</td></tr>
+    </table>
+
+    <h3>Module Grid (after clicking Load Module)</h3>
+    <p>Shows all modules in the selected group with columns:</p>
+    <ul>
+      <li><strong>Module Head Name</strong> — Category of the module</li>
+      <li><strong>Module Display Name</strong> — Friendly name</li>
+    </ul>
+    <p>Grid features: Search panel, Filter row, Multi-column sort, Pagination (1000/2000/5000 rows)</p>
+
+    <h3>Create / Edit Module Group Modal</h3>
+    <p>Header is <strong>green for Create</strong>, <strong>blue for Edit</strong>.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th><th>Notes</th></tr>
+      <tr><td>Application Name</td><td>Which application this group belongs to</td><td><span class="req">REQUIRED</span></td><td>Disabled (cannot change) in Edit mode</td></tr>
+      <tr><td>Module Group Name</td><td>Name for this group template</td><td><span class="req">REQUIRED</span></td><td>Pre-filled in Edit mode</td></tr>
+      <tr><td>Module Selection Grid</td><td>Checkbox grid of all available modules for the chosen application. Tick to include in this group.</td><td><span class="req">REQUIRED</span> (at least 1 in Create mode)</td><td>In Edit mode, previously selected modules are pre-ticked</td></tr>
+    </table>
+    <div class="btn-row">
+      <div class="btn-doc"><span class="btn-label">✕ Cancel</span>Close without saving</div>
+      <div class="btn-doc green"><span class="btn-label">✓ Create Group / Save</span>Save the new or edited group. Disabled if name is empty or no modules are selected (Create only).</div>
+    </div>
+
+    <h3>Delete Group — Authentication Modal</h3>
+    <p>Deleting a group requires admin authentication. The modal has a red header and shows the group name being deleted.</p>
+    <table class="field-table">
+      <tr><th>Field</th><th>Purpose</th><th>Required?</th></tr>
+      <tr><td>User Name</td><td>Your Indus admin username</td><td><span class="req">REQUIRED</span></td></tr>
+      <tr><td>Password</td><td>Your Indus admin password</td><td><span class="req">REQUIRED</span></td></tr>
+      <tr><td>Reason for Deletion</td><td>Written explanation of why this group is being deleted</td><td><span class="req">REQUIRED</span></td></tr>
+    </table>
+    <div class="danger">⚠️ Deleting a module group from the catalog does NOT automatically remove it from clients who have already had it applied. It only removes the template from the master library.</div>
+  </div>
+  <div class="hi">
+    <p>यह पेज <strong>मॉड्यूल ग्रुप की मास्टर लाइब्रेरी</strong> प्रबंधित करता है — पुन: उपयोग योग्य टेम्पलेट जो विशिष्ट मॉड्यूल को एक साथ बंडल करते हैं।</p>
+    <h3>मुख्य नियंत्रण</h3>
+    <ul>
+      <li><strong>Application Name</strong> चुनें → <strong>Module Group</strong> चुनें → <strong>"Load Module"</strong> पर क्लिक करें</li>
+      <li>ग्रुप बनाएं: हरा "Create Group" बटन → Application + Group Name + मॉड्यूल चेकबॉक्स</li>
+      <li>ग्रुप संपादित करें: नीला "Edit Group" बटन (ग्रुप चुनने के बाद)</li>
+      <li>ग्रुप हटाएं: लाल "Delete Group" बटन → प्रमाणीकरण आवश्यक (Username + Password + कारण)</li>
+    </ul>
+    <div class="danger">⚠️ मॉड्यूल ग्रुप हटाने से उन क्लाइंटों पर इसका प्रभाव नहीं पड़ता जिन पर यह पहले से लागू हो चुका है।</div>
+  </div>
+</div>
+
+<!-- CH 12: TROUBLESHOOTING -->
+<div class="section" id="trouble">
+  <div class="section-header">
+    <div class="section-icon icon-red">🛠️</div>
+    <div><span class="ch">Ch 12</span><h2 class="en">Troubleshooting</h2><h2 class="hi">समस्या निवारण</h2></div>
+  </div>
+  <div class="en">
+    <table class="field-table">
+      <tr><th>Problem</th><th>Likely Cause</th><th>Solution</th></tr>
+      <tr><td>"Create Database" button stays disabled in Wizard Step 1</td><td>Backup Database Name field is empty or not selected</td><td>Select a value from the Backup Database Name dropdown, or type a database name</td></tr>
+      <tr><td>HTTP Transfer progress bar freezes</td><td>Network timeout or remote server not reachable</td><td>Verify the Destination Server URL and API Key are correct; check that the remote server is running</td></tr>
+      <tr><td>CAPTCHA confirmation fails repeatedly</td><td>Math answer entered incorrectly</td><td>Solve the subtraction problem shown (e.g., 43 − 7 = 36) and enter the exact number</td></tr>
+      <tr><td>Module Name field shows "Already exists" error in red</td><td>A module with the same filename already exists in the client's database</td><td>Choose a different module name, or delete the existing module first from the list view</td></tr>
+      <tr><td>Group Index error in New Module Addition</td><td>Another module head is already using that group index number</td><td>Change the Set Group Index to a different number not currently in use</td></tr>
+      <tr><td>"No connection string" shown in Tab 4 or Tab 5</td><td>The client's database connection was not set up (Wizard Step 1 was not completed)</td><td>Complete the database setup via the Create New wizard first</td></tr>
+      <tr><td>Sahay "Assign" fails with "No users selected"</td><td>No user checkboxes were ticked in the Users section</td><td>Tick at least one user from the scrollable list before clicking Assign</td></tr>
+      <tr><td>Plan disappears after clicking Delete on Manage Plans</td><td>Delete on plan cards is immediate with no confirmation</td><td>Plans cannot be recovered — recreate it using "New Plan". Be careful before deleting.</td></tr>
+      <tr><td>Edit Group button is disabled</td><td>No group is selected in the Module Group dropdown</td><td>First select an Application Name, then select a group, then click Load Module — then Edit Group becomes available</td></tr>
+      <tr><td>Cannot log in as Indus admin</td><td>Wrong username/password, or logged in as company user</td><td>On the company login screen, select "Indus" login type and use your Indus admin credentials (not a client's credentials)</td></tr>
+    </table>
+  </div>
+  <div class="hi">
+    <table class="field-table">
+      <tr><th>समस्या</th><th>संभावित कारण</th><th>समाधान</th></tr>
+      <tr><td>Wizard में "Create Database" बटन अक्षम रहता है</td><td>Backup Database Name खाली है</td><td>ड्रॉपडाउन से मान चुनें</td></tr>
+      <tr><td>Module Name में लाल "Already exists" त्रुटि</td><td>वही फ़ाइलनाम पहले से क्लाइंट DB में है</td><td>भिन्न मॉड्यूल नाम चुनें या मौजूदा हटाएं</td></tr>
+      <tr><td>Group Index त्रुटि</td><td>दूसरा मॉड्यूल हेड पहले से वह इंडेक्स उपयोग कर रहा है</td><td>Set Group Index बदलें</td></tr>
+      <tr><td>Tab 4 या 5 में "No connection string"</td><td>विज़ार्ड Step 1 पूरा नहीं हुआ</td><td>पहले Create New विज़ार्ड से डेटाबेस सेटअप करें</td></tr>
+      <tr><td>Sahay Assign विफल — "No users selected"</td><td>उपयोगकर्ता सूची में कोई चेकबॉक्स नहीं चुना</td><td>कम से कम एक उपयोगकर्ता टिक करें</td></tr>
+      <tr><td>Edit Group बटन अक्षम</td><td>कोई ग्रुप चयनित नहीं</td><td>Application Name चुनें, फिर Module Group चुनें</td></tr>
+      <tr><td>Indus एडमिन लॉगिन नहीं होता</td><td>गलत क्रेडेंशियल या गलत लॉगिन प्रकार</td><td>Company Login स्क्रीन पर "Indus" प्रकार चुनें और एडमिन क्रेडेंशियल उपयोग करें</td></tr>
+    </table>
+  </div>
+</div>
+
+<p style="text-align:center;color:var(--muted);font-size:13px;margin-top:32px;padding-bottom:40px">
+  ExcelJet — Indus Admin Portal User Manual · <span class="en">Bilingual Edition (EN/HI)</span><span class="hi">द्विभाषी संस्करण (EN/HI)</span> · July 2026
+</p>
+</main>
+</div>
+
+<script>
+function setLang(l){
+  document.body.className=document.body.className.replace(/lang-\w+/,'')+'lang-'+l;
+  document.getElementById('btnEn').className='lang-btn'+(l==='en'?' active':'');
+  document.getElementById('btnHi').className='lang-btn'+(l==='hi'?' active':'');
+  localStorage.setItem('indusManualLang',l);
+}
+(function(){
+  var s=localStorage.getItem('indusManualLang');
+  if(s)setLang(s);
+  var links=document.querySelectorAll('nav a');
+  function activate(){
+    links.forEach(function(a){a.classList.remove('active')});
+    var h=location.hash;
+    links.forEach(function(a){if(a.getAttribute('href')===h)a.classList.add('active')});
+  }
+  window.addEventListener('hashchange',activate);
+  activate();
+})();
+
+// Fix anchor navigation inside srcDoc iframes — Chrome blocks href="#id" navigation
+// from about:srcdoc; intercept and use scrollIntoView instead.
+document.addEventListener('click', function(e) {
+  var a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  e.preventDefault();
+  var id = a.getAttribute('href').slice(1);
+  var el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // manually update active nav link
+    document.querySelectorAll('nav a').forEach(function(l){l.classList.remove('active')});
+    a.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>

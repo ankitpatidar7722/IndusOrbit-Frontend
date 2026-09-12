@@ -5,7 +5,7 @@ import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, Standard
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, PlayCircle, Sparkles } from "lucide-react";
+import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, Sparkles } from "lucide-react";
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
@@ -56,6 +56,16 @@ const inputStyle: React.CSSProperties = {
   width: "100%", padding: "9px 11px", border: "1px solid #cbd5e1", borderRadius: 8,
   fontSize: 13, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", outline: "none",
 };
+
+/** The real (red) YouTube logo — lucide has no Youtube brand icon in this version. */
+function YoutubeIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M23 12s0-3.2-.41-4.73a2.5 2.5 0 0 0-1.76-1.77C19.28 5 12 5 12 5s-7.28 0-8.83.5A2.5 2.5 0 0 0 1.4 7.27C1 8.8 1 12 1 12s0 3.2.41 4.73a2.5 2.5 0 0 0 1.76 1.77C4.72 19 12 19 12 19s7.28 0 8.83-.5a2.5 2.5 0 0 0 1.76-1.77C23 15.2 23 12 23 12Z" fill="#FF0000" />
+      <path d="M9.75 15.5v-7l6 3.5-6 3.5Z" fill="#fff" />
+    </svg>
+  );
+}
 const labelStyle: React.CSSProperties = {
   fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600, marginBottom: 5, display: "block",
 };
@@ -1004,8 +1014,8 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
       if (!u) return "—";
       return (
         <a href={u} target="_blank" rel="noreferrer" title={u}
-          style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "rgb(var(--color-primary))", fontWeight: 600, textDecoration: "none" }}>
-          <PlayCircle size={14} /> Watch
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#c0392b", fontWeight: 600, textDecoration: "none" }}>
+          <YoutubeIcon size={15} /> Watch
         </a>
       );
     },

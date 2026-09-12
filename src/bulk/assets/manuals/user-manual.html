@@ -1,0 +1,1034 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ExcelJet — User Manual / उपयोगकर्ता पुस्तिका</title>
+<style>
+:root {
+  --navy:#0F294D; --blue:#2563EB; --blue-light:#EFF6FF; --blue-mid:#BFDBFE;
+  --page:#F8F9FC; --surface:#FFFFFF; --border:#E2E8F0;
+  --text:#1E293B; --text-2:#475569; --text-3:#94A3B8;
+  --amber:#D97706; --amber-bg:#FFFBEB; --amber-border:#FDE68A;
+  --red:#DC2626; --red-bg:#FEF2F2; --red-border:#FECACA;
+  --green:#16A34A; --green-bg:#F0FDF4; --green-border:#BBF7D0;
+  --toc-w:268px; --content-max:820px;
+  --serif:Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','Fira Mono','Consolas',monospace;
+}
+@media(prefers-color-scheme:dark){
+  :root{--page:#0D1520;--surface:#111827;--border:#1F2D40;--text:#E2E8F0;--text-2:#94A3B8;--text-3:#475569;--blue-light:#1e3a5f;--amber-bg:#1c1407;--amber-border:#78350f;--red-bg:#1c0a0a;--red-border:#7f1d1d;--green-bg:#052e16;--green-border:#14532d;}
+}
+:root[data-theme="light"]{--page:#F8F9FC;--surface:#FFFFFF;--border:#E2E8F0;--text:#1E293B;--text-2:#475569;--text-3:#94A3B8;--blue-light:#EFF6FF;--amber-bg:#FFFBEB;--amber-border:#FDE68A;--red-bg:#FEF2F2;--red-border:#FECACA;--green-bg:#F0FDF4;--green-border:#BBF7D0;}
+:root[data-theme="dark"]{--page:#0D1520;--surface:#111827;--border:#1F2D40;--text:#E2E8F0;--text-2:#94A3B8;--text-3:#475569;--blue-light:#1e3a5f;--amber-bg:#1c1407;--amber-border:#78350f;--red-bg:#1c0a0a;--red-border:#7f1d1d;--green-bg:#052e16;--green-border:#14532d;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--sans);background:var(--page);color:var(--text);line-height:1.7;font-size:15px;}
+
+/* ── Bilingual toggle ── */
+body.lang-en .hi{display:none;}
+body.lang-hi .en{display:none;}
+body{} /* default lang set via JS */
+
+.lang-pill{
+  display:flex; align-items:center; gap:2px;
+  background:rgba(255,255,255,.1);
+  border-radius:20px; padding:3px;
+  margin:12px 20px 0;
+}
+.lang-pill button{
+  flex:1; padding:4px 10px;
+  font-size:12px; font-weight:700;
+  border:none; border-radius:16px;
+  cursor:pointer; background:transparent;
+  color:rgba(255,255,255,.55);
+  transition:all .15s;
+  font-family:var(--sans);
+}
+.lang-pill button.active{background:#2563EB;color:#fff;}
+
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh;}
+.toc{width:var(--toc-w);flex-shrink:0;background:var(--navy);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent;}
+.toc::-webkit-scrollbar{width:4px;}
+.toc::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px;}
+.toc-brand{padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.1);}
+.toc-brand-logo{width:32px;height:32px;background:#2563EB;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;margin-bottom:10px;}
+.toc-brand h1{font-size:13px;font-weight:700;color:#fff;letter-spacing:.02em;text-transform:uppercase;}
+.toc-brand p{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
+.toc-nav{padding:10px 0 24px;flex:1;}
+.toc-section-label{padding:12px 20px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);}
+.toc-nav a{display:block;padding:6px 20px;font-size:12.5px;color:rgba(255,255,255,.65);text-decoration:none;transition:color .15s,background .15s;line-height:1.4;}
+.toc-nav a:hover,.toc-nav a.active{color:#fff;background:rgba(255,255,255,.08);}
+.toc-nav a.active{border-left:2px solid #2563EB;padding-left:18px;}
+.toc-sub{padding:4px 20px 4px 32px;font-size:11.5px;}
+.content{flex:1;min-width:0;padding:0 48px 80px;}
+
+/* ── Cover ── */
+.cover{background:var(--navy);margin:0 -48px;padding:56px 48px 44px;margin-bottom:52px;position:relative;overflow:hidden;}
+.cover::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;background:rgba(37,99,235,.18);border-radius:50%;}
+.cover-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#60A5FA;margin-bottom:14px;}
+.cover h1{font-family:var(--serif);font-size:36px;font-weight:normal;color:#fff;line-height:1.2;max-width:580px;margin-bottom:8px;position:relative;z-index:1;}
+.cover-sub{font-size:16px;color:rgba(255,255,255,.6);font-family:var(--serif);margin-bottom:14px;position:relative;z-index:1;}
+.cover-meta{font-size:13px;color:rgba(255,255,255,.45);position:relative;z-index:1;}
+.cover-meta span{margin-right:24px;}
+
+/* ── Sections ── */
+.section{max-width:var(--content-max);margin-bottom:60px;scroll-margin-top:24px;}
+.section-header{display:flex;align-items:center;gap:14px;margin-bottom:26px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.section-icon{width:40px;height:40px;flex-shrink:0;background:var(--navy);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.section-meta .label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:2px;}
+.section-meta h2{font-family:var(--serif);font-size:25px;font-weight:normal;color:var(--text);line-height:1.2;}
+.section p{color:var(--text-2);margin-bottom:14px;}
+.section p:last-child{margin-bottom:0;}
+.sub{margin-bottom:36px;scroll-margin-top:24px;}
+.sub h3{font-family:var(--serif);font-size:18px;font-weight:normal;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.sub h4{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-2);margin:18px 0 10px;}
+
+/* ── Steps ── */
+.steps{list-style:none;counter-reset:steps;}
+.steps li{counter-increment:steps;display:flex;gap:14px;margin-bottom:12px;align-items:flex-start;}
+.steps li::before{content:counter(steps);flex-shrink:0;width:24px;height:24px;background:var(--blue);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:3px;}
+.steps li p{margin:0;color:var(--text);}
+
+/* ── Callouts ── */
+.callout{border-left:3px solid;padding:12px 16px;margin:16px 0;border-radius:0 3px 3px 0;font-size:14px;}
+.callout-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+.callout.note{border-color:var(--blue);background:var(--blue-light);}
+.callout.note .callout-title{color:var(--blue);}
+.callout.warning{border-color:var(--amber);background:var(--amber-bg);}
+.callout.warning .callout-title{color:var(--amber);}
+.callout.danger{border-color:var(--red);background:var(--red-bg);}
+.callout.danger .callout-title{color:var(--red);}
+.callout.tip{border-color:var(--green);background:var(--green-bg);}
+.callout.tip .callout-title{color:var(--green);}
+
+/* ── Tables ── */
+.table-wrap{overflow-x:auto;margin:14px 0;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{background:var(--navy);color:rgba(255,255,255,.9);text-align:left;padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even) td{background:rgba(0,0,0,.02);}
+:root[data-theme="dark"] tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+
+/* ── UI labels ── */
+.btn-label{display:inline-block;font-family:var(--mono);font-size:12px;padding:2px 8px;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);white-space:nowrap;}
+.btn-label.blue{background:#2563EB;color:#fff;border-color:#2563EB;}
+.btn-label.red{background:#DC2626;color:#fff;border-color:#DC2626;}
+.btn-label.amber{background:#D97706;color:#fff;border-color:#D97706;}
+.btn-label.green{background:#16A34A;color:#fff;border-color:#16A34A;}
+.field-name{font-family:var(--mono);font-size:12.5px;color:var(--blue);background:var(--blue-light);padding:1px 6px;border-radius:3px;}
+.status-badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.status-badge.green{background:var(--green-bg);color:var(--green);}
+.status-badge.amber{background:var(--amber-bg);color:var(--amber);}
+.status-badge.grey{background:var(--border);color:var(--text-2);}
+.divider{border:none;border-top:1px solid var(--border);margin:44px 0;}
+.module-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px;margin:14px 0;}
+.module-card{border:1px solid var(--border);border-radius:6px;padding:12px 14px;background:var(--surface);}
+.module-card .mc-icon{font-size:18px;margin-bottom:6px;}
+.module-card .mc-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.module-card .mc-desc{font-size:12px;color:var(--text-2);}
+
+@media(max-width:768px){.toc{display:none;}.content{padding:0 20px 60px;}.cover{margin:0 -20px;padding:36px 20px 30px;}.cover h1{font-size:24px;}}
+</style>
+
+<div class="layout">
+
+<!-- ── TOC ── -->
+<nav class="toc" id="toc">
+  <div class="toc-brand">
+    <div class="toc-brand-logo">EJ</div>
+    <h1>ExcelJet</h1>
+    <p class="en">User Manual · v1.0</p>
+    <p class="hi">उपयोगकर्ता पुस्तिका · v1.0</p>
+  </div>
+
+  <!-- Language Toggle -->
+  <div class="lang-pill">
+    <button id="btn-en" onclick="setLang('en')" class="active">EN</button>
+    <button id="btn-hi" onclick="setLang('hi')">हिं</button>
+  </div>
+
+  <div class="toc-nav">
+    <div class="toc-section-label"><span class="en">Getting Started</span><span class="hi">शुरुआत</span></div>
+    <a href="#login"><span class="en">1. Login & Authentication</span><span class="hi">1. लॉगिन और प्रमाणीकरण</span></a>
+    <a href="#navigation"><span class="en">2. Navigation & Layout</span><span class="hi">2. नेविगेशन और लेआउट</span></a>
+
+    <div class="toc-section-label"><span class="en">Main Modules</span><span class="hi">मुख्य मॉड्यूल</span></div>
+    <a href="#dashboard"><span class="en">3. Dashboard</span><span class="hi">3. डैशबोर्ड</span></a>
+    <a href="#import-master"><span class="en">4. Import Master</span><span class="hi">4. इम्पोर्ट मास्टर</span></a>
+    <a class="toc-sub" href="#im-workflow"><span class="en">Getting Started</span><span class="hi">शुरुआत</span></a>
+    <a class="toc-sub" href="#im-buttons"><span class="en">6 Buttons Explained</span><span class="hi">6 बटन की जानकारी</span></a>
+    <a class="toc-sub" href="#im-wf-a"><span class="en">Workflow A — View & Delete</span><span class="hi">Workflow A — देखें और हटाएं</span></a>
+    <a class="toc-sub" href="#im-wf-b"><span class="en">Workflow B — Existing Upload</span><span class="hi">Workflow B — मौजूदा अपलोड</span></a>
+    <a class="toc-sub" href="#im-wf-c"><span class="en">Workflow C — Fresh Upload</span><span class="hi">Workflow C — नई अपलोड</span></a>
+    <a class="toc-sub" href="#im-all"><span class="en">All 5 Modules</span><span class="hi">सभी 5 मॉड्यूल</span></a>
+    <a href="#stock-upload"><span class="en">5. Stock Upload</span><span class="hi">5. स्टॉक अपलोड</span></a>
+    <a class="toc-sub" href="#su-grid"><span class="en">Stock Grid Features</span><span class="hi">स्टॉक ग्रिड</span></a>
+    <a class="toc-sub" href="#su-reset"><span class="en">Reset Stock</span><span class="hi">स्टॉक रीसेट</span></a>
+    <a href="#company-master"><span class="en">6. Company Master</span><span class="hi">6. कंपनी मास्टर</span></a>
+    <a href="#module-authority"><span class="en">7. Module Authority</span><span class="hi">7. मॉड्यूल अथॉरिटी</span></a>
+    <a class="toc-sub" href="#ma-grid"><span class="en">Module List Grid</span><span class="hi">मॉड्यूल सूची</span></a>
+    <a class="toc-sub" href="#ma-groups"><span class="en">Manage Groups</span><span class="hi">Groups प्रबंधन</span></a>
+    <a href="#new-module"><span class="en">8. New Module Addition</span><span class="hi">8. नया मॉड्यूल जोड़ना</span></a>
+    <a class="toc-sub" href="#nm-form"><span class="en">Form Fields</span><span class="hi">फ़ॉर्म Fields</span></a>
+    <a class="toc-sub" href="#nm-autofill"><span class="en">Auto-fill Feature</span><span class="hi">Auto-fill सुविधा</span></a>
+    <a href="#content-authority"><span class="en">9. Content Authority</span><span class="hi">9. कंटेंट अथॉरिटी</span></a>
+    <a href="#erp-delete"><span class="en">10. ERP Transaction Delete</span><span class="hi">10. ERP ट्रांजेक्शन डिलीट</span></a>
+    <a class="toc-sub" href="#del-master"><span class="en">Delete Master Data</span><span class="hi">मास्टर डेटा हटाएं</span></a>
+    <a class="toc-sub" href="#del-all"><span class="en">Delete All Transactions</span><span class="hi">सभी ट्रांजेक्शन हटाएं</span></a>
+    <a href="#keyline"><span class="en">11. Key Line Generator</span><span class="hi">11. की-लाइन जनरेटर</span></a>
+
+    <div class="toc-section-label"><span class="en">Reference</span><span class="hi">संदर्भ</span></div>
+    <a href="#best-practices"><span class="en">12. Best Practices</span><span class="hi">12. सर्वोत्तम तरीके</span></a>
+    <a href="#troubleshooting"><span class="en">13. Troubleshooting</span><span class="hi">13. समस्या निवारण</span></a>
+    <a href="#glossary"><span class="en">14. Glossary</span><span class="hi">14. शब्दावली</span></a>
+  </div>
+</nav>
+
+<!-- ── Content ── -->
+<main class="content">
+
+<!-- Cover -->
+<div class="cover">
+  <div class="cover-tag"><span class="en">Complete Guide</span><span class="hi">सम्पूर्ण गाइड</span></div>
+  <h1><span class="en">ExcelJet Application<br>User Manual</span><span class="hi">ExcelJet एप्लिकेशन<br>उपयोगकर्ता पुस्तिका</span></h1>
+  <div class="cover-sub"><span class="en">Master data import &amp; management for your ERP</span><span class="hi">आपके ERP के लिए मास्टर डेटा इम्पोर्ट और प्रबंधन</span></div>
+  <div class="cover-meta"><span>Version 1.0</span><span>Indus Analytics</span><span><span class="en">For all user levels</span><span class="hi">सभी उपयोगकर्ताओं के लिए</span></span></div>
+</div>
+
+<!-- ════════════════ CH 1: LOGIN ════════════════ -->
+<section class="section" id="login">
+  <div class="section-header">
+    <div class="section-icon">🔐</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 1</span><span class="hi">अध्याय 1</span></div>
+      <h2><span class="en">Login &amp; Authentication</span><span class="hi">लॉगिन और प्रमाणीकरण</span></h2>
+    </div>
+  </div>
+
+  <p><span class="en">ExcelJet uses a <strong>two-step login process</strong>. First select your company, then enter your username and password.</span><span class="hi">ExcelJet में <strong>दो-चरण लॉगिन प्रक्रिया</strong> होती है। पहले अपनी कंपनी चुनें, फिर यूज़रनेम और पासवर्ड डालें।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Step 1 — Select Your Company</span><span class="hi">चरण 1 — अपनी कंपनी चुनें</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Open your browser and go to the application URL given by your administrator.</span><span class="hi">ब्राउज़र खोलें और अपने एडमिन द्वारा दिया गया एप्लिकेशन URL खोलें।</span></p></li>
+      <li><p><span class="en">On the <strong>Company Login</strong> screen, click the <span class="field-name">Select Company</span> dropdown and choose your company.</span><span class="hi"><strong>Company Login</strong> स्क्रीन पर <span class="field-name">Select Company</span> ड्रॉपडाउन पर क्लिक करें और अपनी कंपनी चुनें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Login</span> to proceed.</span><span class="hi"><span class="btn-label blue">Login</span> बटन दबाएं।</span></p></li>
+    </ol>
+    <div class="callout note">
+      <div class="callout-title"><span class="en">Note</span><span class="hi">ध्यान दें</span></div>
+      <span class="en">If your company name does not appear in the list, contact your system administrator. The company must be registered before you can log in.</span>
+      <span class="hi">अगर आपकी कंपनी का नाम लिस्ट में नहीं दिखे, तो अपने सिस्टम एडमिन से संपर्क करें।</span>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Step 2 — Enter Your Credentials</span><span class="hi">चरण 2 — अपनी जानकारी दर्ज करें</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Enter your <span class="field-name">Username</span>.</span><span class="hi">अपना <span class="field-name">Username</span> दर्ज करें।</span></p></li>
+      <li><p><span class="en">Enter your <span class="field-name">Password</span>.</span><span class="hi">अपना <span class="field-name">Password</span> दर्ज करें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Sign In</span>.</span><span class="hi"><span class="btn-label blue">Sign In</span> बटन दबाएं।</span></p></li>
+    </ol>
+    <div class="callout warning">
+      <div class="callout-title"><span class="en">Important</span><span class="hi">महत्वपूर्ण</span></div>
+      <span class="en">Passwords are case-sensitive. Ensure Caps Lock is OFF. If you fail multiple times, contact your administrator to reset your password.</span>
+      <span class="hi">पासवर्ड case-sensitive होता है। Caps Lock बंद रखें। कई बार गलत पासवर्ड डालने पर एडमिन से पासवर्ड रीसेट कराएं।</span>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Two Types of User Accounts</span><span class="hi">दो प्रकार के यूज़र अकाउंट</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Account Type</span><span class="hi">अकाउंट प्रकार</span></th><th><span class="en">Access</span><span class="hi">पहुंच</span></th><th><span class="en">Default Home</span><span class="hi">डिफ़ॉल्ट होम</span></th></tr>
+      <tr><td><strong><span class="en">Company User</span><span class="hi">कंपनी यूज़र</span></strong></td><td><span class="en">Dashboard, Import Master, Stock Upload, Company Master, Content Authority, ERP Delete, Key Line</span><span class="hi">डैशबोर्ड, इम्पोर्ट मास्टर, स्टॉक अपलोड, कंपनी मास्टर, कंटेंट अथॉरिटी, ERP डिलीट, की-लाइन</span></td><td>Dashboard</td></tr>
+      <tr><td><strong><span class="en">Indus Admin</span><span class="hi">इंडस एडमिन</span></strong></td><td><span class="en">Company Subscription, Manage Plans, Module Group Authority</span><span class="hi">कंपनी सब्सक्रिप्शन, प्लान प्रबंधन, मॉड्यूल ग्रुप अथॉरिटी</span></td><td>Company Subscription</td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Logging Out</span><span class="hi">लॉगआउट करना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Click your <strong>username/profile icon</strong> in the top-right corner.</span><span class="hi">स्क्रीन के ऊपर-दाईं ओर अपने <strong>प्रोफ़ाइल आइकन</strong> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">A dropdown appears. Click <span class="btn-label red">Logout</span> (shown in red at the bottom).</span><span class="hi">ड्रॉपडाउन में नीचे <span class="btn-label red">Logout</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">A confirmation dialog asks <em>"Do you want to logout?"</em> — Click <span class="btn-label red">Yes</span>.</span><span class="hi">एक confirmation dialog आएगा — <span class="btn-label red">Yes</span> पर क्लिक करें।</span></p></li>
+    </ol>
+    <div class="callout tip">
+      <div class="callout-title"><span class="en">Best Practice</span><span class="hi">अच्छी आदत</span></div>
+      <span class="en">Always log out when you finish your session, especially on shared computers.</span>
+      <span class="hi">काम खत्म होने पर हमेशा लॉगआउट करें, खासकर shared कंप्यूटर पर।</span>
+    </div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 2: NAVIGATION ════════════════ -->
+<section class="section" id="navigation">
+  <div class="section-header">
+    <div class="section-icon">🧭</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 2</span><span class="hi">अध्याय 2</span></div>
+      <h2><span class="en">Navigation &amp; Layout</span><span class="hi">नेविगेशन और लेआउट</span></h2>
+    </div>
+  </div>
+  <p><span class="en">The application has a consistent layout on every page.</span><span class="hi">एप्लिकेशन हर पेज पर एक जैसा दिखता है।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Three Main Areas</span><span class="hi">तीन मुख्य क्षेत्र</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Area</span><span class="hi">क्षेत्र</span></th><th><span class="en">Location</span><span class="hi">स्थान</span></th><th><span class="en">Purpose</span><span class="hi">उद्देश्य</span></th></tr>
+      <tr><td><strong>Sidebar</strong></td><td><span class="en">Left (dark navy panel)</span><span class="hi">बाईं ओर (गहरा नीला पैनल)</span></td><td><span class="en">Navigate between modules.</span><span class="hi">मॉड्यूल के बीच नेविगेट करें।</span></td></tr>
+      <tr><td><strong>Header</strong></td><td><span class="en">Top bar</span><span class="hi">ऊपरी पट्टी</span></td><td><span class="en">Company name, theme switch, user profile menu.</span><span class="hi">कंपनी नाम, थीम स्विच, यूज़र प्रोफ़ाइल मेनू।</span></td></tr>
+      <tr><td><span class="en"><strong>Main Area</strong></span><span class="hi"><strong>मुख्य क्षेत्र</strong></span></td><td><span class="en">Centre/Right</span><span class="hi">बीच/दाईं ओर</span></td><td><span class="en">Working area for the current module.</span><span class="hi">चयनित मॉड्यूल का कार्य क्षेत्र।</span></td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Switching Dark / Light Mode</span><span class="hi">डार्क / लाइट मोड बदलना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Find the <strong>moon or sun icon</strong> (🌙/☀️) in the top-right header.</span><span class="hi">हेडर में ऊपर-दाईं ओर <strong>चंद्रमा या सूरज आइकन</strong> (🌙/☀️) ढूंढें।</span></p></li>
+      <li><p><span class="en">Click once to toggle theme. Your preference is saved automatically.</span><span class="hi">एक बार क्लिक करने पर थीम बदल जाएगी। आपकी पसंद अपने आप सेव हो जाती है।</span></p></li>
+    </ol>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 3: DASHBOARD ════════════════ -->
+<section class="section" id="dashboard">
+  <div class="section-header">
+    <div class="section-icon">📊</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 3</span><span class="hi">अध्याय 3</span></div>
+      <h2><span class="en">Dashboard</span><span class="hi">डैशबोर्ड</span></h2>
+    </div>
+  </div>
+  <p><span class="en">The Dashboard is the first screen after login. It gives a quick overview of system activity — information only, nothing editable here.</span><span class="hi">डैशबोर्ड लॉगिन के बाद पहली स्क्रीन है। यह सिस्टम गतिविधि का त्वरित अवलोकन देती है — यहाँ कुछ बदला नहीं जा सकता।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Dashboard Cards</span><span class="hi">डैशबोर्ड कार्ड</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Card</span><span class="hi">कार्ड</span></th><th><span class="en">What It Shows</span><span class="hi">क्या दिखाता है</span></th></tr>
+      <tr><td><span class="en"><strong>Total Imports</strong> (Blue)</span><span class="hi"><strong>कुल इम्पोर्ट</strong> (नीला)</span></td><td><span class="en">Total import operations performed.</span><span class="hi">अब तक किए गए कुल इम्पोर्ट ऑपरेशन।</span></td></tr>
+      <tr><td><span class="en"><strong>Success Rate</strong> (Green)</span><span class="hi"><strong>सफलता दर</strong> (हरा)</span></td><td><span class="en">Percentage of successful imports.</span><span class="hi">सफल इम्पोर्ट का प्रतिशत।</span></td></tr>
+      <tr><td><span class="en"><strong>Active Modules</strong> (Purple)</span><span class="hi"><strong>सक्रिय मॉड्यूल</strong> (बैंगनी)</span></td><td><span class="en">Number of active modules for your company.</span><span class="hi">आपकी कंपनी के सक्रिय मॉड्यूल की संख्या।</span></td></tr>
+      <tr><td><span class="en"><strong>Total Users</strong> (Orange)</span><span class="hi"><strong>कुल यूज़र</strong> (नारंगी)</span></td><td><span class="en">Number of user accounts in the system.</span><span class="hi">सिस्टम में यूज़र अकाउंट की संख्या।</span></td></tr>
+      <tr><td><span class="en"><strong>Recent Activity</strong></span><span class="hi"><strong>हाल की गतिविधि</strong></span></td><td><span class="en">List of recent actions performed in the system.</span><span class="hi">सिस्टम में हाल ही में किए गए कार्यों की सूची।</span></td></tr>
+    </table></div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 4: IMPORT MASTER ════════════════ -->
+<section class="section" id="import-master">
+  <div class="section-header">
+    <div class="section-icon">📤</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 4</span><span class="hi">अध्याय 4</span></div>
+      <h2><span class="en">Import Master</span><span class="hi">इम्पोर्ट मास्टर</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Import Master manages all master data — Ledger Master, Item Masters, Product Group Master, Spare Part Master, and Tool Master. <strong>All five modules use the same six-button interface.</strong></span><span class="hi">Import Master सभी मास्टर डेटा को manage करता है — Ledger Master, Item Masters, Product Group Master, Spare Part Master और Tool Master। <strong>पाँचों मॉड्यूल में एक जैसे छह बटन होते हैं।</strong></span></p>
+
+  <div class="sub" id="im-workflow">
+    <h3><span class="en">Getting Started</span><span class="hi">शुरुआत कैसे करें</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Click <strong>Import Master</strong> in the left sidebar.</span><span class="hi">बाईं साइडबार में <strong>Import Master</strong> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">Click the <span class="field-name">Module Name</span> dropdown and select the master type (e.g., "Ledger Master", "Item Masters").</span><span class="hi"><span class="field-name">Module Name</span> ड्रॉपडाउन में मास्टर प्रकार चुनें (जैसे "Ledger Master", "Item Masters")।</span></p></li>
+      <li><p><span class="en">A second dropdown appears for the Group (e.g., <span class="field-name">Ledger Group</span>). Select the specific group.</span><span class="hi">Group के लिए दूसरा ड्रॉपडाउन दिखेगा (जैसे <span class="field-name">Ledger Group</span>)। उचित group चुनें।</span></p></li>
+      <li><p><span class="en">Six action buttons appear. Choose the button matching what you want to do (see table below).</span><span class="hi">छह एक्शन बटन दिखेंगे। आप जो करना चाहते हैं उसके अनुसार बटन चुनें (नीचे तालिका देखें)।</span></p></li>
+    </ol>
+    <div class="callout note">
+      <div class="callout-title"><span class="en">Refresh Button</span><span class="hi">Refresh बटन</span></div>
+      <span class="en">The purple <span class="btn-label" style="background:#7C3AED;color:#fff;">⟳ Refresh</span> button resets the entire page — clears your selection, empties the grid.</span>
+      <span class="hi">बैंगनी <span class="btn-label" style="background:#7C3AED;color:#fff;">⟳ Refresh</span> बटन पूरे पेज को रीसेट कर देता है — चयन और ग्रिड दोनों खाली हो जाते हैं।</span>
+    </div>
+  </div>
+
+  <div class="sub" id="im-buttons">
+    <h3><span class="en">The Six Buttons — What Each One Does</span><span class="hi">छह बटन — हर बटन क्या करता है</span></h3>
+    <div class="table-wrap"><table>
+      <tr>
+        <th><span class="en">Button</span><span class="hi">बटन</span></th>
+        <th><span class="en">Colour</span><span class="hi">रंग</span></th>
+        <th><span class="en">What It Does</span><span class="hi">क्या करता है</span></th>
+        <th><span class="en">When to Use</span><span class="hi">कब उपयोग करें</span></th>
+      </tr>
+      <tr>
+        <td><span class="btn-label blue">Load Data</span></td>
+        <td><span class="en">Blue</span><span class="hi">नीला</span></td>
+        <td><span class="en">Loads all existing database records for this group into the grid. Header shows "Database Records (N rows)".</span><span class="hi">इस group के सभी मौजूदा डेटाबेस रिकॉर्ड ग्रिड में लोड करता है। हेडर में "Database Records (N rows)" दिखता है।</span></td>
+        <td><span class="en">To <strong>view, review, or delete</strong> existing records.</span><span class="hi">मौजूदा रिकॉर्ड <strong>देखने, समीक्षा करने या हटाने</strong> के लिए।</span></td>
+      </tr>
+      <tr>
+        <td><span class="btn-label red">Clear All Data</span></td>
+        <td><span class="en">Red</span><span class="hi">लाल</span></td>
+        <td><span class="en">Permanently deletes ALL records for this group from the database. Requires 3 CAPTCHA checks + credentials.</span><span class="hi">इस group के सभी रिकॉर्ड डेटाबेस से स्थायी रूप से हटा देता है। 3 CAPTCHA + credentials जरूरी हैं।</span></td>
+        <td><span class="en">To <strong>wipe the entire group</strong>. Cannot be undone.</span><span class="hi">पूरे group को <strong>मिटाने</strong> के लिए। यह वापस नहीं होता।</span></td>
+      </tr>
+      <tr>
+        <td><span class="btn-label amber">Soft Delete (N)</span></td>
+        <td><span class="en">Brown</span><span class="hi">भूरा</span></td>
+        <td><span class="en">Permanently deletes only the selected rows (N = count selected). Only visible in "Load Data" mode.</span><span class="hi">केवल चुनी हुई rows हटाता है (N = चुनी हुई rows की संख्या)। सिर्फ "Load Data" mode में दिखता है।</span></td>
+        <td><span class="en">To <strong>delete specific records</strong>, not all.</span><span class="hi"><strong>खास रिकॉर्ड हटाने</strong> के लिए, सभी नहीं।</span></td>
+      </tr>
+      <tr>
+        <td><span class="btn-label" style="background:#0D9488;color:#fff;">Fresh Upload</span></td>
+        <td><span class="en">Teal</span><span class="hi">हरा-नीला</span></td>
+        <td><span class="en">First clears all existing data (CAPTCHA + credentials required), then opens file picker for a replacement Excel file.</span><span class="hi">पहले सभी मौजूदा डेटा हटाता है (CAPTCHA + credentials चाहिए), फिर नई Excel फ़ाइल के लिए file picker खुलता है।</span></td>
+        <td><span class="en">To <strong>completely replace</strong> all data with a new file.</span><span class="hi">नई फ़ाइल से सारा डेटा <strong>पूरी तरह बदलने</strong> के लिए।</span></td>
+      </tr>
+      <tr>
+        <td><span class="btn-label green">Existing Upload</span></td>
+        <td><span class="en">Green</span><span class="hi">हरा</span></td>
+        <td><span class="en">Opens file picker directly — no clearing. Uploaded rows are added to existing data.</span><span class="hi">सीधे file picker खुलता है — कुछ हटता नहीं। अपलोड की गई rows मौजूदा डेटा में जुड़ जाती हैं।</span></td>
+        <td><span class="en">To <strong>add new records</strong> without deleting existing ones.</span><span class="hi">मौजूदा डेटा बिना हटाए <strong>नए रिकॉर्ड जोड़ने</strong> के लिए।</span></td>
+      </tr>
+      <tr>
+        <td><span class="btn-label" style="background:#7C3AED;color:#fff;">Export</span></td>
+        <td><span class="en">Purple</span><span class="hi">बैंगनी</span></td>
+        <td><span class="en">Downloads current grid contents as Excel (.xlsx). Visible only when grid has data.</span><span class="hi">ग्रिड का डेटा Excel (.xlsx) फ़ाइल के रूप में डाउनलोड करता है। केवल तब दिखता है जब ग्रिड में डेटा हो।</span></td>
+        <td><span class="en">To <strong>save a copy</strong> of records for backup or offline editing.</span><span class="hi">बैकअप या offline editing के लिए रिकॉर्ड की <strong>कॉपी सेव</strong> करने के लिए।</span></td>
+      </tr>
+    </table></div>
+  </div>
+
+  <div class="sub" id="im-wf-a">
+    <h3><span class="en">Workflow A — Viewing &amp; Managing Existing Records</span><span class="hi">Workflow A — मौजूदा रिकॉर्ड देखना और प्रबंधित करना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Select Module and Group, then click <span class="btn-label blue">Load Data</span>.</span><span class="hi">Module और Group चुनें, फिर <span class="btn-label blue">Load Data</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">Grid loads all existing records. Header shows <strong>"Database Records (N rows)"</strong>.</span><span class="hi">ग्रिड में सभी मौजूदा रिकॉर्ड लोड होते हैं। हेडर में <strong>"Database Records (N rows)"</strong> दिखता है।</span></p></li>
+      <li><p><span class="en">To <strong>delete specific rows</strong>: tick the checkboxes on the left of those rows. The <span class="btn-label amber">Soft Delete (N)</span> button appears. Click it to delete permanently.</span><span class="hi"><strong>खास rows हटाने के लिए</strong>: उनके बाईं ओर के checkbox पर टिक करें। <span class="btn-label amber">Soft Delete (N)</span> बटन दिखेगा। उस पर क्लिक करें — रिकॉर्ड स्थायी रूप से हट जाएंगे।</span></p></li>
+      <li><p><span class="en">To <strong>export</strong>: click <span class="btn-label" style="background:#7C3AED;color:#fff;">Export</span> to download as Excel.</span><span class="hi"><strong>Export के लिए</strong>: <span class="btn-label" style="background:#7C3AED;color:#fff;">Export</span> पर क्लिक करें।</span></p></li>
+    </ol>
+    <div class="callout warning">
+      <div class="callout-title"><span class="en">Soft Delete is Permanent</span><span class="hi">Soft Delete स्थायी है</span></div>
+      <span class="en">Soft Delete removes selected records from the database permanently. There is no undo. Select rows carefully.</span>
+      <span class="hi">Soft Delete चुनी हुई rows को डेटाबेस से स्थायी रूप से हटा देता है। इसे वापस नहीं किया जा सकता। rows ध्यान से चुनें।</span>
+    </div>
+  </div>
+
+  <div class="sub" id="im-wf-b">
+    <h3><span class="en">Workflow B — Existing Upload (Add Records)</span><span class="hi">Workflow B — Existing Upload (रिकॉर्ड जोड़ना)</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Select Module and Group.</span><span class="hi">Module और Group चुनें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label green">Existing Upload</span>. A file picker opens.</span><span class="hi"><span class="btn-label green">Existing Upload</span> पर क्लिक करें। File picker खुलेगा।</span></p></li>
+      <li><p><span class="en">Select your <strong>.xlsx file</strong>. The filename must match the group name exactly (e.g., <em>Clients.xlsx</em> for the "Clients" Ledger Group).</span><span class="hi">अपनी <strong>.xlsx फ़ाइल</strong> चुनें। फ़ाइल का नाम group के नाम से बिल्कुल मेल खाना चाहिए (जैसे "Clients" group के लिए <em>Clients.xlsx</em>)।</span></p></li>
+      <li><p><span class="en">Grid loads and shows your Excel data as "Excel Preview".</span><span class="hi">ग्रिड में आपका Excel डेटा "Excel Preview" के रूप में दिखेगा।</span></p></li>
+      <li><p><span class="en">Review the data. You can click any cell to edit it directly.</span><span class="hi">डेटा देखें। किसी भी cell पर क्लिक करके उसे ग्रिड में ही edit किया जा सकता है।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label" style="background:#EA580C;color:#fff;">Check Validation</span>. The system checks every row for errors.</span><span class="hi"><span class="btn-label" style="background:#EA580C;color:#fff;">Check Validation</span> पर क्लिक करें। सिस्टम हर row की जांच करेगा।</span></p></li>
+      <li><p><span class="en">A <strong>Validation Summary</strong> appears with coloured count cards. Click any card to filter the grid to show only those rows.</span><span class="hi"><strong>Validation Summary</strong> में रंगीन count cards दिखेंगे। किसी भी card पर क्लिक करें — ग्रिड सिर्फ वही rows दिखाएगा।</span></p></li>
+      <li><p><span class="en">When all rows are valid, a pulsing <span class="btn-label green">Save Data</span> button appears. Click it to save records to the database.</span><span class="hi">जब सभी rows valid हों, एक चमकता <span class="btn-label green">Save Data</span> बटन दिखेगा। उस पर क्लिक करें — रिकॉर्ड डेटाबेस में सेव हो जाएंगे।</span></p></li>
+    </ol>
+    <div class="callout tip">
+      <div class="callout-title"><span class="en">Fix Errors Before Saving</span><span class="hi">Save से पहले गलतियां सुधारें</span></div>
+      <span class="en">The <span class="btn-label green">Save Data</span> button only appears when ALL rows pass validation. Fix Duplicate, Missing, or Invalid rows in the grid or in your Excel file (re-upload).</span>
+      <span class="hi"><span class="btn-label green">Save Data</span> बटन तभी दिखेगा जब सभी rows validation pass करें। Duplicate, Missing या Invalid rows को ग्रिड में सुधारें या Excel में ठीक करके फिर से अपलोड करें।</span>
+    </div>
+  </div>
+
+  <div class="sub" id="im-wf-c">
+    <h3><span class="en">Workflow C — Fresh Upload (Replace All Data)</span><span class="hi">Workflow C — Fresh Upload (सारा डेटा बदलना)</span></h3>
+    <div class="callout danger">
+      <div class="callout-title"><span class="en">Warning — Existing Data Will Be Deleted First</span><span class="hi">चेतावनी — मौजूदा डेटा पहले हट जाएगा</span></div>
+      <span class="en">Fresh Upload permanently deletes ALL existing records for this group before importing the new file. Export a backup first if needed.</span>
+      <span class="hi">Fresh Upload नई फ़ाइल import करने से पहले इस group के सभी मौजूदा रिकॉर्ड स्थायी रूप से हटा देता है। ज़रूरत हो तो पहले Export से backup लें।</span>
+    </div>
+    <ol class="steps">
+      <li><p><span class="en">Select Module and Group.</span><span class="hi">Module और Group चुनें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label" style="background:#0D9488;color:#fff;">Fresh Upload</span>.</span><span class="hi"><span class="btn-label" style="background:#0D9488;color:#fff;">Fresh Upload</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 1/3:</strong> Solve the math question and click <span class="btn-label blue">Next</span>.</span><span class="hi"><strong>CAPTCHA 1/3:</strong> गणित का सवाल हल करें और <span class="btn-label blue">Next</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 2/3:</strong> Solve and click Next.</span><span class="hi"><strong>CAPTCHA 2/3:</strong> हल करें और Next पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 3/3:</strong> Solve and click Next.</span><span class="hi"><strong>CAPTCHA 3/3:</strong> हल करें और Next पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>Credentials:</strong> Enter your <span class="field-name">Username</span>, <span class="field-name">Password</span>, and <span class="field-name">Reason</span>. Click <span class="btn-label red">Confirm</span>.</span><span class="hi"><strong>Credentials:</strong> अपना <span class="field-name">Username</span>, <span class="field-name">Password</span> और <span class="field-name">Reason</span> डालें। <span class="btn-label red">Confirm</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">Existing data is deleted. File picker opens automatically — select your .xlsx file and follow Workflow B steps 4–8.</span><span class="hi">मौजूदा डेटा हट जाता है। File picker अपने आप खुलता है — .xlsx फ़ाइल चुनें और Workflow B के चरण 4–8 follow करें।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Validation Summary Cards</span><span class="hi">Validation Summary Cards</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Card</span><span class="hi">Card</span></th><th><span class="en">Colour</span><span class="hi">रंग</span></th><th><span class="en">Meaning &amp; Action</span><span class="hi">अर्थ और कार्रवाई</span></th></tr>
+      <tr><td><strong><span class="en">Total Rows</span><span class="hi">कुल Rows</span></strong></td><td><span class="en">Grey</span><span class="hi">ग्रे</span></td><td><span class="en">All rows in the uploaded file.</span><span class="hi">अपलोड की गई फ़ाइल की सभी rows।</span></td></tr>
+      <tr><td><strong><span class="en">Valid Rows</span><span class="hi">Valid Rows</span></strong></td><td><span class="en">Green</span><span class="hi">हरा</span></td><td><span class="en">Ready to import. All rows must be valid for Save Data to appear.</span><span class="hi">Import के लिए तैयार। Save Data बटन तभी दिखेगा जब सभी rows valid हों।</span></td></tr>
+      <tr><td><strong>Duplicate</strong></td><td><span class="en">Red</span><span class="hi">लाल</span></td><td><span class="en">Key field already exists in the database. Remove or use Fresh Upload.</span><span class="hi">मुख्य field पहले से डेटाबेस में है। हटाएं या Fresh Upload उपयोग करें।</span></td></tr>
+      <tr><td><strong>Missing</strong></td><td><span class="en">Blue</span><span class="hi">नीला</span></td><td><span class="en">A required field is blank. Fill in the missing data and re-validate.</span><span class="hi">कोई जरूरी field खाली है। डेटा भरें और फिर से validate करें।</span></td></tr>
+      <tr><td><strong>Mismatch</strong></td><td><span class="en">Yellow</span><span class="hi">पीला</span></td><td><span class="en">Value doesn't match reference data (e.g., unknown country name).</span><span class="hi">मान reference डेटा से मेल नहीं खाता (जैसे अज्ञात देश का नाम)।</span></td></tr>
+      <tr><td><strong>Invalid</strong></td><td><span class="en">Purple</span><span class="hi">बैंगनी</span></td><td><span class="en">Wrong format (e.g., text in a number field).</span><span class="hi">गलत format (जैसे नंबर field में text)।</span></td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub" id="im-all">
+    <h3><span class="en">All Five Modules — Same Buttons, Same Workflow</span><span class="hi">पाँचों मॉड्यूल — एक जैसे बटन, एक जैसा Workflow</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Module Name</span><span class="hi">मॉड्यूल नाम</span></th><th><span class="en">Second Dropdown?</span><span class="hi">दूसरा ड्रॉपडाउन?</span></th><th><span class="en">Label</span><span class="hi">लेबल</span></th></tr>
+      <tr><td><strong>Ledger Master</strong></td><td><span class="en">Yes</span><span class="hi">हाँ</span></td><td>Ledger Group</td></tr>
+      <tr><td><strong>Item Masters</strong></td><td><span class="en">Yes</span><span class="hi">हाँ</span></td><td>Item Group</td></tr>
+      <tr><td><strong>Tool Master</strong></td><td><span class="en">Yes</span><span class="hi">हाँ</span></td><td>Tool Group</td></tr>
+      <tr><td><strong>Spare Part Master</strong></td><td><span class="en">No</span><span class="hi">नहीं</span></td><td>—</td></tr>
+      <tr><td><strong>Product Group Master</strong></td><td><span class="en">No</span><span class="hi">नहीं</span></td><td>—</td></tr>
+    </table></div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 5: STOCK UPLOAD ════════════════ -->
+<section class="section" id="stock-upload">
+  <div class="section-header">
+    <div class="section-icon">📦</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 5</span><span class="hi">अध्याय 5</span></div>
+      <h2><span class="en">Stock Upload</span><span class="hi">स्टॉक अपलोड</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Stock Upload lets you enter <strong>opening stock quantities</strong> for items, tools, and spare parts via Excel or direct grid entry.</span><span class="hi">Stock Upload से आप Items, Tools और Spare Parts की <strong>प्रारंभिक स्टॉक मात्रा</strong> Excel या ग्रिड में सीधे दर्ज कर सकते हैं।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Getting Started</span><span class="hi">शुरुआत</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Click <strong>Stock Upload</strong> in the left sidebar.</span><span class="hi">बाईं साइडबार में <strong>Stock Upload</strong> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">Select from <span class="field-name">Module Name</span>: <em>Item Masters</em>, <em>Tool Master</em>, or <em>Spare Part Master</em>.</span><span class="hi"><span class="field-name">Module Name</span> में से चुनें: <em>Item Masters</em>, <em>Tool Master</em> या <em>Spare Part Master</em>।</span></p></li>
+      <li><p><span class="en">For Item Masters or Tool Master, a <span class="field-name">Sub Module Name</span> dropdown appears. Select the specific group.</span><span class="hi">Item Masters या Tool Master के लिए <span class="field-name">Sub Module Name</span> ड्रॉपडाउन दिखेगा। उचित group चुनें।</span></p></li>
+    </ol>
+    <div class="callout warning">
+      <div class="callout-title"><span class="en">Switching Module Clears Data</span><span class="hi">Module बदलने पर डेटा हट जाएगा</span></div>
+      <span class="en">If you change the Module after data is loaded, you will see a warning. Click OK to confirm switching, or Cancel to keep current data.</span>
+      <span class="hi">डेटा लोड होने के बाद Module बदलने पर चेतावनी आएगी। OK दबाएं तो डेटा हट जाएगा, Cancel दबाएं तो नहीं।</span>
+    </div>
+  </div>
+
+  <div class="sub" id="su-grid">
+    <h3><span class="en">Stock Grid — Loading Data</span><span class="hi">स्टॉक ग्रिड — डेटा लोड करना</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Button</span><span class="hi">बटन</span></th><th><span class="en">What It Does</span><span class="hi">क्या करता है</span></th></tr>
+      <tr><td><span class="btn-label blue">Load Stock Data</span></td><td><span class="en">Loads existing stock records from the system for this group.</span><span class="hi">इस group के मौजूदा स्टॉक रिकॉर्ड सिस्टम से लोड करता है।</span></td></tr>
+      <tr><td><span class="btn-label">Upload Excel</span></td><td><span class="en">Upload a prepared Excel file with stock quantities.</span><span class="hi">स्टॉक मात्रा वाली तैयार Excel फ़ाइल अपलोड करें।</span></td></tr>
+      <tr><td><span class="btn-label">Load Master Template</span></td><td><span class="en">Loads all items as empty rows so you can type in stock quantities from scratch.</span><span class="hi">सभी items को खाली rows में लोड करता है ताकि आप शुरू से मात्रा दर्ज कर सकें।</span></td></tr>
+    </table></div>
+
+    <h4><span class="en">Key Grid Columns</span><span class="hi">मुख्य ग्रिड कॉलम</span></h4>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Column</span><span class="hi">कॉलम</span></th><th><span class="en">Description</span><span class="hi">विवरण</span></th></tr>
+      <tr><td>Warehouse</td><td><span class="en">Select the warehouse where stock is stored. Click cell and choose from dropdown.</span><span class="hi">वह warehouse चुनें जहाँ स्टॉक है। Cell पर क्लिक करें और dropdown से चुनें।</span></td></tr>
+      <tr><td>Bin Location</td><td><span class="en">Specific bin/shelf inside the warehouse. Options depend on selected Warehouse.</span><span class="hi">Warehouse के अंदर की खास जगह। विकल्प चुने हुए Warehouse पर निर्भर होते हैं।</span></td></tr>
+      <tr><td>Quantity</td><td><span class="en">Enter the stock quantity. Click the cell and type the number.</span><span class="hi">स्टॉक मात्रा दर्ज करें। Cell पर क्लिक करें और नंबर टाइप करें।</span></td></tr>
+    </table></div>
+
+    <h4><span class="en">Importing the Stock</span><span class="hi">स्टॉक Import करना</span></h4>
+    <ol class="steps">
+      <li><p><span class="en">Fill in or review all data in the grid.</span><span class="hi">ग्रिड में सारा डेटा भरें या देखें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Validate</span> to check for errors.</span><span class="hi"><span class="btn-label blue">Validate</span> पर क्लिक करके गलतियां जांचें।</span></p></li>
+      <li><p><span class="en">Fix any flagged rows, then click <span class="btn-label blue">Import</span>.</span><span class="hi">flagged rows सुधारें, फिर <span class="btn-label blue">Import</span> पर क्लिक करें।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub" id="su-reset">
+    <h3><span class="en">Resetting Stock</span><span class="hi">स्टॉक रीसेट करना</span></h3>
+    <div class="callout danger">
+      <div class="callout-title"><span class="en">Danger — Irreversible</span><span class="hi">खतरा — वापस नहीं होगा</span></div>
+      <span class="en">Resetting stock permanently deletes stock quantity records. Cannot be undone. Only authorised personnel should perform this.</span>
+      <span class="hi">स्टॉक रीसेट करने से स्टॉक मात्रा के रिकॉर्ड स्थायी रूप से हट जाते हैं। इसे वापस नहीं किया जा सकता। केवल अधिकृत व्यक्ति ही यह करें।</span>
+    </div>
+    <ol class="steps">
+      <li><p><span class="en">Optionally select specific rows with checkboxes to limit the reset scope.</span><span class="hi">वैकल्पिक रूप से checkbox से खास rows चुनें ताकि सिर्फ वही rows reset हों।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label red">Reset Item Stock</span>.</span><span class="hi"><span class="btn-label red">Reset Item Stock</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>Item Selection Modal:</strong> Check/uncheck which items to reset. Click <span class="btn-label blue">Next</span>.</span><span class="hi"><strong>Item Selection Modal:</strong> कौन से items reset करने हैं वो चुनें। <span class="btn-label blue">Next</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 1/3, 2/3, 3/3:</strong> Solve each math question and click Next.</span><span class="hi"><strong>CAPTCHA 1/3, 2/3, 3/3:</strong> हर गणित का सवाल हल करें और Next दबाएं।</span></p></li>
+      <li><p><span class="en"><strong>Credentials:</strong> Enter Username, Password, and Reason. Click <span class="btn-label red">Confirm Reset</span>.</span><span class="hi"><strong>Credentials:</strong> Username, Password और Reason डालें। <span class="btn-label red">Confirm Reset</span> पर क्लिक करें।</span></p></li>
+    </ol>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 6: COMPANY MASTER ════════════════ -->
+<section class="section" id="company-master">
+  <div class="section-header">
+    <div class="section-icon">🏢</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 6</span><span class="hi">अध्याय 6</span></div>
+      <h2><span class="en">Company Master</span><span class="hi">कंपनी मास्टर</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Company Master stores all company configuration settings across <strong>13 tabs</strong>. Most settings are configured once during initial setup.</span><span class="hi">Company Master में कंपनी की सभी configuration settings <strong>13 tabs</strong> में होती हैं। अधिकांश settings प्रारंभिक setup के दौरान एक बार की जाती हैं।</span></p>
+
+  <div class="callout warning">
+    <div class="callout-title"><span class="en">Caution</span><span class="hi">सावधानी</span></div>
+    <span class="en">Changes here affect the entire system for all users. Only make changes if you are certain. If in doubt, consult your administrator.</span>
+    <span class="hi">यहाँ किए गए बदलाव पूरे सिस्टम पर सभी यूज़र के लिए असर करते हैं। केवल तभी बदलें जब पक्का हो। शक हो तो एडमिन से पूछें।</span>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">View Mode vs. Edit Mode</span><span class="hi">View Mode बनाम Edit Mode</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Company Master opens in <strong>View Mode</strong> — you can see settings but cannot change them.</span><span class="hi">Company Master <strong>View Mode</strong> में खुलता है — आप settings देख सकते हैं लेकिन बदल नहीं सकते।</span></p></li>
+      <li><p><span class="en">To edit: click <span class="btn-label">Edit Details</span>. An amber <strong>"Editing Mode"</strong> badge confirms you can now edit.</span><span class="hi">बदलाव करने के लिए: <span class="btn-label">Edit Details</span> पर क्लिक करें। amber रंग का <strong>"Editing Mode"</strong> badge दिखेगा।</span></p></li>
+      <li><p><span class="en">Make changes across any tab, then click <span class="btn-label blue">Save Changes</span> — or <span class="btn-label">Cancel</span> to discard.</span><span class="hi">किसी भी tab में बदलाव करें, फिर <span class="btn-label blue">Save Changes</span> पर क्लिक करें — या रद्द करने के लिए <span class="btn-label">Cancel</span>।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">The 13 Settings Tabs</span><span class="hi">13 Settings Tabs</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th>Tab</th><th><span class="en">What You Configure</span><span class="hi">क्या configure करते हैं</span></th></tr>
+      <tr><td><strong>Company Info</strong></td><td><span class="en">Name, address, PAN, GSTIN, contact details.</span><span class="hi">नाम, पता, PAN, GSTIN, संपर्क विवरण।</span></td></tr>
+      <tr><td><strong>Production Unit</strong></td><td><span class="en">Production address, entry timing, inventory bypass options.</span><span class="hi">उत्पादन पता, प्रवेश समय, इन्वेंट्री bypass विकल्प।</span></td></tr>
+      <tr><td><strong>Tax Config</strong></td><td><span class="en">GST, VAT, e-invoice settings, purchase tolerance.</span><span class="hi">GST, VAT, e-invoice settings, खरीद tolerance।</span></td></tr>
+      <tr><td><strong>Estimation</strong></td><td><span class="en">Decimal places, invoice rounding, wastage percentage.</span><span class="hi">दशमलव स्थान, invoice rounding, बर्बादी प्रतिशत।</span></td></tr>
+      <tr><td><strong>Domain Features</strong></td><td><span class="en">Enable/disable printing domains: Flexo, Offset, Corrugation, Roto.</span><span class="hi">प्रिंटिंग domains सक्षम/अक्षम करें: Flexo, Offset, Corrugation, Roto।</span></td></tr>
+      <tr><td><strong>Approvals</strong></td><td><span class="en">Configure which transactions need approval (PO, invoices, sales orders).</span><span class="hi">कौन से transactions को approval चाहिए (PO, invoice, sales orders)।</span></td></tr>
+      <tr><td><strong>Production Settings</strong></td><td><span class="en">Wastage calculation, material consumption, production tolerance.</span><span class="hi">बर्बादी गणना, सामग्री खपत, उत्पादन tolerance।</span></td></tr>
+      <tr><td><strong>System Config</strong></td><td><span class="en">API credentials, OTP verification settings.</span><span class="hi">API credentials, OTP verification settings।</span></td></tr>
+      <tr><td><strong>Workflow</strong></td><td><span class="en">Auto-requisition, indent, picklist, supplier allocation.</span><span class="hi">Auto-requisition, indent, picklist, supplier allocation।</span></td></tr>
+      <tr><td><strong>Communication</strong></td><td><span class="en">Enable/disable CRM, WhatsApp, Email, notifications.</span><span class="hi">CRM, WhatsApp, Email, notifications सक्षम/अक्षम।</span></td></tr>
+      <tr><td><strong>Client Comm.</strong></td><td><span class="en">Automatic client notifications for job schedules, orders, invoices.</span><span class="hi">Job schedules, orders, invoices के लिए automatic client notifications।</span></td></tr>
+      <tr><td><strong>Printing &amp; Docs</strong></td><td><span class="en">Invoice print settings, quotation visibility, printout configuration.</span><span class="hi">Invoice print settings, quotation visibility, printout configuration।</span></td></tr>
+      <tr><td><strong>Prefixes</strong></td><td><span class="en">Prefix codes for Product Catalog and Job Card numbers.</span><span class="hi">Product Catalog और Job Card नंबरों के लिए prefix codes।</span></td></tr>
+    </table></div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 7: MODULE AUTHORITY ════════════════ -->
+<section class="section" id="module-authority">
+  <div class="section-header">
+    <div class="section-icon">🔑</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 7</span><span class="hi">अध्याय 7</span></div>
+      <h2><span class="en">Module Authority</span><span class="hi">मॉड्यूल अथॉरिटी</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Module Authority is the control panel for all modules registered in the system. From here you can <strong>view, edit, delete, and sync groups</strong> for any module. You can also navigate directly to create a new module.</span><span class="hi">Module Authority सिस्टम में registered सभी modules का control panel है। यहाँ से आप किसी भी module को <strong>देख, edit, delete और groups sync</strong> कर सकते हैं। नया module create करने के लिए भी यहीं से जाते हैं।</span></p>
+
+  <div class="sub" id="ma-grid">
+    <h3><span class="en">The Active Modules Grid</span><span class="hi">Active Modules Grid</span></h3>
+    <p><span class="en">The page shows a full-featured data grid with all active modules. Key columns visible by default:</span><span class="hi">यह पेज सभी active modules की full-featured data grid दिखाता है। Default में दिखने वाले columns:</span></p>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Column</span><span class="hi">कॉलम</span></th><th><span class="en">Description</span><span class="hi">विवरण</span></th></tr>
+      <tr><td><strong>Module Head Name</strong></td><td><span class="en">The category/section this module belongs to (e.g., "Master", "Transaction").</span><span class="hi">यह module किस category/section में है (जैसे "Master", "Transaction")।</span></td></tr>
+      <tr><td><strong>Module Name</strong></td><td><span class="en">The technical name of the module (e.g., "Masters.aspx", "LedgerMaster.aspx").</span><span class="hi">Module का technical नाम (जैसे "Masters.aspx", "LedgerMaster.aspx")।</span></td></tr>
+      <tr><td><strong>Module Display Name</strong></td><td><span class="en">The friendly name shown in the application's sidebar to users.</span><span class="hi">Application की sidebar में users को दिखने वाला नाम।</span></td></tr>
+      <tr><td><strong>Group Index</strong></td><td><span class="en">A numeric index that controls which group/section of the sidebar this module appears in.</span><span class="hi">एक numeric index जो sidebar में module का group/section तय करता है।</span></td></tr>
+    </table></div>
+
+    <h4><span class="en">Grid Toolbar Features</span><span class="hi">Grid Toolbar Features</span></h4>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Feature</span><span class="hi">सुविधा</span></th><th><span class="en">How to Use</span><span class="hi">कैसे उपयोग करें</span></th></tr>
+      <tr><td><span class="en"><strong>Search bar</strong></span><span class="hi"><strong>Search bar</strong></span></td><td><span class="en">Type to search across all columns instantly.</span><span class="hi">सभी columns में तुरंत search करने के लिए type करें।</span></td></tr>
+      <tr><td><span class="en"><strong>Filter Row</strong></span><span class="hi"><strong>Filter Row</strong></span></td><td><span class="en">A row of input boxes below the column headers. Type in any box to filter that specific column.</span><span class="hi">Column headers के नीचे input boxes की एक row। किसी box में type करने से वह column filter होता है।</span></td></tr>
+      <tr><td><span class="en"><strong>Group Panel</strong></span><span class="hi"><strong>Group Panel</strong></span></td><td><span class="en">Drag any column header to the group panel at the top to group rows by that column (e.g., drag "Module Head Name" to group all modules by their category).</span><span class="hi">किसी भी column header को ऊपर के group panel में drag करें — उस column से rows group हो जाएंगी (जैसे "Module Head Name" drag करने से सभी modules category के अनुसार group होंगे)।</span></td></tr>
+      <tr><td><span class="en"><strong>Column Chooser</strong></span><span class="hi"><strong>Column Chooser</strong></span></td><td><span class="en">Click the column chooser icon to show/hide columns (like Head Display Name, Display Order).</span><span class="hi">Column chooser icon पर click करके columns दिखाएं/छिपाएं (जैसे Head Display Name, Display Order)।</span></td></tr>
+      <tr><td><span class="btn-label green">+ Create Module</span></td><td><span class="en">Opens the New Module Addition form to create a new module.</span><span class="hi">नया module बनाने के लिए New Module Addition form खुलता है।</span></td></tr>
+    </table></div>
+
+    <h4><span class="en">Row Action Buttons</span><span class="hi">Row Action Buttons</span></h4>
+    <p><span class="en">Each row in the grid has up to three action buttons on the right side:</span><span class="hi">Grid की हर row में दाईं ओर तीन तक action buttons होते हैं:</span></p>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Button</span><span class="hi">बटन</span></th><th><span class="en">When It Appears</span><span class="hi">कब दिखता है</span></th><th><span class="en">What It Does</span><span class="hi">क्या करता है</span></th></tr>
+      <tr><td><span class="btn-label" style="background:#4B5563;color:#fff;">⊞ Manage Groups</span></td><td><span class="en">Only on Masters.aspx, LedgerMaster.aspx, and ToolMaster.aspx rows</span><span class="hi">केवल Masters.aspx, LedgerMaster.aspx और ToolMaster.aspx rows पर</span></td><td><span class="en">Opens the Group Sync popup (see below).</span><span class="hi">Group Sync popup खोलता है (नीचे देखें)।</span></td></tr>
+      <tr><td><span class="btn-label">✏️ Edit</span></td><td><span class="en">All rows</span><span class="hi">सभी rows</span></td><td><span class="en">Opens the New Module Addition form pre-filled with this module's data, ready to edit.</span><span class="hi">इस module के डेटा के साथ pre-filled New Module Addition form खोलता है।</span></td></tr>
+      <tr><td><span class="btn-label red">🗑 Delete</span></td><td><span class="en">All rows</span><span class="hi">सभी rows</span></td><td><span class="en">Permanently removes this module from the system. A confirmation prompt appears first.</span><span class="hi">इस module को सिस्टम से स्थायी रूप से हटाता है। पहले confirmation prompt आता है।</span></td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub" id="ma-groups">
+    <h3><span class="en">Manage Groups — Group Sync Popup</span><span class="hi">Manage Groups — Group Sync Popup</span></h3>
+    <p><span class="en">The Group Sync popup appears when you click the <strong>Manage Groups</strong> button on Masters.aspx, LedgerMaster.aspx, or ToolMaster.aspx rows. It compares Item, Ledger, or Tool groups between the <strong>source (Indus) database</strong> and your <strong>client database</strong>, letting you sync them.</span><span class="hi">Group Sync popup तब दिखता है जब आप Masters.aspx, LedgerMaster.aspx या ToolMaster.aspx row पर <strong>Manage Groups</strong> button click करते हैं। यह <strong>source (Indus) database</strong> और आपके <strong>client database</strong> के बीच Item, Ledger या Tool groups compare करता है और sync करने देता है।</span></p>
+
+    <h4><span class="en">How to Sync Groups</span><span class="hi">Groups Sync कैसे करें</span></h4>
+    <ol class="steps">
+      <li><p><span class="en">Click <strong>Manage Groups</strong> icon on the relevant module row.</span><span class="hi">संबंधित module row पर <strong>Manage Groups</strong> icon click करें।</span></p></li>
+      <li><p><span class="en">The popup loads a comparison grid showing each group with a <span class="field-name">Status</span> column: <em>Synced</em>, <em>Not Synced</em>, or <em>New</em>.</span><span class="hi">Popup एक comparison grid load करता है जिसमें हर group का <span class="field-name">Status</span> column दिखता है: <em>Synced</em>, <em>Not Synced</em> या <em>New</em>।</span></p></li>
+      <li><p><span class="en">Review the list. You can edit the Status cell directly in the popup grid to mark which groups to sync.</span><span class="hi">List देखें। Popup grid में Status cell को directly edit करके तय करें कि कौन से groups sync करने हैं।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Save Sync</span> to apply the changes. The selected groups are synchronized to your client database.</span><span class="hi"><span class="btn-label blue">Save Sync</span> पर click करें। चुने हुए groups आपके client database में synchronize हो जाएंगे।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label">Refresh</span> inside the popup to reload the comparison data at any time.</span><span class="hi">Popup के अंदर <span class="btn-label">Refresh</span> पर click करके किसी भी समय comparison data reload करें।</span></p></li>
+    </ol>
+
+    <div class="callout note">
+      <div class="callout-title"><span class="en">What "Syncing" Does</span><span class="hi">"Sync" क्या करता है</span></div>
+      <span class="en">Syncing copies group definitions (Item Groups, Ledger Groups, or Tool Groups) from the central Indus source database into your company's database, making them available in Import Master and Stock Upload dropdowns.</span>
+      <span class="hi">Sync करने से group definitions (Item Groups, Ledger Groups या Tool Groups) central Indus source database से आपकी company के database में copy होती हैं, जिससे वे Import Master और Stock Upload dropdowns में उपलब्ध हो जाते हैं।</span>
+    </div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 8: NEW MODULE ADDITION ════════════════ -->
+<section class="section" id="new-module">
+  <div class="section-header">
+    <div class="section-icon">➕</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 8</span><span class="hi">अध्याय 8</span></div>
+      <h2><span class="en">New Module Addition</span><span class="hi">नया मॉड्यूल जोड़ना</span></h2>
+    </div>
+  </div>
+  <p><span class="en">New Module Addition is the form for <strong>creating a new module</strong> or <strong>editing an existing one</strong>. You reach it either from the sidebar directly (to create new) or from the Edit button in Module Authority (to edit).</span><span class="hi">New Module Addition एक form है जो <strong>नया module बनाने</strong> या <strong>मौजूदा module edit करने</strong> के लिए है। आप इस पेज पर sidebar से directly (नया बनाने के लिए) या Module Authority के Edit button से (edit करने के लिए) आते हैं।</span></p>
+
+  <div class="callout warning">
+    <div class="callout-title"><span class="en">Admin Only</span><span class="hi">केवल Admin के लिए</span></div>
+    <span class="en">Creating or modifying modules affects which features appear in the sidebar for all users. Only system administrators should use this feature.</span>
+    <span class="hi">Modules बनाना या modify करना सभी users की sidebar को प्रभावित करता है। केवल system administrators ही इस feature का उपयोग करें।</span>
+  </div>
+
+  <div class="sub" id="nm-form">
+    <h3><span class="en">Form Fields Explained</span><span class="hi">Form Fields की जानकारी</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Field</span><span class="hi">Field</span></th><th><span class="en">Required?</span><span class="hi">जरूरी?</span></th><th><span class="en">Description</span><span class="hi">विवरण</span></th></tr>
+      <tr><td><strong>Module Head Name</strong></td><td><span class="status-badge green">Yes</span></td><td><span class="en">The category/section header this module goes under (e.g., "Masters", "Transactions"). Searchable dropdown from the Indus catalog.</span><span class="hi">यह module किस category/section header में जाएगा (जैसे "Masters", "Transactions")। Indus catalog से searchable dropdown।</span></td></tr>
+      <tr><td><strong>Module Head Display Name</strong></td><td><span class="status-badge grey">Auto</span></td><td><span class="en">The display name for the section header. Auto-filled when you select Module Head Name.</span><span class="hi">Section header का display नाम। Module Head Name चुनने पर auto-fill होता है।</span></td></tr>
+      <tr><td><strong>Module Name</strong></td><td><span class="status-badge green">Yes</span></td><td><span class="en">The technical identifier for the module (e.g., "Masters.aspx"). Searchable dropdown. Selecting this auto-fills most other fields. The system checks if this name already exists in the database.</span><span class="hi">Module का technical identifier (जैसे "Masters.aspx")। Searchable dropdown। इसे select करने पर अधिकांश अन्य fields auto-fill होती हैं। सिस्टम check करता है कि यह नाम database में पहले से है या नहीं।</span></td></tr>
+      <tr><td><strong>Module Display Name</strong></td><td><span class="status-badge green">Yes</span></td><td><span class="en">The name shown in the sidebar to users (e.g., "Import Master", "Stock Upload"). Also searchable and can auto-fill other fields.</span><span class="hi">Sidebar में users को दिखने वाला नाम (जैसे "Import Master", "Stock Upload")। Searchable है और अन्य fields भी auto-fill कर सकता है।</span></td></tr>
+      <tr><td><strong>Module Head Display Order</strong></td><td><span class="status-badge green">Yes</span></td><td><span class="en">A number controlling the position of the Module Head section. Lower number = appears higher in the sidebar. Auto-suggested based on existing modules. If the order is already taken, a yellow warning appears (but you can still save — existing entries shift by +1).</span><span class="hi">Module Head section की position control करने वाला number। कम number = sidebar में ऊपर। मौजूदा modules के आधार पर auto-suggest होता है। अगर order पहले से लिया हुआ है, तो yellow warning आती है (लेकिन save हो सकता है — मौजूदा entries +1 shift हो जाती हैं)।</span></td></tr>
+      <tr><td><strong>Module Display Order</strong></td><td><span class="status-badge grey">Auto</span></td><td><span class="en">Automatically mirrors the Module Head Display Order. You do not need to change this separately.</span><span class="hi">Module Head Display Order को automatically mirror करता है। इसे अलग से बदलने की जरूरत नहीं।</span></td></tr>
+      <tr><td><strong>Set Group Index</strong></td><td><span class="status-badge green">Yes</span></td><td><span class="en">A unique numeric index that groups modules together in the sidebar. Each Module Head should have a unique Group Index. <strong>Once set on an existing module, this field is locked and cannot be changed.</strong> If the index is already assigned to a different Module Head, an error appears.</span><span class="hi">एक unique numeric index जो sidebar में modules को एक साथ group करता है। हर Module Head का Group Index unique होना चाहिए। <strong>एक बार किसी मौजूदा module पर set होने के बाद यह field locked हो जाती है।</strong> अगर index किसी अन्य Module Head को assign है तो error आती है।</span></td></tr>
+      <tr><td><strong>Print Document Web Page</strong></td><td><span class="status-badge grey">Optional</span></td><td><span class="en">URL/path of the primary print document page linked to this module.</span><span class="hi">इस module से linked primary print document page का URL/path।</span></td></tr>
+      <tr><td><strong>Print Document Name</strong></td><td><span class="status-badge grey">Optional</span></td><td><span class="en">Display name for the primary print document.</span><span class="hi">Primary print document का display नाम।</span></td></tr>
+      <tr><td><strong>Print Document Web Page 1</strong></td><td><span class="status-badge grey">Optional</span></td><td><span class="en">URL/path for a secondary print document.</span><span class="hi">Secondary print document का URL/path।</span></td></tr>
+      <tr><td><strong>Print Document Name 1</strong></td><td><span class="status-badge grey">Optional</span></td><td><span class="en">Display name for the secondary print document.</span><span class="hi">Secondary print document का display नाम।</span></td></tr>
+      <tr><td><strong>Company ID</strong></td><td><span class="status-badge grey">Auto</span></td><td><span class="en">Auto-filled from system defaults. Do not change manually.</span><span class="hi">System defaults से auto-fill होता है। Manually न बदलें।</span></td></tr>
+      <tr><td><strong>User ID</strong></td><td><span class="status-badge grey">Auto</span></td><td><span class="en">Auto-filled from system defaults. Do not change manually.</span><span class="hi">System defaults से auto-fill होता है। Manually न बदलें।</span></td></tr>
+      <tr><td><strong>Financial Year</strong></td><td><span class="status-badge grey">Auto</span></td><td><span class="en">Auto-filled with the current financial year (e.g., "2025-2026").</span><span class="hi">Current financial year से auto-fill होता है (जैसे "2025-2026")।</span></td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub" id="nm-autofill">
+    <h3><span class="en">Auto-fill Feature — How It Works</span><span class="hi">Auto-fill सुविधा — कैसे काम करती है</span></h3>
+    <p><span class="en">The three main dropdowns (Module Head Name, Module Name, Module Display Name) are all linked. Selecting one automatically narrows the choices in the others and fills in related fields:</span><span class="hi">तीन मुख्य dropdowns (Module Head Name, Module Name, Module Display Name) सभी एक-दूसरे से जुड़े हैं। एक चुनने से दूसरे में विकल्प narrow हो जाते हैं और related fields fill हो जाते हैं:</span></p>
+    <ul style="margin:8px 0 14px 20px;color:var(--text-2);font-size:14px;">
+      <li style="margin-bottom:8px;"><span class="en"><strong>Select Module Head Name first</strong> → filters Module Name and Display Name dropdowns to only show modules under that head.</span><span class="hi"><strong>पहले Module Head Name चुनें</strong> → Module Name और Display Name dropdowns उसी head के modules दिखाएंगे।</span></li>
+      <li style="margin-bottom:8px;"><span class="en"><strong>Select Module Name</strong> → auto-fills Module Display Name, Module Head Name, Module Head Display Name, Set Group Index, and suggested Display Order. <em>This is the fastest way to fill the form.</em></span><span class="hi"><strong>Module Name चुनें</strong> → Module Display Name, Module Head Name, Module Head Display Name, Set Group Index और suggested Display Order auto-fill हो जाते हैं। <em>यह form fill करने का सबसे तेज़ तरीका है।</em></span></li>
+      <li><span class="en"><strong>Select Module Display Name</strong> → same as selecting Module Name (finds the matching module and fills everything).</span><span class="hi"><strong>Module Display Name चुनें</strong> → Module Name select करने जैसा ही है (matching module ढूंढकर सब fill करता है)।</span></li>
+    </ul>
+
+    <h4><span class="en">Creating a New Module — Recommended Steps</span><span class="hi">नया Module बनाना — Recommended Steps</span></h4>
+    <ol class="steps">
+      <li><p><span class="en">Click <strong>New Module Addition</strong> in the sidebar (or <span class="btn-label green">+ Create Module</span> from Module Authority).</span><span class="hi">Sidebar में <strong>New Module Addition</strong> click करें (या Module Authority से <span class="btn-label green">+ Create Module</span>)।</span></p></li>
+      <li><p><span class="en">In the <span class="field-name">Module Name</span> field, start typing the module name and select from the dropdown suggestion. <strong>This single action auto-fills most of the form.</strong></span><span class="hi"><span class="field-name">Module Name</span> field में module name type करना शुरू करें और dropdown suggestion से select करें। <strong>यह एक action अधिकांश form auto-fill कर देता है।</strong></span></p></li>
+      <li><p><span class="en">Review all auto-filled fields. The system runs live checks:</span><span class="hi">सभी auto-filled fields देखें। सिस्टम live checks चलाता है:</span>
+        <ul style="margin:8px 0 0 20px;font-size:13.5px;color:var(--text-2);">
+          <li style="margin-bottom:4px;"><span class="en">If Module Name already exists → red error shown (you can still override with confirmation).</span><span class="hi">अगर Module Name पहले से है → red error दिखेगा (confirmation के साथ फिर भी save कर सकते हैं)।</span></li>
+          <li style="margin-bottom:4px;"><span class="en">If Display Order is taken → yellow warning (save still proceeds; other entries shift +1).</span><span class="hi">अगर Display Order पहले से लिया है → yellow warning (save फिर भी होगा; अन्य entries +1 shift होंगी)।</span></li>
+          <li><span class="en">If Group Index conflicts with another Module Head → red error (must fix before saving).</span><span class="hi">अगर Group Index किसी अन्य Module Head से conflict करे → red error (save से पहले fix करना जरूरी)।</span></li>
+        </ul>
+      </p></li>
+      <li><p><span class="en">Adjust <span class="field-name">Module Head Display Order</span> and <span class="field-name">Set Group Index</span> if needed.</span><span class="hi">जरूरत हो तो <span class="field-name">Module Head Display Order</span> और <span class="field-name">Set Group Index</span> adjust करें।</span></p></li>
+      <li><p><span class="en">Optionally fill Print Document fields if this module links to printable documents.</span><span class="hi">अगर यह module printable documents से जुड़ा है तो Print Document fields भरें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Save Module</span>. A success message confirms creation and offers a <strong>View Modules</strong> button to go back to Module Authority.</span><span class="hi"><span class="btn-label blue">Save Module</span> पर click करें। Success message creation confirm करता है और <strong>View Modules</strong> button Module Authority पर वापस जाने के लिए देता है।</span></p></li>
+    </ol>
+
+    <h4><span class="en">Editing an Existing Module</span><span class="hi">मौजूदा Module Edit करना</span></h4>
+    <ol class="steps">
+      <li><p><span class="en">Go to <strong>Module Authority</strong> and find the module you want to edit.</span><span class="hi"><strong>Module Authority</strong> में जाएं और जो module edit करना हो वह ढूंढें।</span></p></li>
+      <li><p><span class="en">Click the <strong>✏️ Edit</strong> button on that row. The New Module Addition form opens pre-filled with all current values.</span><span class="hi">उस row पर <strong>✏️ Edit</strong> button click करें। New Module Addition form सभी current values के साथ pre-filled खुलेगा।</span></p></li>
+      <li><p><span class="en">Note: <span class="field-name">Set Group Index</span> is <strong>locked</strong> if it was previously set — it shows as read-only. All other fields can be edited.</span><span class="hi">ध्यान दें: <span class="field-name">Set Group Index</span> पहले से set होने पर <strong>locked</strong> होता है — read-only दिखेगा। बाकी सभी fields edit की जा सकती हैं।</span></p></li>
+      <li><p><span class="en">Make your changes and click <span class="btn-label blue">Update Module</span>.</span><span class="hi">बदलाव करें और <span class="btn-label blue">Update Module</span> click करें।</span></p></li>
+    </ol>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 9: CONTENT AUTHORITY ════════════════ -->
+<section class="section" id="content-authority">
+  <div class="section-header">
+    <div class="section-icon">📖</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 9</span><span class="hi">अध्याय 9</span></div>
+      <h2><span class="en">Content Authority</span><span class="hi">कंटेंट अथॉरिटी</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Content Authority manages <strong>packaging design templates</strong> (called "Content"). You choose which templates are active in your system and keep their technical data updated.</span><span class="hi">Content Authority <strong>पैकेजिंग डिज़ाइन टेम्पलेट</strong> (जिन्हें "Content" कहते हैं) manage करती है। आप चुनते हैं कि कौन से templates आपके सिस्टम में सक्रिय हों।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Status Badges</span><span class="hi">Status Badges</span></h3>
+    <ul style="margin:8px 0 0 20px;color:var(--text-2);font-size:14px;">
+      <li style="margin-bottom:8px;"><span class="status-badge green">Synced</span> — <span class="en">Active and available in your system.</span><span class="hi">सक्रिय और आपके सिस्टम में उपलब्ध।</span></li>
+      <li style="margin-bottom:8px;"><span class="status-badge amber">Inactive</span> — <span class="en">Exists in your system but deactivated.</span><span class="hi">सिस्टम में है लेकिन निष्क्रिय।</span></li>
+      <li><span class="status-badge grey">Not Synced</span> — <span class="en">Available but not yet added to your system.</span><span class="hi">उपलब्ध है लेकिन अभी तक आपके सिस्टम में नहीं जोड़ा गया।</span></li>
+    </ul>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Activating or Deactivating Templates</span><span class="hi">Templates सक्रिय या निष्क्रिय करना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Use the <strong>Search box</strong> or <strong>Filter dropdown</strong> to find templates.</span><span class="hi">Templates ढूंढने के लिए <strong>Search box</strong> या <strong>Filter dropdown</strong> उपयोग करें।</span></p></li>
+      <li><p><span class="en">Tick checkboxes next to templates you want to activate/deactivate. The <strong>Access Changes</strong> counter updates.</span><span class="hi">Activate/Deactivate करने के लिए templates के checkbox पर टिक करें। <strong>Access Changes</strong> counter अपडेट होगा।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label blue">Save Content</span>. A confirmation dialog appears — click <span class="btn-label blue">Yes</span>.</span><span class="hi"><span class="btn-label blue">Save Content</span> पर क्लिक करें। Confirmation dialog में <span class="btn-label blue">Yes</span> दबाएं।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Update Buttons</span><span class="hi">Update बटन</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Button</span><span class="hi">बटन</span></th><th><span class="en">What It Updates</span><span class="hi">क्या अपडेट करता है</span></th></tr>
+      <tr><td><span class="btn-label amber">Update Content Details</span></td><td><span class="en">Updates physical specifications for synced templates from the central database.</span><span class="hi">Central database से synced templates की भौतिक specifications अपडेट करता है।</span></td></tr>
+      <tr><td><span class="btn-label" style="background:#7C3AED;color:#fff;">Update Keyline Details</span></td><td><span class="en">Updates die-cut coordinate data only. Does not change content master records.</span><span class="hi">केवल die-cut coordinate data अपडेट करता है। Content master records नहीं बदलता।</span></td></tr>
+    </table></div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 8: ERP DELETE ════════════════ -->
+<section class="section" id="erp-delete">
+  <div class="section-header">
+    <div class="section-icon">🗑️</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 10</span><span class="hi">अध्याय 10</span></div>
+      <h2><span class="en">ERP Transaction Delete</span><span class="hi">ERP ट्रांजेक्शन डिलीट</span></h2>
+    </div>
+  </div>
+  <div class="callout danger">
+    <div class="callout-title"><span class="en">Critical Warning — Permanent Deletion</span><span class="hi">महत्वपूर्ण चेतावनी — स्थायी विलोपन</span></div>
+    <span class="en">All actions here permanently delete data. <strong>Deleted data cannot be recovered.</strong> Only authorised administrators should use this module.</span>
+    <span class="hi">यहाँ सभी कार्य डेटा को स्थायी रूप से हटाते हैं। <strong>हटाया गया डेटा वापस नहीं आ सकता।</strong> केवल अधिकृत एडमिन ही इस मॉड्यूल का उपयोग करें।</span>
+  </div>
+  <p><span class="en">Two tabs at the top of the page:</span><span class="hi">पेज के ऊपर दो tabs हैं:</span></p>
+  <ul style="margin:6px 0 14px 20px;color:var(--text-2);font-size:14px;">
+    <li style="margin-bottom:4px;"><strong>Master Wise Data</strong> — <span class="en">Delete specific master records for a selected module/group.</span><span class="hi">चुने हुए module/group के खास master records हटाएं।</span></li>
+    <li><strong>All Transaction without Master</strong> — <span class="en">Delete ALL transactional records while keeping master data.</span><span class="hi">Master data रखते हुए सभी transactional records हटाएं।</span></li>
+  </ul>
+
+  <div class="sub" id="del-master">
+    <h3><span class="en">Tab 1 — Delete Master Data</span><span class="hi">Tab 1 — Master Data हटाना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Select <span class="field-name">Module Name</span> and (if needed) <span class="field-name">Sub Module Name</span>.</span><span class="hi"><span class="field-name">Module Name</span> और (जरूरत हो तो) <span class="field-name">Sub Module Name</span> चुनें।</span></p></li>
+      <li><p><span class="en">Click <span class="btn-label red">Delete Master Data</span>.</span><span class="hi"><span class="btn-label red">Delete Master Data</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">If records are <strong>in use</strong> by transactions, a warning modal lists each area. A <span class="btn-label red">Delete Unused</span> button may appear for records not referenced anywhere.</span><span class="hi">अगर records किसी transaction में <strong>उपयोग में</strong> हैं, तो warning modal हर क्षेत्र दिखाएगा। जो records कहीं use नहीं हो रहे उनके लिए <span class="btn-label red">Delete Unused</span> बटन दिख सकता है।</span></p></li>
+      <li><p><span class="en">If records are <strong>not in use</strong>, an authentication modal appears. Enter Username, Password, and Reason. Click <span class="btn-label red">Confirm Delete</span>.</span><span class="hi">अगर records <strong>उपयोग में नहीं</strong> हैं, तो authentication modal आएगा। Username, Password और Reason डालें। <span class="btn-label red">Confirm Delete</span> पर क्लिक करें।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub" id="del-all">
+    <h3><span class="en">Tab 2 — Delete All Transactions</span><span class="hi">Tab 2 — सभी Transactions हटाना</span></h3>
+    <div class="callout danger">
+      <div class="callout-title"><span class="en">Extreme Caution</span><span class="hi">अत्यधिक सावधानी</span></div>
+      <span class="en">This deletes ALL transactional records from the entire system. Requires 3 CAPTCHA steps + credentials. Always take a database backup first.</span>
+      <span class="hi">यह पूरे सिस्टम के सभी transactional records हटाता है। 3 CAPTCHA steps + credentials जरूरी हैं। पहले database backup जरूर लें।</span>
+    </div>
+    <ol class="steps">
+      <li><p><span class="en">Click <span class="btn-label red">Delete All Transactions</span>.</span><span class="hi"><span class="btn-label red">Delete All Transactions</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 1/3:</strong> Solve the math question and click <span class="btn-label blue">Next</span>, or <span class="btn-label">No, Cancel</span> to abort.</span><span class="hi"><strong>CAPTCHA 1/3:</strong> गणित का सवाल हल करें और <span class="btn-label blue">Next</span> दबाएं, या रद्द करने के लिए <span class="btn-label">No, Cancel</span>।</span></p></li>
+      <li><p><span class="en"><strong>CAPTCHA 2/3 and 3/3:</strong> Solve each and click Next.</span><span class="hi"><strong>CAPTCHA 2/3 और 3/3:</strong> हर एक हल करें और Next दबाएं।</span></p></li>
+      <li><p><span class="en"><strong>Security Verification:</strong> Enter Username, Password, Reason. Click <span class="btn-label red">Authorize &amp; Clear Data</span>.</span><span class="hi"><strong>Security Verification:</strong> Username, Password, Reason डालें। <span class="btn-label red">Authorize &amp; Clear Data</span> पर क्लिक करें।</span></p></li>
+      <li><p><span class="en">A <strong>progress bar</strong> shows deletion in progress (% complete, table count). Do not close the browser.</span><span class="hi">एक <strong>progress bar</strong> deletion की प्रगति दिखाएगा (% पूर्ण, table count)। Browser बंद न करें।</span></p></li>
+    </ol>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 9: KEYLINE ════════════════ -->
+<section class="section" id="keyline">
+  <div class="section-header">
+    <div class="section-icon">✏️</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 11</span><span class="hi">अध्याय 11</span></div>
+      <h2><span class="en">Key Line Generator</span><span class="hi">की-लाइन जनरेटर</span></h2>
+    </div>
+  </div>
+  <p><span class="en">Key Line Generator creates and edits <strong>die-cut template coordinates</strong> for packaging. It includes a live 2D SVG preview and a 3D folding viewer.</span><span class="hi">Key Line Generator पैकेजिंग के लिए <strong>die-cut template coordinates</strong> बनाता और edit करता है। इसमें live 2D SVG preview और 3D folding viewer है।</span></p>
+
+  <div class="sub">
+    <h3><span class="en">Opening a Design</span><span class="hi">Design खोलना</span></h3>
+    <ol class="steps">
+      <li><p><span class="en">Select the <span class="field-name">Content Name</span> from the dropdown.</span><span class="hi"><span class="field-name">Content Name</span> ड्रॉपडाउन से चुनें।</span></p></li>
+      <li><p><span class="en">Select <span class="field-name">Grain</span> direction: <em>With Grain</em> or <em>Across Grain</em>.</span><span class="hi"><span class="field-name">Grain</span> दिशा चुनें: <em>With Grain</em> या <em>Across Grain</em>।</span></p></li>
+      <li><p><span class="en">Select <span class="field-name">UPS Type</span>: First Up, Even Up, Odd Up, or Last Up.</span><span class="hi"><span class="field-name">UPS Type</span> चुनें: First Up, Even Up, Odd Up या Last Up।</span></p></li>
+      <li><p><span class="en">The coordinate grid and SVG preview load automatically.</span><span class="hi">Coordinate grid और SVG preview अपने आप लोड हो जाते हैं।</span></p></li>
+    </ol>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">3D Viewer Controls</span><span class="hi">3D Viewer Controls</span></h3>
+    <div class="table-wrap"><table>
+      <tr><th><span class="en">Control</span><span class="hi">नियंत्रण</span></th><th><span class="en">Action</span><span class="hi">कार्य</span></th></tr>
+      <tr><td><span class="en">Click and drag</span><span class="hi">क्लिक और खींचें</span></td><td><span class="en">Rotate the 3D box.</span><span class="hi">3D box घुमाएं।</span></td></tr>
+      <tr><td><span class="en">Scroll wheel</span><span class="hi">Scroll wheel</span></td><td><span class="en">Zoom in / out.</span><span class="hi">Zoom in / out।</span></td></tr>
+      <tr><td><span class="en">Open ↔ Close slider</span><span class="hi">Open ↔ Close slider</span></td><td><span class="en">Manually open or close the box. 0% = flat, 100% = closed.</span><span class="hi">Box manually खोलें या बंद करें। 0% = खुला, 100% = बंद।</span></td></tr>
+      <tr><td><span class="btn-label blue">▶ Play</span></td><td><span class="en">Auto-animate box folding.</span><span class="hi">Box folding automatic animate करें।</span></td></tr>
+      <tr><td><span class="en">Default / Top / Front / Side</span><span class="hi">Default / Top / Front / Side</span></td><td><span class="en">Snap camera to a preset angle.</span><span class="hi">Camera को preset angle पर snap करें।</span></td></tr>
+      <tr><td><span class="btn-label">⬇ Download SVG</span></td><td><span class="en">Download keyline as SVG file.</span><span class="hi">Keyline SVG फ़ाइल के रूप में download करें।</span></td></tr>
+    </table></div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Saving Your Work</span><span class="hi">काम सेव करना</span></h3>
+    <div class="callout warning">
+      <div class="callout-title"><span class="en">Unsaved Changes Warning</span><span class="hi">Unsaved Changes चेतावनी</span></div>
+      <span class="en">If you navigate away without saving, changes will be lost. Always click <span class="btn-label blue">💾 Save</span> before switching modules.</span>
+      <span class="hi">Save किए बिना दूसरे module पर जाने पर बदलाव खो जाएंगे। Module बदलने से पहले <span class="btn-label blue">💾 Save</span> जरूर दबाएं।</span>
+    </div>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 10: BEST PRACTICES ════════════════ -->
+<section class="section" id="best-practices">
+  <div class="section-header">
+    <div class="section-icon">✅</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 12</span><span class="hi">अध्याय 12</span></div>
+      <h2><span class="en">Best Practices</span><span class="hi">सर्वोत्तम तरीके</span></h2>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Excel File Preparation</span><span class="hi">Excel फ़ाइल तैयार करना</span></h3>
+    <ul style="color:var(--text-2);font-size:14px;margin-left:20px;">
+      <li style="margin-bottom:8px;"><span class="en">Always save files as <strong>.xlsx</strong> (Excel Workbook). File → Save As → Excel Workbook (.xlsx).</span><span class="hi">फ़ाइलें हमेशा <strong>.xlsx</strong> (Excel Workbook) में सेव करें। File → Save As → Excel Workbook (.xlsx)।</span></li>
+      <li style="margin-bottom:8px;"><span class="en">File name must exactly match the group name (e.g., <em>Clients.xlsx</em> for "Clients" group).</span><span class="hi">फ़ाइल का नाम group के नाम से बिल्कुल मेल खाना चाहिए (जैसे "Clients" group के लिए <em>Clients.xlsx</em>)।</span></li>
+      <li style="margin-bottom:8px;"><span class="en">No extra sheets, charts, or images — keep files as plain data tables.</span><span class="hi">कोई extra sheet, chart या image न हो — फ़ाइलें सादे data tables में रखें।</span></li>
+      <li><span class="en">Remove all blank rows at the end of your data before uploading.</span><span class="hi">Upload से पहले डेटा के अंत की सभी खाली rows हटाएं।</span></li>
+    </ul>
+  </div>
+
+  <div class="sub">
+    <h3><span class="en">Before Any Deletion</span><span class="hi">किसी भी Deletion से पहले</span></h3>
+    <ul style="color:var(--text-2);font-size:14px;margin-left:20px;">
+      <li style="margin-bottom:8px;"><span class="en"><strong>Always take a database backup first.</strong> Use Export before any deletion.</span><span class="hi"><strong>पहले हमेशा database backup लें।</strong> किसी भी deletion से पहले Export का उपयोग करें।</span></li>
+      <li style="margin-bottom:8px;"><span class="en">Get written authorisation from a manager.</span><span class="hi">Manager से लिखित अनुमति लें।</span></li>
+      <li><span class="en">Record date, time, reason, and your name for every deletion.</span><span class="hi">हर deletion के लिए दिनांक, समय, कारण और अपना नाम नोट करें।</span></li>
+    </ul>
+  </div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 11: TROUBLESHOOTING ════════════════ -->
+<section class="section" id="troubleshooting">
+  <div class="section-header">
+    <div class="section-icon">🔧</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 13</span><span class="hi">अध्याय 13</span></div>
+      <h2><span class="en">Troubleshooting</span><span class="hi">समस्या निवारण</span></h2>
+    </div>
+  </div>
+
+  <div class="table-wrap"><table>
+    <tr>
+      <th><span class="en">Problem</span><span class="hi">समस्या</span></th>
+      <th><span class="en">Cause</span><span class="hi">कारण</span></th>
+      <th><span class="en">Solution</span><span class="hi">समाधान</span></th>
+    </tr>
+    <tr>
+      <td><span class="en">Cannot log in — "Invalid username or password"</span><span class="hi">लॉगिन नहीं हो रहा — "Invalid username or password"</span></td>
+      <td><span class="en">Wrong credentials</span><span class="hi">गलत credentials</span></td>
+      <td><span class="en">Check Caps Lock is OFF. Re-enter carefully. If persists, ask admin to reset password.</span><span class="hi">Caps Lock बंद करें। फिर से ध्यान से दर्ज करें। समस्या बनी रहे तो एडमिन से password reset कराएं।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">File upload rejected — "wrong file format"</span><span class="hi">File upload reject — "wrong file format"</span></td>
+      <td><span class="en">File is not .xlsx</span><span class="hi">File .xlsx नहीं है</span></td>
+      <td><span class="en">Re-save from Excel as .xlsx, then upload again.</span><span class="hi">Excel से .xlsx में re-save करें, फिर upload करें।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">File upload rejected — "wrong file name"</span><span class="hi">File upload reject — "wrong file name"</span></td>
+      <td><span class="en">File name doesn't match group name</span><span class="hi">फ़ाइल नाम group नाम से मेल नहीं खाता</span></td>
+      <td><span class="en">Rename file to exactly match the group name (spaces and capitalisation must match).</span><span class="hi">फ़ाइल का नाम group नाम से बिल्कुल मेल खाने के लिए rename करें (spaces और capitalisation सहित)।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">Save Data button doesn't appear after validation</span><span class="hi">Validation के बाद Save Data बटन नहीं दिखता</span></td>
+      <td><span class="en">Some rows have errors (Duplicate/Missing/Invalid)</span><span class="hi">कुछ rows में गलतियां हैं (Duplicate/Missing/Invalid)</span></td>
+      <td><span class="en">Click the error cards to filter, fix each row, then click Check Validation again.</span><span class="hi">Error cards पर क्लिक करें, हर row सुधारें, फिर Check Validation फिर से दबाएं।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">CAPTCHA answer rejected</span><span class="hi">CAPTCHA answer reject हुआ</span></td>
+      <td><span class="en">Calculation error</span><span class="hi">गणना में गलती</span></td>
+      <td><span class="en">Re-read the math question and calculate again carefully (e.g., "47 – 23 = 24").</span><span class="hi">गणित का सवाल फिर से पढ़ें और ध्यान से गणना करें (जैसे "47 – 23 = 24")।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">Page blank / server error</span><span class="hi">Page खाली / server error</span></td>
+      <td><span class="en">Browser issue or server offline</span><span class="hi">Browser समस्या या server बंद</span></td>
+      <td><span class="en">Press F5 to refresh. Check internet connection. Contact admin if server may be down.</span><span class="hi">F5 दबाएं। इंटरनेट कनेक्शन जांचें। Server बंद हो तो एडमिन से संपर्क करें।</span></td>
+    </tr>
+    <tr>
+      <td><span class="en">3D preview shows no panels</span><span class="hi">3D preview में panels नहीं दिखते</span></td>
+      <td><span class="en">L, W, or H values not set in Formulas</span><span class="hi">Formulas में L, W या H values नहीं हैं</span></td>
+      <td><span class="en">Go to the Formulas panel and ensure L, W, H have valid numeric values.</span><span class="hi">Formulas panel में जाएं और सुनिश्चित करें कि L, W, H में valid numeric values हों।</span></td>
+    </tr>
+  </table></div>
+</section>
+<hr class="divider">
+
+<!-- ════════════════ CH 12: GLOSSARY ════════════════ -->
+<section class="section" id="glossary">
+  <div class="section-header">
+    <div class="section-icon">📚</div>
+    <div class="section-meta">
+      <div class="label"><span class="en">Chapter 14</span><span class="hi">अध्याय 14</span></div>
+      <h2><span class="en">Glossary</span><span class="hi">शब्दावली</span></h2>
+    </div>
+  </div>
+
+  <div class="table-wrap"><table>
+    <tr><th><span class="en">Term</span><span class="hi">शब्द</span></th><th><span class="en">Definition</span><span class="hi">परिभाषा</span></th></tr>
+    <tr><td><strong>.xlsx</strong></td><td><span class="en">The Excel file format required for all uploads. Save via File → Save As → Excel Workbook.</span><span class="hi">सभी uploads के लिए जरूरी Excel फ़ाइल format। File → Save As → Excel Workbook से सेव करें।</span></td></tr>
+    <tr><td><strong>CAPTCHA</strong></td><td><span class="en">A security math question used before critical actions to confirm a human is performing them.</span><span class="hi">महत्वपूर्ण actions से पहले एक सुरक्षा गणित प्रश्न, यह पुष्टि करने के लिए कि कोई इंसान यह कर रहा है।</span></td></tr>
+    <tr><td><strong>Content</strong></td><td><span class="en">A packaging design template — blueprint for a specific box style with die-cut and fold lines.</span><span class="hi">एक पैकेजिंग डिज़ाइन template — एक खास box style का blueprint जिसमें die-cut और fold lines हों।</span></td></tr>
+    <tr><td><strong>Duplicate</strong></td><td><span class="en">A validation error where the key field (e.g., Ledger Name) already exists in the database.</span><span class="hi">एक validation error जहाँ मुख्य field (जैसे Ledger Name) पहले से डेटाबेस में मौजूद है।</span></td></tr>
+    <tr><td><strong>Export</strong></td><td><span class="en">Downloading current grid data as an Excel file to your computer.</span><span class="hi">ग्रिड डेटा को Excel फ़ाइल के रूप में आपके कंप्यूटर पर डाउनलोड करना।</span></td></tr>
+    <tr><td><strong>Fresh Upload</strong></td><td><span class="en">An import workflow that first deletes all existing records for the group, then uploads a new file.</span><span class="hi">एक import workflow जो पहले group के सभी मौजूदा records हटाता है, फिर नई फ़ाइल upload करता है।</span></td></tr>
+    <tr><td><strong>Grain</strong></td><td><span class="en">Direction of paper fibres — "With Grain" or "Across Grain". Affects box strength and folding.</span><span class="hi">कागज के रेशों की दिशा — "With Grain" या "Across Grain"। Box की मजबूती और folding पर असर डालती है।</span></td></tr>
+    <tr><td><strong>Keyline</strong></td><td><span class="en">Technical 2D drawing showing all cut and fold lines for a packaging die-cut template.</span><span class="hi">पैकेजिंग die-cut template के सभी cut और fold lines दिखाने वाला technical 2D drawing।</span></td></tr>
+    <tr><td><strong>Master Data</strong></td><td><span class="en">Core reference records — items, ledgers, tools, suppliers. Referenced by transactions.</span><span class="hi">मूल reference records — items, ledgers, tools, suppliers। Transactions इन्हें refer करते हैं।</span></td></tr>
+    <tr><td><strong>Missing</strong></td><td><span class="en">A validation error where a required field is blank in the uploaded data.</span><span class="hi">एक validation error जहाँ uploaded data में कोई जरूरी field खाली है।</span></td></tr>
+    <tr><td><strong>Opening Stock</strong></td><td><span class="en">The quantity of an item when first entering it into the system.</span><span class="hi">किसी item की वह मात्रा जब उसे पहली बार सिस्टम में दर्ज किया जाता है।</span></td></tr>
+    <tr><td><strong>Soft Delete</strong></td><td><span class="en">Permanently deleting selected rows from the database. Cannot be undone.</span><span class="hi">डेटाबेस से चुनी हुई rows को स्थायी रूप से हटाना। इसे वापस नहीं किया जा सकता।</span></td></tr>
+    <tr><td><strong>Synced</strong></td><td><span class="en">A Content template that has been activated and added to your system's database.</span><span class="hi">एक Content template जो activate किया गया है और आपके system के database में जोड़ा गया है।</span></td></tr>
+    <tr><td><strong>Validation</strong></td><td><span class="en">The automatic check the system runs on uploaded data before allowing it to be saved.</span><span class="hi">वह automatic जांच जो सिस्टम uploaded data पर save करने से पहले चलाता है।</span></td></tr>
+    <tr><td><strong>Warehouse</strong></td><td><span class="en">A physical storage location. Each can have multiple bins (specific shelf/rack locations).</span><span class="hi">एक भौतिक भंडारण स्थान। प्रत्येक में कई bins हो सकते हैं (खास shelf/rack locations)।</span></td></tr>
+  </table></div>
+
+  <!-- Footer -->
+  <div style="margin-top:40px;padding:20px;border:1px solid var(--border);border-radius:6px;background:var(--surface);text-align:center;">
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:4px;">ExcelJet <span class="en">User Manual</span><span class="hi">उपयोगकर्ता पुस्तिका</span> · Version 1.0</div>
+    <div style="font-size:12px;color:var(--text-3);">Indus Analytics · <span class="en">For internal use only</span><span class="hi">केवल आंतरिक उपयोग के लिए</span></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+// Active TOC on scroll
+const sections = document.querySelectorAll('section[id]')
+const links = document.querySelectorAll('.toc-nav a')
+new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'))
+      const a = document.querySelector(`.toc-nav a[href="#${e.target.id}"]`)
+      if (a) a.classList.add('active')
+    }
+  })
+}, { rootMargin: '-10% 0px -80% 0px' }).observe
+sections.forEach(s => new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'))
+      const a = document.querySelector(`.toc-nav a[href="#${e.target.id}"]`)
+      if (a) a.classList.add('active')
+    }
+  })
+}, { rootMargin: '-10% 0px -80% 0px' }).observe(s))
+
+// Language toggle
+function setLang(lang) {
+  document.body.classList.remove('lang-en', 'lang-hi')
+  document.body.classList.add('lang-' + lang)
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en')
+  document.getElementById('btn-hi').classList.toggle('active', lang === 'hi')
+  try { localStorage.setItem('ej-lang', lang) } catch(e){}
+}
+// Init
+try {
+  const saved = localStorage.getItem('ej-lang')
+  setLang(saved === 'hi' ? 'hi' : 'en')
+} catch(e) { setLang('en') }
+
+// Fix anchor navigation inside srcDoc iframes — Chrome blocks href="#id" navigation
+// from about:srcdoc; intercept and use scrollIntoView instead.
+document.addEventListener('click', function(e) {
+  var a = e.target.closest('a[href^="#"]')
+  if (!a) return
+  e.preventDefault()
+  var id = a.getAttribute('href').slice(1)
+  var el = document.getElementById(id)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
+</script>

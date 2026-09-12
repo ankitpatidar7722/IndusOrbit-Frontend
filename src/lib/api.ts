@@ -51,6 +51,14 @@ export interface TrainingUpdate {
   summary?: string;                // AI (Gemini) generated summary
 }
 export interface KeylineModule { head: string; name: string; }
+export interface KeylineSopModule { moduleName: string; moduleHeadName: string; moduleDisplayName: string; }
+export interface SopStatusRow { moduleName: string; youtubeLink?: string | null; sopDocument?: string | null; status: boolean; }
+
+/** Direct URL to a module's SOP HTML page (opens in a new tab; the page has its own Save-as-PDF). */
+export const sopViewUrl = (slug: string) => `${BASE}/api/sop-modules/view?slug=${encodeURIComponent(slug)}`;
+/** Slugify a module display name to match the SOP file names (mirrors the generator's slugify). */
+export const sopSlug = (name: string) =>
+  name.toLowerCase().replace(/[()]/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 export interface ChangeRequest {
   id: number; clientCode: string;
@@ -129,6 +137,14 @@ export const api = {
 
   // Keyline enterprise catalog — (Module Name, Sub Module Name) pairs for the Change-Request form.
   keylineModules: () => j<{ success: boolean; data: KeylineModule[] }>("/api/keyline/modules"),
+  // Keyline web-module catalog for the "SOP of Web Modules" grid.
+  keylineSopModules: () => j<{ success: boolean; data: KeylineSopModule[] }>("/api/keyline/sop-modules"),
+  // Slugs that have a SOP HTML document (grid shows a "View" button for these).
+  sopModulesList: () => j<{ success: boolean; slugs: string[] }>("/api/sop-modules/list"),
+  // Per-client saved SOP status (Youtube / SOP doc / Status tick) for web modules.
+  sopStatusGet: (clientCode: string) => j<{ success: boolean; data: SopStatusRow[] }>(`/api/sop-status?clientCode=${encodeURIComponent(clientCode)}`),
+  sopStatusSave: (body: { clientCode: string; moduleName: string; moduleHeadName?: string; moduleDisplayName?: string; sopSlug?: string; youtubeLink?: string; sopDocument?: string; status: boolean; userId?: number }) =>
+    j<{ success: boolean }>("/api/sop-status", { method: "POST", body: JSON.stringify(body) }),
 
   addChangeRequest: (code: string, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests`, { method: "POST", body: JSON.stringify(b) }),
   updateChangeRequest: (code: string, id: number, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests/${id}`, { method: "PUT", body: JSON.stringify(b) }),

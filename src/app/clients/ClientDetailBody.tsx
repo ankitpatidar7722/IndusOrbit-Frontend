@@ -379,14 +379,26 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     });
   }
 }
-const kickoffFields = (c: CustomerDetail, version = "1.0"): [string, string][] => {
+/** Kick-Off placeholders. Auto-filled from the SAME live data source as Sign-Off (control DB +
+ *  client DB + app DB via /api/signoff-data) when available, falling back to the client's own
+ *  fields so the document still opens meaningfully. documentCode uses the KO- prefix (not CLS-). */
+const kickoffFields = (c: CustomerDetail, d?: SignoffData | null, version = "1.0"): [string, string][] => {
+  const g = (v?: string | null) => (v ?? "").toString();
   const code = (c.companyUniqueCode ?? "").trim();
   return [
     ["documentCode", code ? `IA-ERP-KO-${code}` : "IA-ERP-KO-001"],
     ["version", version || "1.0"],
-    ["companyName", c.companyName ?? ""], ["city", c.city ?? ""], ["address", c.address ?? ""],
-    ["gstin", c.gstin ?? ""], ["email", c.email ?? ""], ["mobile", c.mobile ?? ""],
-    ["contact", c.mobile ?? ""], ["consultant", ""], ["segment", ""],
+    ["documentDate", g(d?.documentDate)],
+    ["erpProduct", g(d?.erpProduct)],
+    ["companyName", g(d?.companyName) || (c.companyName ?? "")],
+    ["address", g(d?.address) || (c.address ?? "")],
+    ["city", g(d?.city) || (c.city ?? "")],
+    ["gstin", c.gstin ?? ""],
+    ["email", c.email ?? ""],
+    ["contactPerson", g(d?.contactPerson)],
+    ["mobile", c.mobile ?? ""],
+    ["implEngineer", g(d?.implementationEngineer)],
+    ["implEngineerMobile", g(d?.implementationEngineerMobile)],
   ];
 };
 /** Sign-Off placeholders. When live auto-fill data `d` is available (fetched on open) the fields
@@ -690,7 +702,21 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       // Kick-Off: fill the live send-version (1.0 → 1.1 → … per email) so it matches the Sign-Off flow.
       let version = "1.0";
       try { const vr = await clientDocsApi.version(docClientCode, "KickOff"); if (vr?.success && vr.version) version = vr.version; } catch { /* keep 1.0 */ }
-      return fillTemplate(html, kickoffFields(c, version));
+      // Same LIVE auto-fill data source as Sign-Off (control DB + client DB + app DB). Degrade
+      // gracefully — if the backend or client DB is unreachable, open with the client fallback.
+      let kdata: SignoffData | null = null;
+      try {
+        const r = await customersApi.signoffData(c.companyUserID);
+        if (r?.success) kdata = r.data;
+      } catch { /* unreachable — document still opens with client fallback fields */ }
+      html = fillTemplate(html, kickoffFields(c, kdata, version));
+      // Tick the "In Scope" checkbox for each module present in the client's ModuleMaster.
+      for (const m of kdata?.inScopeModules ?? [])
+        html = html.split(`data-module="${m}">`).join(`data-module="${m}" checked>`);
+      // Default Project Start Date to the client's actual start (ISO yyyy-mm-dd). Target Go-Live
+      // stays blank — it's a future target the user sets during kick-off.
+      html = html.replace('id="projectStartDate">', `id="projectStartDate" value="${kdata?.projectStartDateIso ?? ""}">`);
+      return html;
     }
 
     // Sign-Off: fetch the live auto-fill data (control DB + client DB + app DB). Degrade
@@ -781,8 +807,11 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
   /** Open the document in a new window. mode "edit" = editable (continues from the saved
    *  final version if one exists, else the filled template) with a Save button; mode "view"
-   *  = the saved final version, read-only. */
-  const openDocWindow = (mode: "edit" | "view", docType: ClientDocType) => {
+   *  = the saved final version, read-only. When `forceTemplate` is true, edit mode ignores any
+   *  saved version and opens the LATEST auto-filled template instead — used by "Open New Template"
+   *  so a client with an old saved doc can move to the current template if they choose. Nothing is
+   *  overwritten until the user explicitly clicks Save inside the window. */
+  const openDocWindow = (mode: "edit" | "view", docType: ClientDocType, forceTemplate = false) => {
     const w = window.open("", "_blank");
     if (!w) { alert("Please allow pop-ups to open the document."); return; }
     try {
@@ -798,7 +827,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           const r = await clientDocsApi.get(docClientCode, docType);
           if (!r?.success || !r.data) { try { w.close(); } catch { /* */ } setFlash("No saved document to view."); return; }
           html = r.data.htmlContent; loadedSaved = true;
-        } else if (docMetaFor(docType)) {
+        } else if (!forceTemplate && docMetaFor(docType)) {
           const r = await clientDocsApi.get(docClientCode, docType);
           if (r?.success && r.data) { html = r.data.htmlContent; loadedSaved = true; }
           else html = await fetchFilledTemplate(docType);
@@ -949,6 +978,9 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           {editable
             ? <Button variant="outline" size="sm" icon={FileText} onClick={() => openDocWindow("edit", docType)}>Open Document (Edit &amp; Save)</Button>
             : <Button variant="outline" size="sm" icon={Eye} onClick={() => openDocWindow("view", docType)}>Open Document (View)</Button>}
+          {/* When a client has an OLD saved copy, let an editor open the LATEST template instead
+              (non-destructive — the saved copy stays until they Save the new one). */}
+          {meta && editable && <Button variant="outline" size="sm" icon={Wand2} onClick={() => openDocWindow("edit", docType, true)}>Open New Template</Button>}
           {meta && <Button variant="outline" size="sm" icon={Eye} onClick={() => openDocWindow("view", docType)}>View Saved</Button>}
           {meta && (
             <div style={{ position: "relative" }}>

@@ -1,0 +1,301 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer components {
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-200 dark:bg-gray-700 rounded;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-500 rounded;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500 dark:bg-gray-400;
+  }
+
+  /* Excel Preview Scrollbar */
+  .excel-scroll-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .excel-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .excel-scroll-container::-webkit-scrollbar-thumb {
+    background: rgb(156, 163, 175);
+    border-radius: 4px;
+  }
+
+  .excel-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: rgb(107, 114, 128);
+  }
+
+  .excel-scroll-container::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar styling */
+  .excel-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(156, 163, 175) transparent;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-all duration-300;
+  }
+
+  .card:hover {
+    @apply shadow-lg;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white focus:ring-primary-500;
+  }
+
+  .btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white focus:ring-green-500;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white focus:ring-red-500;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  }
+
+  .select {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all cursor-pointer;
+  }
+
+  /* Table styles */
+  .table-wrapper {
+    @apply overflow-auto custom-scrollbar rounded-lg border border-gray-200 dark:border-gray-700;
+  }
+
+  .data-table {
+    @apply w-full text-sm text-left;
+  }
+
+  .data-table thead {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 uppercase text-xs font-semibold sticky top-0;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 whitespace-nowrap;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-t border-gray-200 dark:border-gray-700 whitespace-nowrap;
+  }
+
+  .data-table tbody tr {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+  }
+}
+
+/* Light Mode Grid Header Overrides */
+.dx-datagrid-headers {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-bottom: 2px solid #1e293b !important;
+}
+
+.dx-datagrid-headers .dx-header-row>td {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  text-transform: none !important;
+  padding: 12px 10px !important;
+}
+
+/* DevExtreme Dark Mode Overrides */
+.dark .dx-datagrid {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-datagrid-headers {
+  background-color: #0B1120 !important;
+  /* Sidebar color */
+  border-bottom: 1px solid #374151 !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-datagrid-headers .dx-header-row>td {
+  background-color: #0B1120 !important;
+  /* Sidebar color */
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-datagrid-rowsview {
+  background-color: transparent !important;
+}
+
+.dark .dx-data-row>td {
+  background-color: #111827 !important;
+  /* gray-900 */
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .dx-row-alt>td {
+  background-color: #1f2937 !important;
+  /* gray-800 */
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .dx-datagrid-lines>td {
+  border-color: #374151 !important;
+}
+
+.dark .dx-pager {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+  border-top: 1px solid #374151 !important;
+}
+
+.dark .dx-widget {
+  color: #e2e8f0 !important;
+}
+
+/* Fix for Button Text Color in Dark Mode */
+.dark .dx-button {
+  color: #000000 !important;
+}
+
+.dark .dx-button .dx-button-content {
+  color: #000000 !important;
+}
+
+.dark .dx-button .dx-icon {
+  color: #000000 !important;
+}
+
+/* Header Filter Icons adjustments if needed */
+.dark .dx-header-filter {
+  color: #e2e8f0 !important;
+}
+
+/* Group row */
+.dark .dx-group-row {
+  background-color: #374151 !important;
+  /* gray-700 */
+  color: white !important;
+}
+
+/* FilterRow & SearchPanel dark mode */
+.dark .dx-datagrid-filter-row td {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .dx-datagrid-filter-row .dx-texteditor {
+  background-color: #1e293b !important;
+  border-color: #374151 !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-datagrid-filter-row .dx-texteditor-input {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-datagrid-filter-row .dx-placeholder::before {
+  color: #64748b !important;
+}
+
+.dark .dx-datagrid-search-panel {
+  background-color: #1e293b !important;
+  border-color: #374151 !important;
+}
+
+.dark .dx-datagrid-search-panel .dx-texteditor-input {
+  background-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-toolbar {
+  background-color: transparent !important;
+}
+
+/* Group panel dark mode */
+.dark .dx-datagrid-group-panel {
+  background-color: transparent !important;
+}
+
+.dark .dx-datagrid-group-panel .dx-group-panel-message {
+  color: #64748b !important;
+}
+
+/* Column chooser & header filter popup dark mode */
+.dark .dx-overlay-content.dx-popup-normal {
+  background-color: #1e293b !important;
+  border-color: #374151 !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-list-item {
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-list-item.dx-state-hover {
+  background-color: #334155 !important;
+}
+
+/* Pager dark mode buttons */
+.dark .dx-page {
+  color: #e2e8f0 !important;
+}
+
+.dark .dx-page.dx-selection {
+  background-color: #4f46e5 !important;
+  color: #fff !important;
+}
+
+/* Focused row dark mode */
+.dark .dx-row-focused > td {
+  background-color: #312e81 !important;
+  color: #e0e7ff !important;
+}
+
+/* Shimmer Animation for Loading Overlay */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

@@ -418,7 +418,7 @@ export default function SettingsPage() {
                       <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
                         <div style={{ display: "flex", gap: 8 }}>
                           {[["MicrosoftGraph", "Microsoft Graph", Cloud], ["SMTP", "SMTP", Server]].map(([pv, lbl, Ic]) => {
-                            const P = Ic as React.ElementType; const on = provider === pv;
+                            const P = Ic as unknown as React.ComponentType<{ size?: number }>; const on = provider === pv;
                             return <button key={pv as string} onClick={() => setProvider(pv as string)} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", background: on ? NAVY : "#fff", color: on ? "#fff" : "#48586b", border: on ? "none" : "1px solid #d7deea" }}><P size={15} /> {lbl as string}</button>;
                           })}
                         </div>

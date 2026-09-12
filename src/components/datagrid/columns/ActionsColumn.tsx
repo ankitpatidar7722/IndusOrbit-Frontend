@@ -168,7 +168,7 @@ export interface ActionsColumnConfig<TData = any> {
   primaryActions?: ActionType[]
   maxVisibleActions?: number
   // Optional per-action icon override (e.g. use a Send icon for the 'share' action).
-  icons?: Partial<Record<ActionType, React.ElementType>>
+  icons?: Partial<Record<ActionType, React.ComponentType<{ className?: string; size?: number }>>>
   confirmDelete?: boolean // Default: true
   confirmArchive?: boolean // Default: true
   showStatusBadges?: boolean // Default: false (status badges can increase row height)
@@ -216,7 +216,9 @@ type ActionType = 'view' | 'edit' | 'delete' | 'duplicate' | 'target' | 'pin' | 
 interface ActionDefinition {
   id: ActionType
   label: string
-  icon: React.ElementType
+  // Concrete component type (not React.ElementType) — ElementType includes string intrinsics, whose
+  // JSX prop-intersection collapses `size`/`className` to `never` under the app's React types.
+  icon: React.ComponentType<{ className?: string; size?: number }>
   action: () => void
   show: boolean
   className: string

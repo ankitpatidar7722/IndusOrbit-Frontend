@@ -51,7 +51,7 @@ const loadStoredServers = (): string[] => { try { return JSON.parse(localStorage
 const rememberServer = (s: string) => { const t = (s || "").trim(); if (!t) return; const cur = loadStoredServers(); if (!cur.includes(t)) localStorage.setItem(SERVER_STORE, JSON.stringify([...cur, t])); };
 const sect: React.CSSProperties = { display: "none" };  // old inline section labels hidden — the header card shows the title
 
-const STEP_META: Record<number, { title: string; sub: string; icon: React.ElementType }> = {
+const STEP_META: Record<number, { title: string; sub: string; icon: React.ComponentType<{ size?: number }> }> = {
   1: { title: "Database Setup", sub: "Select a server, application type, and client name. A new database will be created from the template.", icon: Database },
   2: { title: "Subscription Details", sub: "Enter the client's contact, subscription and login details.", icon: CreditCard },
   3: { title: "Company Master", sub: "Set up the company master record for this client.", icon: Building2 },
