@@ -169,6 +169,7 @@
   <h2 class="sec">2. Project Team &amp; Responsibilities</h2>
   <h3 class="sub">Customer Project Communication &amp; Decision Owners</h3>
   <table class="mod">
+    <colgroup><col style="width:27%"><col style="width:23%"><col style="width:13%"><col style="width:14%"><col style="width:23%"></colgroup>
     <tr class="h"><td>Role</td><td>Name</td><td>Designation</td><td>Mobile</td><td>Email</td></tr>
     <tr><td>Project Sponsor / Management</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
     <tr><td>Customer SPOC / Project Coordinator</td><td class="fill"><span class="af">[[contactPerson]]</span></td><td class="fill"></td><td class="fill"><span class="af">[[mobile]]</span></td><td class="fill"><span class="af">[[email]]</span></td></tr>
@@ -193,7 +194,7 @@
   </table>
 
   <h3 class="sub">Agreed Customizations / Special Commitments</h3>
-  <table class="mod">
+  <table class="mod" id="customizeTable">
     <tr class="h"><td class="c">No.</td><td>Requirement</td><td>Module</td><td>Timeline</td><td>Reference / Approval</td></tr>
     <tr><td class="c">1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
     <tr><td class="c">2</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
@@ -209,8 +210,9 @@
     <tr><td>Growth / Management</td><td class="fill"></td><td class="fill"></td><td>Management-level support, if required</td></tr>
   </table>
 
-  <!-- 3. IMPLEMENTATION ROADMAP -->
-  <h2 class="sec">3. Implementation Roadmap Plan &amp; Responsibilities</h2>
+  <!-- 3. IMPLEMENTATION ROADMAP (always starts on a fresh page so the heading + roadmap table
+       are never split across pages) -->
+  <h2 class="sec" style="break-before:page;page-break-before:always;">3. Implementation Roadmap Plan &amp; Responsibilities</h2>
   <p class="note">The project will move through the following stages. Dates can be updated as dependencies are completed.</p>
   <table class="mod">
     <tr class="h"><td>Stage</td><td>Key Output</td><td>INDAS Responsibility</td><td>Customer Responsibility</td><td class="c">Target Days</td></tr>
@@ -222,14 +224,8 @@
     <tr><td>6. Sign-off &amp; Handover</td><td>Completion sign-off and handover to support team</td><td>Provide go-live assistance, closure record and handover</td><td>Approve and sign</td><td class="c">-</td></tr>
   </table>
 
-  <h3 class="sub">Standard Project Deliverables Checklist</h3>
-<table>
-  <tr><td><input type="checkbox"> ERP installation / company registration</td><td><input type="checkbox"> Basic system configuration</td></tr>
-  <tr><td><input type="checkbox"> Master data templates and upload support</td><td><input type="checkbox"> User creation and role / rights configuration</td></tr>
-  <tr><td><input type="checkbox"> Module-wise functional training</td><td><input type="checkbox"> Practical working sessions</td></tr>
-  <tr><td><input type="checkbox"> Standard reports and print formats demonstration</td><td><input type="checkbox"> Training material / recordings shared with SPOC</td></tr>
-  <tr><td><input type="checkbox"> Go-live preparation and initial support</td><td><input type="checkbox"> Project status and pending-item communication</td></tr>
-</table>
+  <h3 class="sub">Standard Project Deliverables</h3>
+<ul style="margin:6px 0 10px 20px;color:#3a4a51;line-height:1.65;padding:0;"><li>ERP installation / company registration</li><li>Basic system configuration</li><li>Master data templates and upload support</li><li>User creation and role / rights configuration</li><li>Module-wise functional training</li><li>Practical working sessions</li><li>Standard reports and print formats demonstration</li><li>Training material / recordings shared with SPOC</li><li>Go-live preparation and initial support</li><li>Project status and pending-item communication</li></ul>
 
   <h3 class="sub">Customer Responsibilities</h3>
 <ul style="margin:6px 0 10px 20px;color:#3a4a51;line-height:1.65;padding:0;"><li>Nominate one SPOC and module-wise responsible users.</li><li>Provide correct master data, opening stock and required business information on time.</li><li>Arrange computers, internet, access permissions and user availability.</li><li>Ensure users attend scheduled training and complete practical working.</li><li>Review and confirm configurations, reports and pending points within the agreed timeline.</li><li>Inform INDAS in writing about delays, changes or additional requirements.</li></ul>
@@ -237,25 +233,10 @@
   <h3 class="sub">INDAS Responsibilities</h3>
 <ul style="margin:6px 0 10px 20px;color:#3a4a51;line-height:1.65;padding:0;"><li>Install and configure INDAS ERP as per the agreed scope.</li><li>Share access details, training plan and required data templates.</li><li>Conduct module-wise training and practical sessions.</li><li>Record and communicate project status, issues and pending items.</li><li>Support go-live activities and hand over the completed project to the support team.</li></ul>
 
-  <h3 class="sub">Communication &amp; Escalation</h3>
-  <table class="mod">
-    <tr class="h"><td>Level</td><td>Contact Person</td><td>When to Contact</td><td>Contact Details</td></tr>
-    <tr><td>Level 1</td><td>Implementation Engineer</td><td>Daily training / configuration queries</td><td class="fill"><span class="af">[[implEngineerMobile]]</span></td></tr>
-    <tr><td>Level 2</td><td>Implementation Head</td><td>Timeline, dependency or unresolved issues</td><td>9406666505</td></tr>
-    <tr><td>Level 3</td><td>Management / Commercial</td><td>Scope, commercial or major escalation</td><td class="fill"></td></tr>
-  </table>
-
-  <!-- 5. KICK-OFF READINESS -->
-  <h2 class="sec">5. Kick-Off Readiness &amp; Project Schedule Check List</h2>
+  <!-- 5. KICK-OFF READINESS (always starts on a fresh page) -->
+  <h2 class="sec" style="break-before:page;page-break-before:always;">5. Kick-Off Readiness &amp; Project Schedule Check List</h2>
   <h3 class="sub">Readiness Checklist</h3>
-<table>
-  <tr><td><input type="checkbox"> Customer SPOC nominated</td><td><input type="checkbox"> Module owners nominated</td></tr>
-  <tr><td><input type="checkbox"> ERP committee / approvers identified</td><td><input type="checkbox"> Required computers and internet available</td></tr>
-  <tr><td><input type="checkbox"> Remote-access permission available</td><td><input type="checkbox"> Customer, supplier and item masters ready</td></tr>
-  <tr><td><input type="checkbox"> Machine / process / material details ready</td><td><input type="checkbox"> Opening stock preparation started</td></tr>
-  <tr><td><input type="checkbox"> Existing order / job data identified</td><td><input type="checkbox"> Training calendar agreed</td></tr>
-  <tr><td><input type="checkbox"> Go-live target date agreed</td><td><input type="checkbox"> Customisation list confirmed</td></tr>
-</table>
+<ul style="margin:6px 0 10px 20px;color:#3a4a51;line-height:1.65;padding:0;"><li>Customer SPOC nominated</li><li>Module owners nominated</li><li>ERP committee / approvers identified</li><li>Required computers and internet available</li><li>Remote-access permission available</li><li>Customer, supplier and item masters ready</li><li>Machine / process / material details ready</li><li>Opening stock preparation started</li><li>Existing order / job data identified</li><li>Training calendar agreed</li><li>Go-live target date agreed</li><li>Customisation list confirmed</li></ul>
 
   <h3 class="sub">Milestone Schedule</h3>
   <table class="mod">

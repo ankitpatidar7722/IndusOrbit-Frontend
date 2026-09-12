@@ -278,12 +278,11 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
       implEng.addEventListener("input", syncEng);
     }
 
-    // §6 Pending Items Register — a "+ Add Row" control (top-right of the table) plus a per-row
-    // Delete (✕) button at the end of each row. Both are UI-only helpers: hidden in print and
-    // stripped from the saved/serialized HTML (see cleanDocHtml). Data operation → everyone.
-    const pt = doc.getElementById("pendingTable") as HTMLTableElement | null;
-    if (pt) {
-      const dataRows = () => [...pt.rows].filter((r) => !r.classList.contains("h"));
+    // "+ Add Row" (top-right of the table) + a per-row Delete (✕) button. Both are UI-only helpers:
+    // hidden in print and stripped from the saved/serialized HTML (see cleanDocHtml). Data operation
+    // → everyone. Used by Sign-Off's §6 Pending Items Register and Kick-Off's Agreed Customizations.
+    const wireRowEditing = (tbl: HTMLTableElement, newRowInner: string) => {
+      const dataRows = () => [...tbl.rows].filter((r) => !r.classList.contains("h"));
       const renumber = () => dataRows().forEach((r, i) => { const c = r.cells[0]; if (c) c.textContent = String(i + 1); });
       const addDelCell = (tr: HTMLTableRowElement) => {
         const td = tr.insertCell(-1);
@@ -299,14 +298,16 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
         td.appendChild(del);
       };
       // one-time: add an (empty) header cell + a delete cell to each existing data row
-      if (!pt.querySelector(".indus-delcol")) {
-        const hdr = pt.rows[0];
+      if (!tbl.querySelector(".indus-delcol")) {
+        const hdr = tbl.rows[0];
         if (hdr && hdr.classList.contains("h")) {
           const hc = hdr.insertCell(-1); hc.className = "indus-delcol"; hc.setAttribute("contenteditable", "false");
         }
         dataRows().forEach(addDelCell);
       }
-      if (!doc.querySelector(".indus-addrow")) {
+      // one "+ Add Row" bar per table (guarded by the table's own preceding sibling, so multiple
+      // editable tables in the same document each get their own).
+      if (!tbl.previousElementSibling?.classList.contains("indus-addrow")) {
         const wrap = doc.createElement("div");
         wrap.className = "indus-addrow";
         wrap.setAttribute("style", "text-align:right; margin:2px 0 4px;");
@@ -315,21 +316,25 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
         btn.type = "button";
         btn.textContent = "＋ Add Row";
         btn.setAttribute("style", "cursor:pointer; border:none; border-radius:5px; padding:4px 12px; font:600 11px 'Segoe UI',system-ui,sans-serif; color:#fff; background:#0f6a72;");
-        btn.onclick = () => {
-          const tr = pt.insertRow(-1);
-          tr.innerHTML =
-            `<td class="c"></td><td class="fill"></td><td class="fill"></td>` +
-            `<td class="fill"><input type="date" class="pd"></td>` +
-            `<td class="fill"><select class="sc"><option value=""></option><option>Urgent</option><option>Normal</option></select></td>` +
-            `<td class="fill"><select class="sc"><option value=""></option><option>In Progress</option><option>Not Required</option><option>Completed</option><option>Pending</option></select></td>` +
-            `<td class="fill"></td><td class="fill"></td>`;
-          addDelCell(tr);
-          renumber();
-        };
+        btn.onclick = () => { const tr = tbl.insertRow(-1); tr.innerHTML = newRowInner; addDelCell(tr); renumber(); };
         wrap.appendChild(btn);
-        pt.parentNode?.insertBefore(wrap, pt);
+        tbl.parentNode?.insertBefore(wrap, tbl);
       }
-    }
+    };
+
+    // Sign-Off §6 Pending Items Register (S.N. / description / module / date / priority / status / initials)
+    const pt = doc.getElementById("pendingTable") as HTMLTableElement | null;
+    if (pt) wireRowEditing(pt,
+      `<td class="c"></td><td class="fill"></td><td class="fill"></td>` +
+      `<td class="fill"><input type="date" class="pd"></td>` +
+      `<td class="fill"><select class="sc"><option value=""></option><option>Urgent</option><option>Normal</option></select></td>` +
+      `<td class="fill"><select class="sc"><option value=""></option><option>In Progress</option><option>Not Required</option><option>Completed</option><option>Pending</option></select></td>` +
+      `<td class="fill"></td><td class="fill"></td>`);
+
+    // Kick-Off §2 Agreed Customizations / Special Commitments (No. / Requirement / Module / Timeline / Reference)
+    const ct = doc.getElementById("customizeTable") as HTMLTableElement | null;
+    if (ct) wireRowEditing(ct,
+      `<td class="c"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td>`);
 
     // §8 Support Email — multi-select dropdown (options built in fetchFilledTemplate from the
     // active Support-role users). Only present on a fresh fill; stripped from saved/printed HTML,
