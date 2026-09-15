@@ -1,7 +1,16 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..21de9bc 100644
+index 99c0137..78142c9 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
+@@ -3168,7 +3168,7 @@ function SingleSelect({
+       onOpenChange(false);
+     }
+   }, [filteredOptions, highlightedIndex, searchTerm, onValueChange, onOpenChange, handleCreateOption]);
+-  if (allowCustomInput) {
++  if (allowCustomInput || searchable) {
+     return /* @__PURE__ */ jsxRuntime.jsxs(Popover__namespace.Root, { open, onOpenChange, children: [
+       /* @__PURE__ */ jsxRuntime.jsx(Popover__namespace.Trigger, { asChild: true, children: /* @__PURE__ */ jsxRuntime.jsxs(
+         "div",
 @@ -3213,8 +3213,13 @@ function SingleSelect({
            collisionPadding: 16,
            onOpenAutoFocus: (e) => {
@@ -17,6 +26,15 @@ index 99c0137..21de9bc 100644
            children: [
              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Search, { className: "w-3.5 h-3.5 text-[rgb(var(--fg-muted))] flex-shrink-0" }),
+@@ -3247,7 +3252,7 @@ function SingleSelect({
+                 className: dropdownSharedStyles2.viewport,
+                 onWheel: (e) => e.stopPropagation(),
+                 children: [
+-                  searchTerm.trim() && !filteredOptions.find((o) => String(o.label ?? "").toLowerCase() === searchTerm.trim().toLowerCase()) && /* @__PURE__ */ jsxRuntime.jsxs(
++                  effectiveCreateOption && searchTerm.trim() && !filteredOptions.find((o) => String(o.label ?? "").toLowerCase() === searchTerm.trim().toLowerCase()) && /* @__PURE__ */ jsxRuntime.jsxs(
+                     "button",
+                     {
+                       type: "button",
 @@ -4866,6 +4871,10 @@ function Dropdown({
              sticky: "always",
              collisionPadding: 16,
@@ -68,9 +86,18 @@ index 99c0137..21de9bc 100644
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..4b26308 100644
+index 920f23c..2d1827b 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
+@@ -1109,7 +1109,7 @@ function SingleSelect({
+       onOpenChange(false);
+     }
+   }, [filteredOptions, highlightedIndex, searchTerm, onValueChange, onOpenChange, handleCreateOption]);
+-  if (allowCustomInput) {
++  if (allowCustomInput || searchable) {
+     return /* @__PURE__ */ jsxs(Popover.Root, { open, onOpenChange, children: [
+       /* @__PURE__ */ jsx(Popover.Trigger, { asChild: true, children: /* @__PURE__ */ jsxs(
+         "div",
 @@ -1145,7 +1145,11 @@ function SingleSelect({
        /* @__PURE__ */ jsx(Popover.Portal, { container: typeof document !== "undefined" ? document.body : void 0, children: /* @__PURE__ */ jsxs(
          Popover.Content,
@@ -113,6 +140,15 @@ index 920f23c..4b26308 100644
                  }
                ),
                filteredOptions.length > 0 && /* @__PURE__ */ jsxs("span", { className: "text-[0.625rem] font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-subtle))] px-1.5 py-0.5 rounded-md flex-shrink-0 tabular-nums", children: [
+@@ -1188,7 +1202,7 @@ function SingleSelect({
+                 className: dropdownSharedStyles2.viewport,
+                 onWheel: (e) => e.stopPropagation(),
+                 children: [
+-                  searchTerm.trim() && !filteredOptions.find((o) => String(o.label ?? "").toLowerCase() === searchTerm.trim().toLowerCase()) && /* @__PURE__ */ jsxs(
++                  effectiveCreateOption && searchTerm.trim() && !filteredOptions.find((o) => String(o.label ?? "").toLowerCase() === searchTerm.trim().toLowerCase()) && /* @__PURE__ */ jsxs(
+                     "button",
+                     {
+                       type: "button",
 @@ -1293,6 +1307,11 @@ function SingleSelect({
              avoidCollisions: true,
              sticky: "always",
