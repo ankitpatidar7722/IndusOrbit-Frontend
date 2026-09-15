@@ -3,8 +3,9 @@ import { useState, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { ThemeContext } from "indas-ui";
-import { Mail, LogOut, User as UserIcon, PanelLeft, Settings as SettingsIcon, MessageSquare, Sun, Moon } from "lucide-react";
+import { Mail, LogOut, User as UserIcon, PanelLeft, Settings as SettingsIcon, MessageSquare, Sun, Moon, BookOpen } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import UserManual from "@/components/UserManual";
 import { useMessagingPanel } from "@/components/messaging/MessagingPanelProvider";
 import { useMessaging } from "@/contexts/MessagingContext";
 import HeaderEmailMenu from "@/components/HeaderEmailMenu";
@@ -40,8 +41,10 @@ export default function TopHeader() {
   const chatUnread = msgState.totalUnreadCount;
   const themeCtx = useContext(ThemeContext);
   const isDark = !!themeCtx?.isDark;
+  const [manualOpen, setManualOpen] = useState(false);
 
   return (
+    <>
     <header
       className="app-topbar"
       style={{
@@ -90,6 +93,12 @@ export default function TopHeader() {
       <HeaderEmailMenu iconBtn={iconBtn} />
       <NotificationBell />
 
+      {/* User Manual — opens the in-app step-by-step guide popup */}
+      <button onClick={() => setManualOpen(true)} title="User Manual" aria-label="User Manual"
+        style={{ ...iconBtn, width: "auto", padding: "0 12px", gap: 7, fontSize: 12.5, fontWeight: 700 }}>
+        <BookOpen size={16} /> <span className="hide-on-mobile">User Manual</span>
+      </button>
+
       {/* Profile */}
       <div style={{ position: "relative", flexShrink: 0 }}>
         <button style={{ ...iconBtn, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.18)", padding: 0, overflow: "hidden" }} onClick={() => setMenuOpen((o) => !o)} title={name}>
@@ -120,6 +129,8 @@ export default function TopHeader() {
         )}
       </div>
     </header>
+    {manualOpen && <UserManual onClose={() => setManualOpen(false)} />}
+    </>
   );
 }
 
