@@ -7,6 +7,7 @@ import { BookOpen, RefreshCw, Save, SquarePen, Trash2, Eye, Package, Users2 } fr
 import { DataGrid } from "@/components/datagrid";
 import { api, sopViewUrl, sopSlug, type KeylineSopModule } from "@/lib/api";
 import { customersApi, type CustomerCard } from "@/lib/customers";
+import { fetchMyModulePerms } from "@/lib/myPermissions";
 
 // Indus Product picker (same logic as /implementation/kickoff): options come from the clients'
 // applicationName (normalized); Estimoprime is the default + sorts first.
@@ -110,6 +111,18 @@ export default function SopWebModulesPage() {
 
   // Slugs that have a SOP document (for the View button).
   const [sopSlugs, setSopSlugs] = useState<Set<string>>(new Set());
+
+  // The acting user's Edit/Delete authority on THIS module (User Management → Module Authority).
+  // View-only users get no Edit/Delete buttons (fail-closed: default false; hidden on error too).
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    fetchMyModulePerms(userId).then((perms) => {
+      const p = perms["/implementation/sop-web-modules"];
+      setCanEdit(!!p?.canEdit); setCanDelete(!!p?.canDelete);
+    }).catch(() => {});
+  }, [userId]);
 
   // Load clients (Project-Assignment scoped) + the available SOP list once.
   useEffect(() => {
@@ -244,18 +257,21 @@ export default function SopWebModulesPage() {
       id: "actions", header: "Action", size: 120, enableSorting: false, enableHiding: false,
       cell: ({ row }) => {
         const isEditing = editing.has(row.original.moduleName);
+        // Buttons are gated on the user's authority for this module: no CanEdit → no Edit/Save,
+        // no CanDelete → no Delete. A view-only user sees just a "View only" tag.
         return (
           <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
             {isEditing
               ? <IconBtn icon={Save} label="Save" className="hover:text-[rgb(var(--color-success))] hover:bg-[rgb(var(--color-success-subtle))]" onClick={() => onSave(row.original)} />
-              : <IconBtn icon={SquarePen} label="Edit" className="hover:text-[rgb(var(--color-orange))] hover:bg-[rgb(var(--color-orange-subtle))]" onClick={() => onEdit(row.original)} />}
-            <IconBtn icon={Trash2} label="Delete" className="hover:text-[rgb(var(--color-error))] hover:bg-[rgb(var(--color-error-subtle))]" onClick={() => onDelete(row.original)} />
+              : canEdit && <IconBtn icon={SquarePen} label="Edit" className="hover:text-[rgb(var(--color-orange))] hover:bg-[rgb(var(--color-orange-subtle))]" onClick={() => onEdit(row.original)} />}
+            {canDelete && <IconBtn icon={Trash2} label="Delete" className="hover:text-[rgb(var(--color-error))] hover:bg-[rgb(var(--color-error-subtle))]" onClick={() => onDelete(row.original)} />}
+            {!canEdit && !canDelete && <span style={{ fontSize: 12, color: T.faint }}>View only</span>}
           </div>
         );
       },
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [editing, sopSlugs]);
+  ], [editing, sopSlugs, canEdit, canDelete]);
 
   return (
     <Page>
