@@ -1,48 +1,35 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Page, StatsGrid, StatsCard, Badge, Progress } from "indas-ui";
+import { Page, Tabs } from "indas-ui";
+import { LayoutDashboard, UserPlus, CreditCard } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
-import { DataGrid } from "@/components/datagrid";
-import type { ColumnDef } from "@tanstack/react-table";
-import { api, type ClientListItem, type Stats } from "@/lib/api";
-import { statusVariant } from "@/lib/ui";
+import { customersApi, type CustomerCard } from "@/lib/customers";
+import { crmApi, type CrmClient } from "@/lib/crm";
+import OverviewTab from "@/components/dashboard/OverviewTab";
+import OnboardingTab from "@/components/dashboard/OnboardingTab";
+import SubscriptionsTab from "@/components/dashboard/SubscriptionsTab";
 
-const columns: ColumnDef<ClientListItem>[] = [
-  {
-    accessorKey: "name", header: "Client",
-    cell: ({ row }) => (
-      <div>
-        <div style={{ fontWeight: 600 }}>{row.original.name}</div>
-        <div style={{ fontSize: 11, opacity: 0.6 }}>{row.original.clientCode} · {row.original.city}</div>
-      </div>
-    ),
-  },
-  { accessorKey: "application", header: "Application" },
-  { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant={statusVariant(row.original.status)}>{row.original.status}</Badge> },
-  { accessorKey: "consultant", header: "Implementation Engineer" },
-  {
-    accessorKey: "progress", header: "Progress",
-    cell: ({ row }) => (
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Progress value={row.original.progress} className="h-2 w-24" />
-        <span>{row.original.progress}%</span>
-      </div>
-    ),
-  },
-  { accessorKey: "openCrCount", header: "Open CR" },
+const DASH_TABS = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "onboarding", label: "Onboarding", icon: UserPlus },
+  { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
 ];
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [tab, setTab] = useState("overview");
+  const [subs, setSubs] = useState<CustomerCard[]>([]);
+  const [crm, setCrm] = useState<CrmClient[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getStats(), api.getClients()])
-      .then(([s, c]) => { setStats(s); setClients(c); })
+    // Real company-wide data: control-DB subscriptions + the internal CRM list.
+    // CRM is best-effort (its endpoint may be missing on an un-redeployed backend).
+    Promise.all([
+      customersApi.list(),
+      crmApi.clients().catch(() => [] as CrmClient[]),
+    ])
+      .then(([s, c]) => { setSubs(s); setCrm(c); })
       .catch((e) => setErr(String(e)))
       .finally(() => setLoading(false));
   }, []);
@@ -57,25 +44,14 @@ export default function DashboardPage() {
           <small style={{ opacity: 0.7 }}>{err}</small>
         </div>
       )}
-      <StatsGrid columns={4}>
-        <StatsCard title="Total Clients" value={stats?.total ?? 0} />
-        <StatsCard title="In Implementation" value={stats?.inImplementation ?? 0} />
-        <StatsCard title="Go-Live Stage" value={stats?.goLive ?? 0} variant="accent" />
-        <StatsCard title="Open Change Requests" value={stats?.openChangeRequests ?? 0} variant="warning" />
-      </StatsGrid>
 
-      <div style={{ marginTop: 24 }}>
-        <DataGrid<ClientListItem>
-          data={clients}
-          columns={columns}
-          getRowId={(r) => r.clientCode}
-          title="All Projects"
-          enableSorting
-          enableSearch
-          enablePagination
-          onRowClick={(r) => router.push(`/clients/${r.clientCode}`)}
-        />
+      <div style={{ marginBottom: 18 }}>
+        <Tabs tabs={DASH_TABS} activeTab={tab} onTabChange={setTab} variant="pill" size="md" />
       </div>
+
+      {tab === "overview" && <OverviewTab subs={subs} crm={crm} />}
+      {tab === "onboarding" && <OnboardingTab crm={crm} />}
+      {tab === "subscriptions" && <SubscriptionsTab rows={subs} />}
     </Page>
   );
 }
