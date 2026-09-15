@@ -210,7 +210,12 @@ export function validateExcelColumns(
     uploadedColumns: string[],
     standardColumns: string[]
 ): ExcelColumnValidationResult {
-    const normalize = (s: string) => s.trim().toLowerCase();
+    // Case/space-insensitive. Also collapse the legacy misspelling "Manufecturer" → "Manufacturer"
+    // (and its "…ItemCode" variant, since that's a substring) so BOTH spellings validate — the grid
+    // header shows the correct "Manufacturer" and the ERP field stays `manufecturer`; the row parser
+    // already accepts either. Without this, a file using the correct spelling was wrongly rejected
+    // with "Missing column Manufecturer".
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/manufecturer/g, "manufacturer");
 
     const standardSet   = new Set(standardColumns.map(normalize));
     const uploadedSet   = new Set(uploadedColumns.map(normalize));
