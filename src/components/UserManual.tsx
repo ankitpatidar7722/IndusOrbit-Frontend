@@ -1,11 +1,11 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   X, Search, BookOpen, LogIn, LayoutDashboard, Compass, MessageSquare, Mail, Bell,
   Settings as SettingsIcon, Users2, UserPlus, FolderKanban, DatabaseBackup, ChevronRight,
   Lightbulb, MousePointerClick, ListChecks, ImageOff, FileSignature, Map, FileSpreadsheet,
   ClipboardCheck, Plane, BookMarked, PackageOpen, Boxes, Images, Trash2, Building2, Layers,
-  ShieldCheck, type LucideIcon,
+  ShieldCheck, Menu, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -503,6 +503,17 @@ export default function UserManual({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
 
+  // On phones/tablets the two-column layout won't fit — collapse the Contents list into a slide-in drawer.
+  const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 820px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   const matches = (s: Section) =>
     !query || s.title.toLowerCase().includes(query) || s.intro.toLowerCase().includes(query) ||
     (s.callouts ?? []).some((c) => (c.label + c.desc).toLowerCase().includes(query));
@@ -519,22 +530,32 @@ export default function UserManual({ onClose }: { onClose: () => void }) {
 
   return (
     <div role="dialog" aria-modal="true" onClick={onClose}
-      style={{ position: "fixed", inset: 0, zIndex: 10050, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: "min(4vh, 40px) 16px" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 10050, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? 0 : "min(4vh, 40px) 16px" }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(1060px, 100%)", height: "min(90vh, 940px)", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 32px 80px -20px rgba(2,6,23,.6)", border: "1px solid rgb(var(--bd-default))" }}>
+        style={{ width: isMobile ? "100%" : "min(1060px, 100%)", height: isMobile ? "100%" : "min(90vh, 940px)", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", borderRadius: isMobile ? 0 : 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 32px 80px -20px rgba(2,6,23,.6)", border: isMobile ? "none" : "1px solid rgb(var(--bd-default))" }}>
         {/* Header bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "rgb(var(--color-primary-hover))", color: "#fff", flexShrink: 0 }}>
-          <span style={{ display: "inline-flex", width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.16)", alignItems: "center", justifyContent: "center" }}><BookOpen size={19} /></span>
-          <div>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 12, padding: isMobile ? "12px 12px" : "14px 18px", background: "rgb(var(--color-primary-hover))", color: "#fff", flexShrink: 0 }}>
+          {isMobile ? (
+            <button onClick={() => setMenuOpen((o) => !o)} title="Topics" aria-label="Show topics"
+              style={{ width: 36, height: 36, borderRadius: 9, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", flexShrink: 0 }}><Menu size={20} /></button>
+          ) : (
+            <span style={{ display: "inline-flex", width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,.16)", alignItems: "center", justifyContent: "center" }}><BookOpen size={19} /></span>
+          )}
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: 16, lineHeight: 1.1 }}>User Manual</div>
-            <div style={{ fontSize: 11.5, opacity: 0.85 }}>Indus Command Center — a step-by-step guide, from Login to every module</div>
+            {!isMobile && <div style={{ fontSize: 11.5, opacity: 0.85 }}>Indus Command Center — a step-by-step guide, from Login to every module</div>}
           </div>
-          <button onClick={onClose} title="Close" aria-label="Close" style={{ marginLeft: "auto", width: 34, height: 34, borderRadius: 9, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center" }}><X size={18} /></button>
+          <button onClick={onClose} title="Close" aria-label="Close" style={{ marginLeft: "auto", width: 34, height: 34, borderRadius: 9, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", flexShrink: 0 }}><X size={18} /></button>
         </div>
 
-        <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-          {/* Contents */}
-          <aside style={{ width: 280, flexShrink: 0, borderRight: "1px solid rgb(var(--bd-default))", background: "rgb(var(--bg-subtle))", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}>
+          {/* Dim backdrop behind the mobile drawer (tap to close) */}
+          {isMobile && menuOpen && (
+            <div onClick={() => setMenuOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(2,6,23,.45)", zIndex: 5 }} />
+          )}
+          {/* Contents — a fixed column on desktop, a slide-in drawer on mobile */}
+          <aside style={{ width: isMobile ? "min(300px, 84%)" : 280, flexShrink: 0, borderRight: "1px solid rgb(var(--bd-default))", background: "rgb(var(--bg-subtle))", display: "flex", flexDirection: "column", minHeight: 0,
+            ...(isMobile ? { position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 6, transform: menuOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform .22s ease", boxShadow: menuOpen ? "6px 0 26px rgba(2,6,23,.35)" : "none" } : {}) }}>
             <div style={{ padding: 12, borderBottom: "1px solid rgb(var(--bd-default))" }}>
               <div style={{ position: "relative" }}>
                 <Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "rgb(var(--fg-muted))" }} />
@@ -549,7 +570,7 @@ export default function UserManual({ onClose }: { onClose: () => void }) {
                   {grouped[grp].map((s) => {
                     const on = s.id === activeId; const Icon = s.icon;
                     return (
-                      <button key={s.id} onClick={() => { setActiveId(s.id); }}
+                      <button key={s.id} onClick={() => { setActiveId(s.id); if (isMobile) setMenuOpen(false); }}
                         style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13, marginBottom: 2, background: on ? primary : "transparent", color: on ? "#fff" : "rgb(var(--fg-default))", fontWeight: on ? 700 : 500 }}>
                         <Icon size={15} style={{ flexShrink: 0, opacity: on ? 1 : 0.7 }} />
                         <span style={{ flex: 1, minWidth: 0 }}>{s.title}</span>
@@ -564,10 +585,10 @@ export default function UserManual({ onClose }: { onClose: () => void }) {
           </aside>
 
           {/* Content */}
-          <main key={active.id} style={{ flex: 1, overflowY: "auto", padding: "22px 26px 40px", minWidth: 0 }}>
+          <main key={active.id} style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 15px 34px" : "22px 26px 40px", minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <span style={{ display: "inline-flex", width: 30, height: 30, borderRadius: 8, background: "rgba(31,69,118,.1)", color: primary, alignItems: "center", justifyContent: "center" }}><active.icon size={17} /></span>
-              <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{active.title}</h2>
+              <span style={{ flexShrink: 0, display: "inline-flex", width: 30, height: 30, borderRadius: 8, background: "rgba(31,69,118,.1)", color: primary, alignItems: "center", justifyContent: "center" }}><active.icon size={17} /></span>
+              <h2 style={{ fontSize: isMobile ? 17.5 : 20, fontWeight: 800, margin: 0 }}>{active.title}</h2>
             </div>
             <p style={{ fontSize: 13.5, lineHeight: 1.7, opacity: 0.9, margin: "8px 0 18px" }}>{active.intro}</p>
 
