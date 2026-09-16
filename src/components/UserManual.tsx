@@ -15,11 +15,14 @@ import {
  * ("what each button does") + steps + tips. Missing images fall back to a clean placeholder. App theme.
  */
 
-type Callout = { n: number; label: string; desc: string };
+// pos = [x%, y%] of the primary screenshot where this button sits — drawn as a numbered marker on the image.
+type Callout = { n: number; label: string; desc: string; pos?: [number, number] };
 type Shot = { src: string; caption?: string };
 type Section = {
   id: string; group: string; title: string; icon: LucideIcon; intro: string;
   shots?: Shot[]; callouts?: Callout[]; steps?: string[]; tips?: string[];
+  /** Which screenshot the numbered markers are drawn on (index into shots). Default 0. */
+  markerShot?: number;
 };
 
 const MANUAL: Section[] = [
@@ -40,11 +43,11 @@ const MANUAL: Section[] = [
       "The Login page is the first screen you see. Enter your work email and password to sign in. On success you land on the Home Dashboard; otherwise an error message appears above the form.",
     shots: [{ src: "s01.jpg" }],
     callouts: [
-      { n: 1, label: "Username / Email", desc: "The email address your admin gave you." },
-      { n: 2, label: "Password (with 👁 eye)", desc: "Your password. Click the eye icon to show/hide what you type." },
-      { n: 3, label: "Remember me", desc: "Keeps you signed in on this device — use only on your own computer." },
-      { n: 4, label: "Forgot Password", desc: "Ask your admin to reset it (there is no self-service reset)." },
-      { n: 5, label: "Login button", desc: "Signs you in and opens the dashboard." },
+      { n: 1, label: "Username / Email", desc: "The email address your admin gave you.", pos: [75, 46] },
+      { n: 2, label: "Password (with 👁 eye)", desc: "Your password. Click the eye icon to show/hide what you type.", pos: [75, 57] },
+      { n: 3, label: "Remember me", desc: "Keeps you signed in on this device — use only on your own computer.", pos: [63, 62] },
+      { n: 4, label: "Forgot Password", desc: "Ask your admin to reset it (there is no self-service reset).", pos: [83, 62] },
+      { n: 5, label: "Login button", desc: "Signs you in and opens the dashboard.", pos: [75, 69] },
     ],
     steps: [
       "Open the app link in your browser (or the installed app icon on your phone).",
@@ -64,13 +67,13 @@ const MANUAL: Section[] = [
       "The navy bar on top and the menu on the left stay on every page. The header holds quick tools (theme, chat, email, alerts, this manual, your profile); the sidebar lists every area you can open. What you see depends on the permissions your admin gave you.",
     shots: [{ src: "s11.jpg", caption: "The header runs across the top; the sidebar is the icon strip on the left." }],
     callouts: [
-      { n: 1, label: "Sidebar toggle (▤, top-left)", desc: "Show/hide the left menu. On a phone it opens the menu as a slide-in drawer." },
-      { n: 2, label: "Hello, <your name>", desc: "Confirms who is signed in." },
-      { n: 3, label: "Theme toggle (☀/☾)", desc: "Switch the whole app between Light and Dark mode." },
-      { n: 4, label: "Chat / Email / Bell", desc: "Team chat, email menu, and notifications — badges show unread counts." },
-      { n: 5, label: "User Manual", desc: "Opens this guide." },
-      { n: 6, label: "Profile picture", desc: "Menu with Settings and Sign out." },
-      { n: 7, label: "Sidebar menu items", desc: "Click any icon/name to open that page in the main area. Hover a collapsed icon to see its name." },
+      { n: 1, label: "Sidebar toggle (▤, top-left)", desc: "Show/hide the left menu. On a phone it opens the menu as a slide-in drawer.", pos: [2.5, 13.5] },
+      { n: 2, label: "Hello, <your name>", desc: "Confirms who is signed in.", pos: [24, 13.5] },
+      { n: 3, label: "Theme toggle (☀/☾)", desc: "Switch the whole app between Light and Dark mode.", pos: [85, 13.5] },
+      { n: 4, label: "Chat / Email / Bell", desc: "Team chat, email menu, and notifications — badges show unread counts.", pos: [91, 13.5] },
+      { n: 5, label: "User Manual", desc: "Opens this guide (added next to the header icons)." },
+      { n: 6, label: "Profile picture", desc: "Menu with Settings and Sign out.", pos: [97.5, 13.5] },
+      { n: 7, label: "Sidebar menu items", desc: "Click any icon/name to open that page in the main area. Hover a collapsed icon to see its name.", pos: [2, 33] },
     ],
     tips: ["Can’t find a page? It may be hidden because you don’t have permission — ask your admin."],
   },
@@ -80,9 +83,9 @@ const MANUAL: Section[] = [
       "The Home page gives you the big picture at a glance, split into three tabs. The top row shows key numbers (KPIs); below are charts and lists you can click into.",
     shots: [{ src: "s02.jpg", caption: "Overview tab — KPIs on top, charts below." }],
     callouts: [
-      { n: 1, label: "Overview / Onboarding / Subscriptions tabs", desc: "Switch between company summary, implementation focus, and business-health views." },
-      { n: 2, label: "KPI cards", desc: "Live counts — Total Clients, Active/Expired subscriptions, Expiring soon, CRM Leads, Provisioned, etc." },
-      { n: 3, label: "Charts", desc: "Visual breakdowns (by product, by status, by state). Hover a slice/bar to see exact numbers." },
+      { n: 1, label: "Overview / Onboarding / Subscriptions tabs", desc: "Switch between company summary, implementation focus, and business-health views.", pos: [18, 34] },
+      { n: 2, label: "KPI cards", desc: "Live counts — Total Clients, Active/Expired subscriptions, Expiring soon, CRM Leads, Provisioned, etc.", pos: [13, 43] },
+      { n: 3, label: "Charts", desc: "Visual breakdowns (by product, by status, by state). Hover a slice/bar to see exact numbers.", pos: [21, 74] },
       { n: 4, label: "Lists / tables", desc: "Click any row to jump into that client or project." },
     ],
     tips: ["Switch tabs freely — data loads for the tab you open."],
@@ -125,9 +128,9 @@ const MANUAL: Section[] = [
       "The bell in the header collects new messages, emails and system alerts. A red badge shows how many are unread. Tabs let you filter by type.",
     shots: [{ src: "s06.jpg" }],
     callouts: [
-      { n: 1, label: "All / Email / Messages / Point Tool tabs", desc: "Filter notifications by source." },
-      { n: 2, label: "Mark all as read", desc: "Clears the unread badge in one click." },
-      { n: 3, label: "View History / ⚙ settings", desc: "See older notifications, or choose which alerts you receive." },
+      { n: 1, label: "All / Email / Messages / Point Tool tabs", desc: "Filter notifications by source.", pos: [70, 26.5] },
+      { n: 2, label: "Mark all as read", desc: "Clears the unread badge in one click.", pos: [71, 79] },
+      { n: 3, label: "View History / ⚙ settings", desc: "See older notifications, or choose which alerts you receive.", pos: [93, 21] },
     ],
     tips: ["You can turn notification types (message / email / push) on or off in Settings → Notifications."],
   },
@@ -142,12 +145,12 @@ const MANUAL: Section[] = [
       { src: "s10.jpg", caption: "Bottom Navbar — pick up to 4 shortcuts for the mobile bottom bar." },
     ],
     callouts: [
-      { n: 1, label: "Profile → Edit", desc: "Change your display name, profile photo (circular crop) and signature." },
-      { n: 2, label: "Email Settings → Configure", desc: "Set the mailbox your emails send from (SMTP / Microsoft Graph)." },
-      { n: 3, label: "Reset Password", desc: "Change your own password." },
-      { n: 4, label: "Notifications toggles", desc: "Turn Message / Email / Push / System-update alerts on or off." },
-      { n: 5, label: "Theme Customizer", desc: "Pick a colour theme (Default, Forest, Crimson, Royal…) — it recolours the whole app." },
-      { n: 6, label: "Bottom Navbar", desc: "Choose which 4 modules appear on the phone’s bottom bar for one-tap access." },
+      { n: 1, label: "Profile → Edit", desc: "Change your display name, profile photo (circular crop) and signature.", pos: [95, 28] },
+      { n: 2, label: "Email Settings → Configure", desc: "Set the mailbox your emails send from (SMTP / Microsoft Graph).", pos: [94, 59] },
+      { n: 3, label: "Reset Password", desc: "Change your own password.", pos: [95, 85] },
+      { n: 4, label: "Notifications tab", desc: "Turn Message / Email / Push / System-update alerts on or off (left-menu → Notifications).", pos: [13, 33] },
+      { n: 5, label: "Preferences tab", desc: "Pick a colour theme (Default, Forest, Crimson, Royal…) — it recolours the whole app (left-menu → Preferences).", pos: [13, 39] },
+      { n: 6, label: "Bottom Navbar tab", desc: "Choose which 4 modules appear on the phone’s bottom bar for one-tap access.", pos: [13, 45] },
     ],
   },
 
@@ -158,10 +161,10 @@ const MANUAL: Section[] = [
       "Clients is where you manage every customer. The grid lists all clients with their code, application, ERP/Cloud status and more. Open one to view and edit everything about them across tabs.",
     shots: [{ src: "s11.jpg" }],
     callouts: [
-      { n: 1, label: "Create Client Project", desc: "Start the new-client wizard (if you have permission)." },
-      { n: 2, label: "Search / Filters", desc: "Type a name or code, or use per-column filters, to find a client fast." },
-      { n: 3, label: "Client row", desc: "Shows Client Code, Name, Application, Address, Login Name, ERP & Cloud status." },
-      { n: 4, label: "Actions (👁 / ✎)", desc: "View or open a client to edit its full details." },
+      { n: 1, label: "Create Client Project", desc: "Start the new-client wizard (if you have permission).", pos: [91, 30] },
+      { n: 2, label: "Search / Filters", desc: "Type a name or code, or use per-column filters, to find a client fast.", pos: [63, 37] },
+      { n: 3, label: "Client row", desc: "Shows Client Code, Name, Application, Address, Login Name, ERP & Cloud status.", pos: [30, 61] },
+      { n: 4, label: "Actions (👁 / ✎)", desc: "View or open a client to edit its full details.", pos: [94, 50] },
     ],
     tips: ["Deleting is a “soft delete” — records are hidden, not erased, so nothing is lost by accident."],
   },
@@ -466,15 +469,26 @@ const MANUAL: Section[] = [
 const GROUP_ORDER = ["Getting Started", "Everyday Basics", "Header Tools", "Clients & Onboarding", "Bulk Import", "Administration"];
 
 // ── Screenshot with a graceful placeholder when the image hasn't been added yet. ─────────────────────
-function Shot({ shot, title }: { shot: Shot; title: string }) {
+function Shot({ shot, title, markers }: { shot: Shot; title: string; markers?: Callout[] }) {
   const [ok, setOk] = useState(true);
+  const pins = (markers ?? []).filter((m) => m.pos);
   return (
     <figure style={{ margin: "0 0 14px" }}>
       {shot.caption && <figcaption style={{ fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", marginBottom: 6 }}>{shot.caption}</figcaption>}
       {ok ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/manual/${shot.src}`} alt={shot.caption || title} onError={() => setOk(false)}
-          style={{ width: "100%", borderRadius: 12, border: "1px solid rgb(var(--bd-default))", boxShadow: "0 8px 24px -12px rgba(16,24,40,.3)", display: "block" }} />
+        <div style={{ position: "relative", lineHeight: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/manual/${shot.src}`} alt={shot.caption || title} onError={() => setOk(false)}
+            style={{ width: "100%", borderRadius: 12, border: "1px solid rgb(var(--bd-default))", boxShadow: "0 8px 24px -12px rgba(16,24,40,.3)", display: "block" }} />
+          {pins.map((m) => (
+            // Numbered marker sitting on the button it describes (matches the legend number below).
+            <span key={m.n} title={m.label}
+              style={{ position: "absolute", left: `${m.pos![0]}%`, top: `${m.pos![1]}%`, transform: "translate(-50%,-50%)",
+                width: 23, height: 23, borderRadius: "50%", background: "rgb(var(--color-primary))", color: "#fff",
+                fontSize: 12.5, fontWeight: 800, display: "grid", placeItems: "center", border: "2.5px solid #fff",
+                boxShadow: "0 2px 7px rgba(0,0,0,.5)", zIndex: 2, cursor: "default" }}>{m.n}</span>
+          ))}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, height: 200, borderRadius: 12, border: "1.5px dashed rgb(var(--bd-default))", background: "rgb(var(--bg-subtle))", color: "rgb(var(--fg-muted))" }}>
           <ImageOff size={26} /><div style={{ fontSize: 12.5, fontWeight: 700 }}>Screenshot coming soon</div>
@@ -557,7 +571,7 @@ export default function UserManual({ onClose }: { onClose: () => void }) {
             </div>
             <p style={{ fontSize: 13.5, lineHeight: 1.7, opacity: 0.9, margin: "8px 0 18px" }}>{active.intro}</p>
 
-            {active.shots?.map((sh, i) => <Shot key={i} shot={sh} title={active.title} />)}
+            {active.shots?.map((sh, i) => <Shot key={i} shot={sh} title={active.title} markers={i === (active.markerShot ?? 0) ? active.callouts : undefined} />)}
 
             {active.callouts && active.callouts.length > 0 && (
               <section style={{ marginBottom: 20 }}>
