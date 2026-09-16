@@ -93,10 +93,9 @@ export default function TopHeader() {
       <HeaderEmailMenu iconBtn={iconBtn} />
       <NotificationBell />
 
-      {/* User Manual — opens the in-app step-by-step guide popup */}
-      <button onClick={() => setManualOpen(true)} title="User Manual" aria-label="User Manual"
-        style={{ ...iconBtn, width: "auto", padding: "0 12px", gap: 7, fontSize: 12.5, fontWeight: 700 }}>
-        <BookOpen size={16} /> <span className="hide-on-mobile">User Manual</span>
+      {/* User Manual — icon only (opens the in-app step-by-step guide popup); label removed, tooltip on hover */}
+      <button onClick={() => setManualOpen(true)} title="User Manual" aria-label="User Manual" style={iconBtn}>
+        <BookOpen size={18} />
       </button>
 
       {/* Profile */}
