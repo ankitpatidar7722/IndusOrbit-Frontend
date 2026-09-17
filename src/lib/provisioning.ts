@@ -9,6 +9,12 @@ export interface SetupDatabaseResponse {
   success: boolean; message: string; connectionString: string;
   databaseName: string; server: string; applicationName: string; clientName: string;
 }
+export interface SetupStartResponse { success: boolean; jobId: string; message?: string; }
+export interface SetupProgress {
+  success: boolean; done: boolean; ok: boolean;
+  stage: string; percent: number; message: string;
+  result?: SetupDatabaseResponse | null;
+}
 export interface CompanyMasterRequest {
   connectionString: string; companyID: number; companyName: string;
   address1?: string; address2?: string; address3?: string; city?: string; state?: string; country?: string;
@@ -49,7 +55,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const provisioningApi = {
   servers: () => get<{ success: boolean; servers: string[] }>("/api/provisioning/servers"),
   backupDatabases: (app: string) => get<{ success: boolean; databases: string[] }>(`/api/provisioning/backup-databases/${encodeURIComponent(app)}`),
-  setupDatabase: (req: SetupDatabaseRequest) => post<SetupDatabaseResponse>("/api/provisioning/setup-database", req),
+  // Starts the BACKUP/RESTORE in the background and returns a jobId; poll setupProgress for stage + %.
+  setupDatabase: (req: SetupDatabaseRequest) => post<SetupStartResponse>("/api/provisioning/setup-database", req),
+  setupProgress: (jobId: string) => get<SetupProgress>(`/api/provisioning/setup-database/progress/${encodeURIComponent(jobId)}`),
   saveCompanyMaster: (req: CompanyMasterRequest) => post<CompanyMasterResponse>("/api/provisioning/company-master", req),
   saveBranchMaster: (req: BranchMasterRequest) => post<SimpleResult>("/api/provisioning/branch-master", req),
   saveProductionUnit: (req: ProductionUnitRequest) => post<SimpleResult>("/api/provisioning/production-unit", req),

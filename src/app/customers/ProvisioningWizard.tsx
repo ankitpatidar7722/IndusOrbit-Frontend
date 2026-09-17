@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input, Dropdown } from "indas-ui";
-import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2 } from "lucide-react";
+import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2, Loader2, ArrowRight, ArrowRightLeft } from "lucide-react";
 import { customersApi } from "@/lib/customers";
 import {
   provisioningApi, generateDatabaseName,
@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import CrmClientPickerModal from "./CrmClientPickerModal";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 
-const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP"];
+const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy"];
 const BACKUP_TYPES = ["Offset", "Flexo", "Rotogravure"];
 
 // CRM's "Indus Product" is free text (e.g. "Indas Print ERP - Estimo", "Indus Print - Web",
@@ -25,6 +25,7 @@ function guessApplication(indasProduct?: string | null): string {
   const p = (indasProduct ?? "").toLowerCase();
   if (p.includes("printude")) return "PrintudeERP";
   if (p.includes("multiunit") || p.includes("multi unit")) return "multiunit";
+  if (p.includes("coreasy")) return "Coreasy";
   if (p.includes("estimo") && !p.includes("desktop")) return "estimoprime";
   return "";
 }
@@ -78,6 +79,12 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Step 1 runs a long BACKUP → transfer → RESTORE in the background — track its live progress + lock the UI.
+  const [creating, setCreating] = useState(false);
+  const [progress, setProgress] = useState<{ stage: string; percent: number; message: string } | null>(null);
+  // Step 2 (Subscription): the first save INSERTs; re-saving after going Back UPDATEs (keyed by the first login).
+  const [subSaved, setSubSaved] = useState(false);
+  const [savedLogin, setSavedLogin] = useState("");
   // A floating success toast shown after each step completes (auto-dismisses).
   const [flash, setFlash] = useState<string | null>(null);
   useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 2600); return () => clearTimeout(t); }, [flash]);
@@ -104,6 +111,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   useEffect(() => {
     if (!isOpen) return;
     setStep(1); setMaxStep(1); setErr(null); setSetup(null); setDone(null); setFlash(null);
+    setCreating(false); setProgress(null); setSubSaved(false); setSavedLogin("");
     setDb({ server: "", app: "", backupType: "", clientName: "", dbName: "", backupDb: "", dbEdited: false });
     setCrmPick(null);
     setSub({ subscriptionStatus: "Active", cloudSubscriptionStatus: "Active", country: "India", loginAllowed: 1 });
@@ -122,52 +130,76 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   }, [db.app]);
 
   const go = (n: number) => { setStep(n); setMaxStep((m) => Math.max(m, n)); setErr(null); };
+  const dbCreated = !!setup;               // once the DB is created, step 1 is locked (Continue, not re-create)
+  const workingNow = busy || creating;     // any in-flight save/creation → lock Close / Cancel / actions
+
+  // Apply everything that depends on a freshly-created database, then advance to Subscription.
+  function afterDatabaseCreated(r: SetupDatabaseResponse) {
+    setSetup(r);
+    rememberServer(db.server);
+    setSub((p) => ({
+      ...p, conn_String: r.connectionString, applicationName: r.applicationName, companyName: r.clientName,
+      // Prefill from the picked CRM client (if any) — saves retyping contact/GST/location details.
+      ...(crmPick ? {
+        city: crmPick.city ?? p.city, state: crmPick.state ?? p.state, gstin: crmPick.gst ?? p.gstin,
+        email: crmPick.email ?? p.email, mobile: crmPick.phoneNumber ?? p.mobile,
+        address: crmPick.address ?? p.address,
+      } : {}),
+    }));
+    setCompany((p) => ({
+      ...p, connectionString: r.connectionString, companyName: r.clientName,
+      ...(crmPick ? { pan: crmPick.companyPAN ?? p.pan, address1: crmPick.address ?? p.address1, address: crmPick.address ?? p.address } : {}),
+    }));
+    // This CRM client now has a database — stamp it so the picker shows DB Status = Created.
+    if (crmPick) crmApi.markProvisioned(crmPick.customerID, r.clientName, r.databaseName).catch(() => {});
+    // Auto-init the implementation roadmap: Order Date = today (Est/Act/End) + sales person + Complete/On-Time,
+    // and every later phase's Estimated Start cascades from its Task Timeline (skipping Sundays).
+    if (sub.companyUniqueCode) api.initRoadmap(String(sub.companyUniqueCode), crmPick?.assignedToName).catch(() => {});
+    setFlash(`Database "${r.databaseName}" successfully created on ${db.server}.`);
+    go(2);
+  }
 
   async function step1() {
+    if (setup && setup.databaseName === db.dbName.trim()) { go(2); return; }  // already created → just continue
     if (!db.server || !db.app || !db.backupType || !db.clientName.trim() || !db.dbName.trim() || !db.backupDb) {
       setErr("All fields are required."); return;
     }
-    if (setup && setup.databaseName === db.dbName.trim()) { go(2); return; }
-    setBusy(true); setErr(null);
+    setCreating(true); setErr(null); setProgress({ stage: "queued", percent: 0, message: "Starting…" });
     try {
-      const r = await provisioningApi.setupDatabase({
+      const start = await provisioningApi.setupDatabase({
         server: db.server, applicationName: db.app, backupType: db.backupType,
         clientName: db.clientName.trim(), databaseName: db.dbName.trim(), backupDatabaseName: db.backupDb,
       });
-      if (!r.success) { setErr(r.message); return; }
-      setSetup(r);
-      rememberServer(db.server);
-      setSub((p) => ({
-        ...p, conn_String: r.connectionString, applicationName: r.applicationName, companyName: r.clientName,
-        // Prefill from the picked CRM client (if any) — saves retyping contact/GST/location details.
-        ...(crmPick ? {
-          city: crmPick.city ?? p.city, state: crmPick.state ?? p.state, gstin: crmPick.gst ?? p.gstin,
-          email: crmPick.email ?? p.email, mobile: crmPick.phoneNumber ?? p.mobile,
-          address: crmPick.address ?? p.address,
-        } : {}),
-      }));
-      setCompany((p) => ({
-        ...p, connectionString: r.connectionString, companyName: r.clientName,
-        ...(crmPick ? { pan: crmPick.companyPAN ?? p.pan, address1: crmPick.address ?? p.address1, address: crmPick.address ?? p.address } : {}),
-      }));
-      // This CRM client now has a database — stamp it so the picker shows DB Status = Created.
-      if (crmPick) crmApi.markProvisioned(crmPick.customerID, r.clientName, r.databaseName).catch(() => {});
-      // Auto-init the implementation roadmap: Order Date = today (Est/Act/End) + sales person + Complete/On-Time,
-      // and every later phase's Estimated Start cascades from its Task Timeline (skipping Sundays).
-      if (sub.companyUniqueCode) api.initRoadmap(String(sub.companyUniqueCode), crmPick?.assignedToName).catch(() => {});
-      setFlash(`Database "${r.databaseName}" successfully created on ${db.server}.`);
-      go(2);
-    } catch (e) { setErr(String(e)); } finally { setBusy(false); }
+      if (!start.success || !start.jobId) { setErr(start.message || "Could not start database setup."); return; }
+      // Poll the background job until it finishes (the HTTP start call returns instantly, so no timeouts).
+      for (;;) {
+        await new Promise((res) => setTimeout(res, 1200));
+        let p;
+        try { p = await provisioningApi.setupProgress(start.jobId); } catch { continue; }  // transient → keep polling
+        if (!p?.success && !p?.done) continue;
+        setProgress({ stage: p.stage, percent: p.percent, message: p.message });
+        if (p.done) {
+          if (p.ok && p.result) afterDatabaseCreated(p.result);
+          else setErr(p.message || "Database setup failed.");
+          break;
+        }
+      }
+    } catch (e) { setErr(String(e)); } finally { setCreating(false); setProgress(null); }
   }
 
   async function step2() {
     if (!sub.companyName || !sub.companyUserID || !sub.password) { setErr("Client Name, Login Name and Password are required."); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await customersApi.create(sub);
+      // First save = INSERT; after going Back and re-saving = UPDATE (keyed by the login used the first time,
+      // so renaming the login still works). This is why re-saving no longer throws "login already exists".
+      const r = subSaved
+        ? await customersApi.update({ ...sub, originalCompanyUserID: savedLogin })
+        : await customersApi.create(sub);
       if (!r.success) { setErr(r.message); return; }
       setCompany((p) => ({ ...p, connectionString: (sub.conn_String as string) ?? p.connectionString, companyName: sub.companyName as string, city: sub.city as string, state: sub.state as string, country: (sub.country as string) ?? "India", email: sub.email as string, gstin: sub.gstin as string, mobileNO: sub.mobile as string, address: sub.address as string, address1: sub.address as string }));
-      setFlash("Subscription details saved successfully.");
+      setFlash(subSaved ? "Subscription details updated successfully." : "Subscription details saved successfully.");
+      setSavedLogin(String(sub.companyUserID)); setSubSaved(true);
       go(3);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
@@ -263,8 +295,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   if (!isOpen || typeof document === "undefined") return null;
   const meta = STEP_META[step];
   return createPortal(
-    <div onClick={onClose} className="provision-overlay" style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
+    <div className="provision-overlay" style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
       <div onClick={(e) => e.stopPropagation()} className="provision-panel" style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
+        <style>{`@keyframes pm-spin{to{transform:rotate(360deg)}} .pm-spin{animation:pm-spin 1s linear infinite}`}</style>
 
         {/* premium gradient header + step pills */}
         <div style={{ background: "linear-gradient(100deg,color-mix(in srgb, rgb(var(--color-primary)) 75%, black),rgb(var(--color-primary)) 52%,color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", padding: "15px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -277,9 +310,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
             {STEPS.map((s) => {
               const active = step === s.n, doneStep = step > s.n;
               return (
-                <button key={s.n} onClick={() => s.n <= maxStep && go(s.n)} disabled={s.n > maxStep}
+                <button key={s.n} onClick={() => s.n <= maxStep && !workingNow && go(s.n)} disabled={s.n > maxStep || workingNow}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, border: "none", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
-                    cursor: s.n <= maxStep ? "pointer" : "default", opacity: s.n > maxStep ? 0.6 : 1,
+                    cursor: s.n <= maxStep && !workingNow ? "pointer" : "default", opacity: s.n > maxStep ? 0.6 : 1,
                     background: active ? "#fff" : "rgba(255,255,255,.14)", color: active ? "rgb(var(--color-primary))" : "#fff" }}>
                   <span style={{ width: 18, height: 18, borderRadius: 999, display: "grid", placeItems: "center", fontSize: 10.5, fontWeight: 800,
                     background: active ? "rgb(var(--color-primary))" : doneStep ? "#3fbf6a" : "rgba(255,255,255,.28)", color: "#fff" }}>{doneStep ? "✓" : s.n}</span>
@@ -288,7 +321,8 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
               );
             })}
           </div>
-          <button onClick={onClose} title="Close" style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", flexShrink: 0 }}><X size={17} /></button>
+          <button onClick={() => { if (!workingNow) onClose(); }} disabled={workingNow} title={workingNow ? "Please wait…" : "Close"}
+            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: workingNow ? "not-allowed" : "pointer", opacity: workingNow ? 0.45 : 1, display: "grid", placeItems: "center", flexShrink: 0 }}><X size={17} /></button>
         </div>
 
         {/* Success toast — floats after each step completes, auto-dismisses. */}
@@ -313,7 +347,85 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
 
           {err && <div style={{ color: "#b42318", background: "#fef3f2", border: "1px solid #fecdca", borderRadius: 9, padding: "9px 13px", fontSize: 13, marginBottom: 14, fontWeight: 600 }}>{err}</div>}
 
-      {step === 1 && (
+      {/* While the database is being created — live progress with stage-by-stage clarity. */}
+      {step === 1 && creating && (() => {
+        const pct = Math.max(0, Math.min(100, progress?.percent ?? 0));
+        const stage = progress?.stage ?? "queued";
+        const order: Record<string, number> = { queued: 0, backup: 0, transfer: 1, restore: 2, finalize: 2, done: 3, error: 2 };
+        const cur = order[stage] ?? 0;
+        const stages = [
+          { key: "backup", label: "Backing up template", icon: Database },
+          { key: "transfer", label: "Transferring backup", icon: ArrowRightLeft },
+          { key: "restore", label: "Restoring database", icon: Factory },
+        ];
+        return (
+          <div style={{ padding: "8px 4px 4px" }}>
+            <div style={{ textAlign: "center", marginBottom: 18 }}>
+              <div style={{ width: 54, height: 54, borderRadius: 15, margin: "0 auto 12px", display: "grid", placeItems: "center", background: "#e2edfa", color: "rgb(var(--color-primary))" }}>
+                <Loader2 size={28} className="pm-spin" />
+              </div>
+              <div style={{ fontSize: 16.5, fontWeight: 800, color: "rgb(var(--fg-default))" }}>Creating database…</div>
+              <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", marginTop: 3 }}>{progress?.message || "Please wait — this can take a few minutes."}</div>
+            </div>
+            <div style={{ maxWidth: 560, margin: "0 auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "rgb(var(--fg-muted))", marginBottom: 6 }}>
+                <span>Progress</span><span style={{ color: "rgb(var(--color-primary))" }}>{pct}%</span>
+              </div>
+              <div style={{ height: 10, borderRadius: 999, background: "#e8eef6", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, background: "linear-gradient(90deg,rgb(var(--color-primary)),color-mix(in srgb, rgb(var(--color-primary)) 55%, white))", transition: "width .5s ease" }} />
+              </div>
+              <div style={{ display: "grid", gap: 10, marginTop: 22 }}>
+                {stages.map((s, i) => {
+                  const state = i < cur ? "done" : i === cur ? "active" : "todo";
+                  const Icon = s.icon;
+                  return (
+                    <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 11,
+                      background: state === "active" ? "#eef4fb" : "rgb(var(--bg-subtle))",
+                      border: `1px solid ${state === "active" ? "#cdddf1" : "rgb(var(--bd-default))"}`, opacity: state === "todo" ? 0.55 : 1 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", flexShrink: 0,
+                        background: state === "done" ? "#12a150" : state === "active" ? "rgb(var(--color-primary))" : "#cbd5e1", color: "#fff" }}>
+                        {state === "done" ? <Check size={16} /> : state === "active" ? <Loader2 size={16} className="pm-spin" /> : <Icon size={15} />}
+                      </div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{s.label}</div>
+                      {state === "done" && <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "#12a150" }}>Done</span>}
+                      {state === "active" && <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "rgb(var(--color-primary))" }}>In progress…</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ textAlign: "center", fontSize: 11.5, color: "rgb(var(--fg-muted))", marginTop: 16 }}>
+                Please keep this window open. You can’t close or cancel while the database is being created.
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Database already created — step 1 is locked; the user can only Continue. */}
+      {step === 1 && !creating && dbCreated && (
+        <div style={{ padding: "6px 4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "16px 18px", borderRadius: 13, background: "#e6f6ec", border: "1px solid #86e0a8" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "#12a150", color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }}><CheckCircle2 size={22} /></div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#12692f" }}>Database created</div>
+              <div style={{ fontSize: 13, color: "#2f7d4a", marginTop: 1 }}><b>{setup?.databaseName}</b> is ready on <b>{setup?.server}</b>.</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
+            {([["Database", setup?.databaseName], ["Server", setup?.server], ["Application", setup?.applicationName], ["Template", db.backupDb]] as [string, string | undefined][]).map(([k, v]) => (
+              <div key={k} style={{ background: "rgb(var(--bg-subtle))", border: "1px solid rgb(var(--bd-default))", borderRadius: 10, padding: "10px 13px" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "rgb(var(--fg-muted))" }}>{k}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))", marginTop: 2, wordBreak: "break-all" }}>{v || "—"}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 14 }}>
+            The database is already created and can’t be changed here. Click <b>Continue</b> to fill in the subscription details. To use a different database, close and start again.
+          </div>
+        </div>
+      )}
+
+      {step === 1 && !creating && !dbCreated && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px" }}>
           <div style={sect}>Database Setup</div>
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-start" }}>
@@ -450,15 +562,18 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         {/* footer */}
         {step <= 5 && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 22px", borderTop: "1px solid #eef1f6", background: "rgb(var(--bg-subtle))", flexShrink: 0 }}>
-            <button onClick={() => (step > 1 ? go(step - 1) : onClose())} disabled={busy}
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-muted))", border: "1px solid #d7deea", borderRadius: 10, padding: "9px 18px", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer" }}>
+            <button onClick={() => { if (!workingNow) (step > 1 ? go(step - 1) : onClose()); }} disabled={workingNow}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-muted))", border: "1px solid #d7deea", borderRadius: 10, padding: "9px 18px", fontSize: 14, fontWeight: 600, cursor: workingNow ? "not-allowed" : "pointer", opacity: workingNow ? 0.55 : 1 }}>
               {step > 1 ? <ChevronLeft size={16} /> : <X size={15} />} {step > 1 ? "Back" : "Cancel"}
             </button>
-            <button disabled={busy} onClick={() => [step1, step2, step3, step4, step5][step - 1]()}
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 700, cursor: busy ? "default" : "pointer",
-                background: busy ? "#8496ad" : "linear-gradient(100deg,rgb(var(--color-primary)),color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", boxShadow: busy ? "none" : "0 6px 16px -6px rgba(31,69,118,.6)" }}>
-              {step === 1 ? <Database size={16} /> : step === 5 ? <CheckCircle2 size={16} /> : null}
-              {busy ? "Working…" : step === 1 ? "Create Database & Continue" : step === 5 ? "Save & Finish" : "Save & Continue"}
+            <button disabled={workingNow} onClick={() => {
+                if (step === 1 && dbCreated) { go(2); return; }   // DB already made → just continue (no re-create)
+                [step1, step2, step3, step4, step5][step - 1]();
+              }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, fontWeight: 700, cursor: workingNow ? "default" : "pointer",
+                background: workingNow ? "#8496ad" : "linear-gradient(100deg,rgb(var(--color-primary)),color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", boxShadow: workingNow ? "none" : "0 6px 16px -6px rgba(31,69,118,.6)" }}>
+              {step === 1 ? (dbCreated ? <ArrowRight size={16} /> : <Database size={16} />) : step === 5 ? <CheckCircle2 size={16} /> : null}
+              {creating ? "Creating…" : busy ? "Working…" : step === 1 ? (dbCreated ? "Continue" : "Create Database & Continue") : step === 5 ? "Save & Finish" : "Save & Continue"}
             </button>
           </div>
         )}
