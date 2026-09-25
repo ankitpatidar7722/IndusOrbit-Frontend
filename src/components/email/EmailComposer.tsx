@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { StandardModal, Dropdown, useModalAlert } from "indas-ui";
-import { Bold, Italic, Underline, List, ListOrdered, Link2, Paperclip, X, Mail, FileText, Image as ImageIcon } from "lucide-react";
-import { insertImageFile } from "@/lib/imageEmbed";
+import { Paperclip, X, Mail, FileText } from "lucide-react";
+import RichTextToolbar from "@/components/email/RichTextToolbar";
 import {
   emailApi, fileToBase64,
   type EmailAddress, type EmailAttachmentBase64, type EmailContext, type EmailSendRequest, type EmailConfig, type EmailTemplate,
@@ -228,8 +228,6 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
     }
   };
 
-  const exec = (cmd: string, val?: string) => { document.execCommand(cmd, false, val); editorRef.current?.focus(); };
-
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     const added = await Promise.all(Array.from(files).map(fileToBase64));
@@ -360,35 +358,25 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
             <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={{ ...input, flex: 1, minWidth: 0 }} />
           </div>
 
-          {/* Toolbar + body */}
+          {/* Toolbar + body — full Gmail-style formatting via the shared RichTextToolbar. */}
           <div style={{ border: "1px solid #d6dbe3", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ display: "flex", gap: 6, padding: 8, borderBottom: "1px solid #eef1f5", background: "rgb(var(--bg-subtle))" }}>
-              <button style={tbtn} title="Bold" onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}><Bold size={14} /></button>
-              <button style={tbtn} title="Italic" onMouseDown={(e) => { e.preventDefault(); exec("italic"); }}><Italic size={14} /></button>
-              <button style={tbtn} title="Underline" onMouseDown={(e) => { e.preventDefault(); exec("underline"); }}><Underline size={14} /></button>
-              <button style={tbtn} title="Bullet list" onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList"); }}><List size={14} /></button>
-              <button style={tbtn} title="Numbered list" onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList"); }}><ListOrdered size={14} /></button>
-              <button style={tbtn} title="Insert link" onMouseDown={(e) => { e.preventDefault(); const url = window.prompt("Link URL"); if (url) exec("createLink", url); }}><Link2 size={14} /></button>
-              <label style={tbtn} title="Insert image / logo">
-                <ImageIcon size={14} />
-                <input type="file" accept="image/*" hidden onChange={async (e) => {
-                  const file = e.target.files?.[0]; e.currentTarget.value = "";
-                  if (!file) return;
-                  try { await insertImageFile(editorRef.current, file, 480, false); } catch (err) { showError("Image error", err instanceof Error ? err.message : String(err)); }
-                }} />
-              </label>
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-                {cfg?.signature ? (
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer", userSelect: "none" }} title="Append your saved email signature">
-                    <input type="checkbox" checked={includeSig} onChange={(e) => setIncludeSig(e.target.checked)} style={{ cursor: "pointer" }} /> Signature
+            <RichTextToolbar
+              editorRef={editorRef}
+              onImageError={(m) => showError("Image error", m)}
+              rightSlot={
+                <>
+                  {cfg?.signature ? (
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer", userSelect: "none" }} title="Append your saved email signature">
+                      <input type="checkbox" checked={includeSig} onChange={(e) => setIncludeSig(e.target.checked)} style={{ cursor: "pointer" }} /> Signature
+                    </label>
+                  ) : null}
+                  <label style={{ ...tbtn, width: "auto", padding: "0 10px", gap: 6, fontSize: 12, fontWeight: 600 }} title="Attach files">
+                    <Paperclip size={14} /> Attach
+                    <input type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
                   </label>
-                ) : null}
-                <label style={{ ...tbtn, width: "auto", padding: "0 10px", gap: 6, fontSize: 12, fontWeight: 600 }} title="Attach files">
-                  <Paperclip size={14} /> Attach
-                  <input type="file" multiple hidden onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
-                </label>
-              </div>
-            </div>
+                </>
+              }
+            />
             <div
               ref={editorRef}
               contentEditable
