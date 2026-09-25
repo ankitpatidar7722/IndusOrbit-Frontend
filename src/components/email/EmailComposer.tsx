@@ -8,7 +8,7 @@ import {
   emailApi, fileToBase64,
   type EmailAddress, type EmailAttachmentBase64, type EmailContext, type EmailSendRequest, type EmailConfig, type EmailTemplate,
 } from "@/lib/email";
-import { SYSTEM_EMAIL_TEMPLATES, renderTemplate, withDefaults, templatesApi } from "@/lib/emailTemplates";
+import { SYSTEM_EMAIL_TEMPLATES, renderTemplate, withDefaults, templatesApi, bodyToHtml } from "@/lib/emailTemplates";
 
 export interface ComposerInit {
   to?: EmailAddress[];
@@ -174,7 +174,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
     setTimeout(() => {
       const editor = editorRef.current;
       if (!editor) return;
-      editor.innerHTML = (init?.body ?? "").replace(/\n/g, "<br/>");
+      editor.innerHTML = bodyToHtml(init?.body);
       if (includeSigRef.current && cfgRef.current?.signature) appendSigNode(editor, cfgRef.current.signature);
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,7 +213,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
     setSubject(renderTemplate(template.subject, vars));
     const bodyText = renderTemplate(template.body, vars);
     if (editorRef.current) {
-      editorRef.current.innerHTML = bodyText.replace(/\n/g, "<br/>");
+      editorRef.current.innerHTML = bodyToHtml(bodyText);
       if (includeSig && cfg?.signature) appendSigNode(editorRef.current, cfg.signature);
     }
     // Auto-attach the files saved with this template (skip any already attached by name+size).

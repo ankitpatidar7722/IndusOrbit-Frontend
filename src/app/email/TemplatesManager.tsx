@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button, Dropdown, StandardModal } from "indas-ui";
-import { Plus, Pencil, Trash2, FileText, Save, Paperclip, X } from "lucide-react";
-import { templatesApi, deriveVariables, SYSTEM_EMAIL_TEMPLATES, type TemplateAttachmentSave } from "@/lib/emailTemplates";
+import { Plus, Pencil, Trash2, FileText, Save, Paperclip, X, Bold, Italic, Underline, List, ListOrdered, Link2, Image as ImageIcon } from "lucide-react";
+import { templatesApi, deriveVariables, SYSTEM_EMAIL_TEMPLATES, bodyToHtml, type TemplateAttachmentSave } from "@/lib/emailTemplates";
 import { fileToBase64, type EmailTemplate } from "@/lib/email";
+import { insertImageFile } from "@/lib/imageEmbed";
 
 function fmtBytes(n?: number | null) {
   const b = n ?? 0;
@@ -27,6 +28,7 @@ const CATEGORIES = ["General", "Onboarding", "Billing", "Support", "Business", "
 const fldLabel: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: T.muted, marginBottom: 5 };
 const fldInput: React.CSSProperties = { width: "100%", height: 40, padding: "0 12px", fontSize: 13.5, border: `1px solid ${T.bd}`, borderRadius: 9, background: T.surface, color: T.fg, outline: "none", boxSizing: "border-box" };
 const fldArea: React.CSSProperties = { ...fldInput, height: "auto", padding: "10px 12px", minHeight: 200, resize: "vertical", fontFamily: "inherit", lineHeight: 1.55 };
+const tbtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 28, border: `1px solid ${T.bd}`, background: T.surface, borderRadius: 7, cursor: "pointer", color: T.fg };
 
 export default function TemplatesManager() {
   const [list, setList] = useState<EmailTemplate[]>([]);
@@ -39,6 +41,19 @@ export default function TemplatesManager() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Rich-text Body editor (contentEditable) — lets users format the template (Bold/Italic/lists/link/image).
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // Load the body HTML into the editor whenever the modal opens (create → blank, edit → saved HTML).
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => { if (bodyRef.current) bodyRef.current.innerHTML = bodyToHtml(f.body); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing]);
+  const exec = (cmd: string, val?: string) => { document.execCommand(cmd, false, val); bodyRef.current?.focus(); };
+  const syncBody = () => setF((p) => ({ ...p, body: bodyRef.current?.innerHTML ?? "" }));
+  // "Empty" (show placeholder) = no text and no image once tags/breaks are stripped.
+  const bodyEmpty = !/<img/i.test(f.body) && f.body.replace(/<br\s*\/?>(?=)/gi, "").replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, "").trim() === "";
 
   const load = () => { setLoading(true); templatesApi.list().then(setList).catch(() => setList([])).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
@@ -152,7 +167,41 @@ export default function TemplatesManager() {
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={fldLabel}>Body</label>
-            <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} style={fldArea} placeholder={"Dear {{clientName}},\n\n…\n\nRegards,\n{{senderName}}"} />
+            {/* Rich-text body — the formatting (Bold/Italic/Underline/lists/link/image) is saved as HTML
+                and re-applied when the template is used in the composer. */}
+            <div style={{ border: `1px solid ${T.bd}`, borderRadius: 9, overflow: "hidden", background: T.surface }}>
+              <div style={{ display: "flex", gap: 6, padding: 7, borderBottom: `1px solid ${T.bd}`, background: T.subtle, flexWrap: "wrap" }}>
+                <button type="button" style={tbtn} title="Bold" onMouseDown={(e) => { e.preventDefault(); exec("bold"); }}><Bold size={14} /></button>
+                <button type="button" style={tbtn} title="Italic" onMouseDown={(e) => { e.preventDefault(); exec("italic"); }}><Italic size={14} /></button>
+                <button type="button" style={tbtn} title="Underline" onMouseDown={(e) => { e.preventDefault(); exec("underline"); }}><Underline size={14} /></button>
+                <button type="button" style={tbtn} title="Bullet list" onMouseDown={(e) => { e.preventDefault(); exec("insertUnorderedList"); }}><List size={14} /></button>
+                <button type="button" style={tbtn} title="Numbered list" onMouseDown={(e) => { e.preventDefault(); exec("insertOrderedList"); }}><ListOrdered size={14} /></button>
+                <button type="button" style={tbtn} title="Insert link" onMouseDown={(e) => { e.preventDefault(); const url = window.prompt("Link URL"); if (url) exec("createLink", url); }}><Link2 size={14} /></button>
+                <label style={{ ...tbtn, cursor: "pointer" }} title="Insert image / logo">
+                  <ImageIcon size={14} />
+                  <input type="file" accept="image/*" hidden onChange={async (e) => {
+                    const file = e.target.files?.[0]; e.currentTarget.value = "";
+                    if (!file) return;
+                    try { await insertImageFile(bodyRef.current, file, 480, false); syncBody(); } catch (err) { setErr(err instanceof Error ? err.message : String(err)); }
+                  }} />
+                </label>
+              </div>
+              <div style={{ position: "relative" }}>
+                <div
+                  ref={bodyRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={syncBody}
+                  onBlur={syncBody}
+                  style={{ minHeight: 200, maxHeight: 360, overflowY: "auto", padding: "10px 12px", fontSize: 13.5, lineHeight: 1.55, outline: "none", color: T.fg }}
+                />
+                {bodyEmpty && (
+                  <div style={{ position: "absolute", top: 10, left: 12, fontSize: 13.5, lineHeight: 1.55, color: T.faint, pointerEvents: "none", whiteSpace: "pre-line" }}>
+                    {"Dear {{clientName}},\n\n…\n\nRegards,\n{{senderName}}"}
+                  </div>
+                )}
+              </div>
+            </div>
             <div style={{ fontSize: 11.5, color: T.muted, marginTop: 6 }}>
               Use <code>{"{{variableName}}"}</code> placeholders — the sender fills them when composing. Common: <code>{"{{clientName}}"}</code>, <code>{"{{clientCode}}"}</code>, <code>{"{{senderName}}"}</code>.
               {detected.length > 0 && (

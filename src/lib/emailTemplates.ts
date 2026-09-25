@@ -160,6 +160,16 @@ function escapeRe(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Turn a stored template body into HTML for a contentEditable editor / the composer.
+ * A rich-text body already contains HTML tags → use as-is (preserves Bold/Italic/lists/links/images).
+ * A legacy plain-text body has no tags → convert newlines to <br/> (unchanged legacy behaviour).
+ */
+export function bodyToHtml(body: string | null | undefined): string {
+  const s = body ?? "";
+  return /<[a-z][\s\S]*>/i.test(s) ? s : s.replace(/\n/g, "<br/>");
+}
+
 // ─────────────────────────── DB-backed templates ───────────────────────────
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
 
