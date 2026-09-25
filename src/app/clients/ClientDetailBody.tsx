@@ -294,6 +294,86 @@ async function flattenDocForWord(liveDoc: Document): Promise<string> {
   clone.querySelectorAll("[data-mobiles]").forEach((s) => s.removeAttribute("data-mobiles"));
   return htmlToWordDoc("<!doctype html>\n" + clone.outerHTML);
 }
+// ── Exact-look (image-based) Word export ─────────────────────────────────────────────────────────
+// For a pixel-perfect Word file we don't fight Word's HTML engine at all: the server's headless browser
+// screenshots the document EXACTLY as it renders (logo, colours, layout, widths — everything), then we
+// slice that PNG into A4-proportioned pages and drop each into the .doc as a full-page image. The result
+// looks identical to the on-screen document; the trade-off (chosen by the user) is the text isn't editable.
+
+/** Render `html` off-screen and measure the document's content width + full height in CSS px. */
+function measureDocSize(html: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:1000px;height:1400px;border:0;visibility:hidden";
+    document.body.appendChild(iframe);
+    const done = (w: number, h: number) => { setTimeout(() => iframe.remove(), 100); resolve({ width: w, height: h }); };
+    const idoc = iframe.contentDocument;
+    if (!idoc) return done(800, 1123);
+    idoc.open(); idoc.write(html); idoc.close();
+    waitForImages(idoc, 4000).then(() => setTimeout(() => {
+      try {
+        const sheet = idoc.querySelector(".sheet") as HTMLElement | null;
+        const w = Math.round((sheet?.getBoundingClientRect().width || idoc.body.scrollWidth || 800));
+        iframe.style.width = w + "px";
+        void idoc.body.offsetHeight; // force reflow at the content width
+        const h = Math.round(Math.max(idoc.documentElement.scrollHeight, idoc.body.scrollHeight));
+        done(w, h);
+      } catch { done(800, 1123); }
+    }, 60));
+  });
+}
+
+/** Slice a full-page PNG into A4-proportioned page images (data URLs). */
+function pngBlobToWordPages(blob: Blob): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const W = img.naturalWidth, H = img.naturalHeight;
+        const pageH = Math.max(1, Math.round(W * 297 / 210)); // A4 portrait ratio
+        const pages: string[] = [];
+        for (let y = 0; y < H; y += pageH) {
+          const h = Math.min(pageH, H - y);
+          const c = document.createElement("canvas");
+          c.width = W; c.height = h;
+          const cx = c.getContext("2d");
+          if (!cx) break;
+          cx.drawImage(img, 0, y, W, h, 0, 0, W, h);
+          pages.push(c.toDataURL("image/png"));
+        }
+        URL.revokeObjectURL(url);
+        resolve(pages);
+      } catch (e) { URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+/** Build a Word .doc that shows each page image full-width on its own A4 page. */
+function imagesToWordDoc(dataUrls: string[]): string {
+  const body = dataUrls.map((d, i) =>
+    `<div style="page-break-after:${i < dataUrls.length - 1 ? "always" : "auto"};text-align:center"><img src="${d}" style="width:100%;display:block"/></div>`
+  ).join("");
+  const head = '<meta charset="utf-8"><style>@page{size:A4;margin:0}body{margin:0}img{width:100%}</style>';
+  return '﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>'
+    + head + "</head><body>" + body + "</body></html>";
+}
+
+/** Exact-look Word export: server-screenshot → slice to A4 pages → embed as images. Returns false when
+ *  the server has no renderer (caller falls back to the editable flatten). */
+async function downloadWordExact(html: string, base: string): Promise<boolean> {
+  const { width, height } = await measureDocSize(html);
+  const png = await clientDocsApi.renderPngFromHtml(html, width, height);
+  if (!png) return false;
+  const pages = await pngBlobToWordPages(png);
+  if (!pages.length) return false;
+  wordBlobDownload(imagesToWordDoc(pages), base);
+  return true;
+}
+
 /** Render saved doc HTML off-screen, flatten it for Word, and download as <base>.doc. */
 async function downloadHtmlAsWordHiFi(html: string, base: string): Promise<void> {
   const iframe = document.createElement("iframe");
@@ -436,8 +516,13 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     const orig = wordBtn.textContent;
     wordBtn.disabled = true; wordBtn.textContent = "⏳  Preparing…";
     const base = (doc.title || "Document").replace(/[^\w.-]+/g, "_");
-    try { wordBlobDownload(await flattenDocForWord(w.document), base); }
-    catch { try { saveHtmlAsWord(cleanDocHtml(w), base); } catch { /* ignore */ } }
+    const html = cleanDocHtml(w);
+    try {
+      // Exact look (server screenshot of the current document). Fall back to the editable flatten if the
+      // server has no renderer.
+      const ok = await downloadWordExact(html, base);
+      if (!ok) wordBlobDownload(await flattenDocForWord(w.document), base);
+    } catch { try { saveHtmlAsWord(html, base); } catch { /* ignore */ } }
     finally { try { wordBtn.textContent = orig; wordBtn.disabled = false; } catch { /* */ } }
   };
   bar.appendChild(wordBtn);
@@ -1095,8 +1180,12 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       const r = await clientDocsApi.get(docClientCode, docType);
       if (!r?.success || !r.data) { setFlash("No saved document to download."); return; }
       const stamp = String(r.data.updatedAt || r.data.savedAt || "").slice(0, 10);
+      const base = `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`;
       setFlash("Preparing Word file…");
-      await downloadHtmlAsWordHiFi(r.data.htmlContent, `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`);
+      // Exact look first (server screenshot → images). If the server has no renderer, fall back to the
+      // editable HTML-flatten so a Word file still downloads.
+      const ok = await downloadWordExact(r.data.htmlContent, base);
+      if (!ok) await downloadHtmlAsWordHiFi(r.data.htmlContent, base);
       setFlash(null);
     } catch (e) { setFlash("Word download failed: " + e); }
   };

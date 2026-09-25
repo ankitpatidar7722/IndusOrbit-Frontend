@@ -113,6 +113,23 @@ export const clientDocsApi = {
     } catch { return null; }
   },
 
+  /** Render the given document HTML to a single full-page PNG at the client-measured pixel size,
+   *  via the server's headless browser. Used by the exact-look Word export (client slices to A4 pages).
+   *  Returns a Blob, or null if the server has no renderer. */
+  renderPngFromHtml: async (htmlContent: string, width: number, height: number): Promise<Blob | null> => {
+    try {
+      const res = await fetch(`${BASE}/api/client-documents/render-png`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...userIdHeader() },
+        body: JSON.stringify({ htmlContent, width, height }),
+        cache: "no-store",
+      });
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      return buf.byteLength ? new Blob([buf], { type: "image/png" }) : null;
+    } catch { return null; }
+  },
+
   /** Record that the finalized document was emailed to the client — logs an audit entry
    *  (who / to whom / version) and bumps the send revision so the Version increments on the
    *  next open. Best-effort. */
