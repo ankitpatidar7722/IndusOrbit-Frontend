@@ -324,14 +324,36 @@ function measureDocSize(html: string): Promise<{ width: number; height: number }
   });
 }
 
-/** Slice a full-page PNG into A4-proportioned page images (data URLs). */
+/** Slice a full-page PNG into A4-proportioned page images (data URLs), auto-cropping the trailing
+ *  uniform-background rows first (the server screenshots a fixed window height ≥ the content, so there
+ *  is blank space below the document that we trim before paginating). */
 function pngBlobToWordPages(blob: Blob): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
       try {
-        const W = img.naturalWidth, H = img.naturalHeight;
+        const W = img.naturalWidth, H0 = img.naturalHeight;
+        const src = document.createElement("canvas");
+        src.width = W; src.height = H0;
+        const sx = src.getContext("2d");
+        if (!sx) { URL.revokeObjectURL(url); return resolve([]); }
+        sx.drawImage(img, 0, 0);
+        // Trim trailing background rows. The document's blank tail is the page background, so read the
+        // bottom-right corner as the background colour and drop every all-background row from the bottom.
+        let H = H0;
+        try {
+          const data = sx.getImageData(0, 0, W, H0).data;
+          const px = (x: number, y: number) => { const i = (y * W + x) * 4; return [data[i], data[i + 1], data[i + 2]]; };
+          const [br, bgc, bb] = px(W - 1, H0 - 1);
+          const rowIsBg = (y: number) => {
+            for (let x = 0; x < W; x += 8) { const [r, g, b] = px(x, y); if (Math.abs(r - br) > 8 || Math.abs(g - bgc) > 8 || Math.abs(b - bb) > 8) return false; }
+            return true;
+          };
+          let cb = H0 - 1;
+          while (cb > 0 && rowIsBg(cb)) cb--;
+          H = Math.min(H0, cb + 14); // keep a little bottom padding
+        } catch { /* getImageData blocked → keep full height */ }
         const pageH = Math.max(1, Math.round(W * 297 / 210)); // A4 portrait ratio
         const pages: string[] = [];
         for (let y = 0; y < H; y += pageH) {
@@ -340,7 +362,7 @@ function pngBlobToWordPages(blob: Blob): Promise<string[]> {
           c.width = W; c.height = h;
           const cx = c.getContext("2d");
           if (!cx) break;
-          cx.drawImage(img, 0, y, W, h, 0, 0, W, h);
+          cx.drawImage(src, 0, y, W, h, 0, 0, W, h);
           pages.push(c.toDataURL("image/png"));
         }
         URL.revokeObjectURL(url);
@@ -366,7 +388,10 @@ function imagesToWordDoc(dataUrls: string[]): string {
  *  the server has no renderer (caller falls back to the editable flatten). */
 async function downloadWordExact(html: string, base: string): Promise<boolean> {
   const { width, height } = await measureDocSize(html);
-  const png = await clientDocsApi.renderPngFromHtml(html, width, height);
+  // Chrome's --screenshot captures exactly the window size (not the full page), so render TALLER than
+  // the measured content (cross-browser slack) to never clip; the extra blank tail is cropped in slicing.
+  const renderH = Math.min(30000, Math.round(height * 1.25) + 400);
+  const png = await clientDocsApi.renderPngFromHtml(html, width, renderH);
   if (!png) return false;
   const pages = await pngBlobToWordPages(png);
   if (!pages.length) return false;
