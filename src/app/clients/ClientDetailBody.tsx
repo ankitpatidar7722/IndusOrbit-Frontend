@@ -115,6 +115,34 @@ function cleanDocHtml(w: Window): string {
   return "<!doctype html>\n" + root.outerHTML;
 }
 
+/** Wrap a full HTML document so Microsoft Word opens it as an EDITABLE .doc. Word reads HTML content
+ *  served as application/msword; we add the Office namespaces on <html> and an @page A4 rule (with the
+ *  doc's own <style> preserved) so it paginates like the PDF. The result is fully editable + re-saveable
+ *  as .docx from Word — no extra library or server round-trip. Signature/seal images are base64 data
+ *  URIs (already embedded), so they travel inside the file. */
+function htmlToWordDoc(fullHtml: string): string {
+  let html = fullHtml.replace(/^<!doctype[^>]*>/i, "").trim();
+  const pageCss = '<meta charset="utf-8"><style>@page{size:A4;margin:1.6cm 1.4cm}body{-webkit-print-color-adjust:exact}</style>';
+  if (/<head[^>]*>/i.test(html)) html = html.replace(/<head([^>]*)>/i, `<head$1>${pageCss}`);
+  else if (/<html[^>]*>/i.test(html)) html = html.replace(/<html([^>]*)>/i, `<html$1><head>${pageCss}</head>`);
+  else html = `<head>${pageCss}</head>${html}`;
+  // Office namespaces on <html> (added only if not already present) — enables Word's HTML import.
+  html = html.replace(/<html(?![^>]*xmlns:o=)([^>]*)>/i,
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"$1>');
+  if (!/<html/i.test(html)) html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>${pageCss}</head><body>${html}</body></html>`;
+  return "﻿" + html;  // BOM so Word reliably detects UTF-8
+}
+
+/** Download `fullHtml` as a Word-editable .doc named <base>.doc. */
+function saveHtmlAsWord(fullHtml: string, base: string) {
+  const blob = new Blob([htmlToWordDoc(fullHtml)], { type: "application/msword;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${base}.doc`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 /** Patch the Sign-Off document Version wherever it appears (running header + §1 "Document Version"
  *  row) so a reopened saved doc reflects the current send revision instead of the value baked in at
  *  save time. fillTemplate replaces each `<span class="af">[[…]]</span>` with plain text, so the
@@ -233,6 +261,16 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     } finally { try { printBtn.textContent = orig; printBtn.disabled = false; } catch { /* */ } }
   };
   bar.appendChild(printBtn);
+  // Save as Word → download the CURRENT document (with any edits) as an editable .doc for MS Word.
+  const wordBtn = mk("📝  Save as Word", "#2b579a", () => {});
+  wordBtn.onclick = () => {
+    const orig = wordBtn.textContent;
+    wordBtn.disabled = true; wordBtn.textContent = "⏳  Preparing…";
+    try { saveHtmlAsWord(cleanDocHtml(w), (doc.title || "Document").replace(/[^\w.-]+/g, "_")); }
+    catch { /* ignore */ }
+    finally { try { wordBtn.textContent = orig; wordBtn.disabled = false; } catch { /* */ } }
+  };
+  bar.appendChild(wordBtn);
   bar.appendChild(mk("✕  Close", "#5b6b73", () => w.close()));
   doc.body.insertBefore(bar, doc.body.firstChild);
 
@@ -880,6 +918,17 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     } catch (e) { setFlash("Download failed: " + e); }
   };
 
+  /** Download the saved doc as an EDITABLE Word file (.doc) — opens in MS Word so the user can
+   *  edit and re-save (as .docx) after downloading. */
+  const downloadWordDoc = async (docType: ClientDocType) => {
+    try {
+      const r = await clientDocsApi.get(docClientCode, docType);
+      if (!r?.success || !r.data) { setFlash("No saved document to download."); return; }
+      const stamp = String(r.data.updatedAt || r.data.savedAt || "").slice(0, 10);
+      saveHtmlAsWord(r.data.htmlContent, `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`);
+    } catch (e) { setFlash("Word download failed: " + e); }
+  };
+
   /** Download as PDF. Prefers the SERVER-rendered PDF (headless print with
    *  `--print-to-pdf-no-header`) → a clean file with NO browser date / title / URL headers,
    *  downloaded directly. Falls back to opening the saved doc + the browser's "Save as PDF"
@@ -995,6 +1044,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
                   <div onClick={() => setDlMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", left: "50%", transform: "translateX(-50%)", zIndex: 41, background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 9, boxShadow: "0 10px 30px rgba(0,0,0,.16)", overflow: "hidden", minWidth: 184 }}>
                     <button onClick={() => { setDlMenu(null); downloadPdf(docType); }} style={dlItemCss}><FileDown size={15} style={{ color: "#c0392b" }} /> Download as PDF</button>
+                    <button onClick={() => { setDlMenu(null); downloadWordDoc(docType); }} style={{ ...dlItemCss, borderTop: `1px solid ${T.bd}` }}><FileText size={15} style={{ color: "#2b579a" }} /> Download as Word</button>
                     <button onClick={() => { setDlMenu(null); downloadSavedDoc(docType); }} style={{ ...dlItemCss, borderTop: `1px solid ${T.bd}` }}><FileCode size={15} style={{ color: T.primary }} /> Download as HTML</button>
                   </div>
                 </>
