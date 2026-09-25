@@ -133,14 +133,142 @@ function htmlToWordDoc(fullHtml: string): string {
   return "﻿" + html;  // BOM so Word reliably detects UTF-8
 }
 
-/** Download `fullHtml` as a Word-editable .doc named <base>.doc. */
-function saveHtmlAsWord(fullHtml: string, base: string) {
-  const blob = new Blob([htmlToWordDoc(fullHtml)], { type: "application/msword;charset=utf-8" });
+/** Trigger a browser download of already-final Word HTML as <base>.doc. */
+function wordBlobDownload(wordHtml: string, base: string) {
+  const blob = new Blob([wordHtml], { type: "application/msword;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = `${base}.doc`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/** Download `fullHtml` as a Word-editable .doc (wraps + downloads; no style flattening). */
+function saveHtmlAsWord(fullHtml: string, base: string) {
+  wordBlobDownload(htmlToWordDoc(fullHtml), base);
+}
+
+// ── High-fidelity Word export ────────────────────────────────────────────────────────────────────
+// Word's HTML engine ignores CSS classes, CSS variables, gradients and flexbox, so a class-styled
+// document loses its colours, table fills, section bars and (SVG/relative) logo. To fix that we take
+// the LIVE rendered document, inline each element's COMPUTED styles (concrete colours/borders/fonts),
+// add bgcolor on table cells, and rasterise every <img> (incl. the logo) to a base64 PNG — producing
+// HTML that Word renders like the on-screen document while staying fully editable.
+
+/** Computed properties inlined for Word (kept lean — visual styling that Word otherwise drops). */
+const WORD_STYLE_PROPS = [
+  "color", "background-color", "font-family", "font-size", "font-weight", "font-style",
+  "text-align", "text-decoration-line", "text-transform", "vertical-align", "line-height",
+  "letter-spacing", "white-space",
+  "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "border-top-width", "border-top-style", "border-top-color",
+  "border-right-width", "border-right-style", "border-right-color",
+  "border-bottom-width", "border-bottom-style", "border-bottom-color",
+  "border-left-width", "border-left-style", "border-left-color",
+];
+const TRANSPARENT = new Set(["rgba(0, 0, 0, 0)", "transparent", ""]);
+function firstColorFrom(s: string): string | null { const m = /rgba?\([^)]*\)/i.exec(s); return m ? m[0] : null; }
+function rgbToHex(rgb: string): string {
+  const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(rgb);
+  if (!m) return rgb;
+  const h = (n: string) => Number(n).toString(16).padStart(2, "0");
+  return `#${h(m[1])}${h(m[2])}${h(m[3])}`;
+}
+function inlineComputed(live: Element, clone: Element, view: Window) {
+  const cs = view.getComputedStyle(live);
+  let bg = cs.getPropertyValue("background-color");
+  const bgImg = cs.getPropertyValue("background-image");
+  // Word ignores gradients → approximate by pulling the gradient's first colour so section bars show.
+  if (TRANSPARENT.has(bg) && bgImg && bgImg.includes("gradient")) { const c = firstColorFrom(bgImg); if (c) bg = c; }
+  const parts: string[] = [];
+  for (const p of WORD_STYLE_PROPS) {
+    const v = p === "background-color" ? bg : cs.getPropertyValue(p);
+    if (!v) continue;
+    if (p === "background-color" && TRANSPARENT.has(v)) continue;
+    if (p.endsWith("-width") && v === "0px") continue;
+    parts.push(`${p}:${v}`);
+  }
+  const tag = clone.tagName.toLowerCase();
+  if (tag === "table") parts.push("border-collapse:collapse");
+  const existing = clone.getAttribute("style");
+  clone.setAttribute("style", (existing ? existing + ";" : "") + parts.join(";"));
+  // Table cell/row fills: Word honours the bgcolor attribute more reliably than CSS background.
+  if ((tag === "td" || tag === "th" || tag === "tr") && !TRANSPARENT.has(bg)) clone.setAttribute("bgcolor", rgbToHex(bg));
+}
+/** Resolve once all images in a document have loaded (or a timeout elapses). */
+function waitForImages(doc: Document, timeoutMs: number): Promise<void> {
+  const imgs = Array.from(doc.images || []);
+  const pending = imgs.filter((i) => !i.complete);
+  if (!pending.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    let left = pending.length, done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    pending.forEach((i) => { const on = () => { if (--left <= 0) finish(); }; i.addEventListener("load", on); i.addEventListener("error", on); });
+    setTimeout(finish, timeoutMs);
+  });
+}
+/** Build high-fidelity Word HTML from a LIVE rendered document (inline computed styles + rasterise images). */
+function flattenDocForWord(liveDoc: Document): string {
+  const view = liveDoc.defaultView;
+  reflectFormState(liveDoc);
+  const liveRoot = liveDoc.documentElement;
+  const clone = liveRoot.cloneNode(true) as HTMLElement;
+
+  if (view) {
+    const liveEls = liveRoot.querySelectorAll("*");
+    const cloneEls = clone.querySelectorAll("*");
+    for (let i = 0; i < liveEls.length && i < cloneEls.length; i++) {
+      const tag = liveEls[i].tagName.toLowerCase();
+      if (tag === "script" || tag === "style" || tag === "link" || tag === "meta" || tag === "head") continue;
+      try { inlineComputed(liveEls[i], cloneEls[i], view); } catch { /* skip element */ }
+    }
+  }
+  // Rasterise images (fixes an SVG / relative-URL logo that Word can't load) to base64 PNG.
+  const liveImgs = liveDoc.querySelectorAll("img");
+  const cloneImgs = clone.querySelectorAll("img");
+  for (let i = 0; i < liveImgs.length && i < cloneImgs.length; i++) {
+    const li = liveImgs[i] as HTMLImageElement, ci = cloneImgs[i] as HTMLImageElement;
+    try {
+      const nw = li.naturalWidth || li.width, nh = li.naturalHeight || li.height;
+      if (!nw || !nh) continue;
+      const canvas = liveDoc.createElement("canvas");
+      canvas.width = nw; canvas.height = nh;
+      const cx = canvas.getContext("2d");
+      if (!cx) continue;
+      cx.drawImage(li, 0, 0, nw, nh);
+      ci.setAttribute("src", canvas.toDataURL("image/png"));
+      const shownW = Math.round(li.getBoundingClientRect().width) || li.width || nw;
+      if (shownW) ci.setAttribute("width", String(shownW));
+    } catch { /* cross-origin tainted → keep original src */ }
+  }
+  // Strip UI-only bits + bake date inputs (same rules as cleanDocHtml).
+  clone.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, .indus-delcol, .indus-delcell, .indus-msctl, script").forEach((e) => e.remove());
+  clone.querySelectorAll('input[type="date"]').forEach((el) => {
+    const inp = el as HTMLInputElement;
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(inp.getAttribute("value") || "");
+    const span = liveDoc.createElement("span");
+    span.textContent = m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+    inp.replaceWith(span);
+  });
+  clone.querySelectorAll("[contenteditable]").forEach((s) => s.removeAttribute("contenteditable"));
+  clone.querySelectorAll("[data-mobiles]").forEach((s) => s.removeAttribute("data-mobiles"));
+  return htmlToWordDoc("<!doctype html>\n" + clone.outerHTML);
+}
+/** Render saved doc HTML off-screen, flatten it for Word, and download as <base>.doc. */
+async function downloadHtmlAsWordHiFi(html: string, base: string): Promise<void> {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:900px;height:1200px;border:0;visibility:hidden";
+  document.body.appendChild(iframe);
+  try {
+    const idoc = iframe.contentDocument;
+    if (!idoc) { saveHtmlAsWord(html, base); return; }  // fallback: unflattened
+    idoc.open(); idoc.write(html); idoc.close();
+    await waitForImages(idoc, 4000);
+    wordBlobDownload(flattenDocForWord(idoc), base);
+  } finally {
+    setTimeout(() => iframe.remove(), 100);
+  }
 }
 
 /** Patch the Sign-Off document Version wherever it appears (running header + §1 "Document Version"
@@ -262,12 +390,14 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
   };
   bar.appendChild(printBtn);
   // Save as Word → download the CURRENT document (with any edits) as an editable .doc for MS Word.
+  // Flattens the LIVE window's computed styles + rasterises images so Word keeps the colours & logo.
   const wordBtn = mk("📝  Save as Word", "#2b579a", () => {});
   wordBtn.onclick = () => {
     const orig = wordBtn.textContent;
     wordBtn.disabled = true; wordBtn.textContent = "⏳  Preparing…";
-    try { saveHtmlAsWord(cleanDocHtml(w), (doc.title || "Document").replace(/[^\w.-]+/g, "_")); }
-    catch { /* ignore */ }
+    const base = (doc.title || "Document").replace(/[^\w.-]+/g, "_");
+    try { wordBlobDownload(flattenDocForWord(w.document), base); }
+    catch { try { saveHtmlAsWord(cleanDocHtml(w), base); } catch { /* ignore */ } }
     finally { try { wordBtn.textContent = orig; wordBtn.disabled = false; } catch { /* */ } }
   };
   bar.appendChild(wordBtn);
@@ -919,13 +1049,15 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   };
 
   /** Download the saved doc as an EDITABLE Word file (.doc) — opens in MS Word so the user can
-   *  edit and re-save (as .docx) after downloading. */
+   *  edit and re-save (as .docx). Rendered off-screen first so computed styles + the logo carry over. */
   const downloadWordDoc = async (docType: ClientDocType) => {
     try {
       const r = await clientDocsApi.get(docClientCode, docType);
       if (!r?.success || !r.data) { setFlash("No saved document to download."); return; }
       const stamp = String(r.data.updatedAt || r.data.savedAt || "").slice(0, 10);
-      saveHtmlAsWord(r.data.htmlContent, `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`);
+      setFlash("Preparing Word file…");
+      await downloadHtmlAsWordHiFi(r.data.htmlContent, `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`);
+      setFlash(null);
     } catch (e) { setFlash("Word download failed: " + e); }
   };
 
