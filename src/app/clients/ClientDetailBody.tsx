@@ -207,8 +207,28 @@ function waitForImages(doc: Document, timeoutMs: number): Promise<void> {
     setTimeout(finish, timeoutMs);
   });
 }
-/** Build high-fidelity Word HTML from a LIVE rendered document (inline computed styles + rasterise images). */
-function flattenDocForWord(liveDoc: Document): string {
+/** Load an SVG data-URL into an <img> and return a base64 PNG at 2× for crispness. */
+function svgDataUrlToPng(dataUrl: string, w: number, h: number, doc: Document): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = doc.createElement("canvas");
+        c.width = Math.max(1, w * 2); c.height = Math.max(1, h * 2);
+        const cx = c.getContext("2d");
+        if (!cx) return reject(new Error("no ctx"));
+        cx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/png"));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+/** Build high-fidelity Word HTML from a LIVE rendered document (inline computed styles + rasterise
+ *  every <img> AND inline <svg> — Word can't render SVG, so its icons become broken × otherwise). */
+async function flattenDocForWord(liveDoc: Document): Promise<string> {
   const view = liveDoc.defaultView;
   reflectFormState(liveDoc);
   const liveRoot = liveDoc.documentElement;
@@ -223,7 +243,7 @@ function flattenDocForWord(liveDoc: Document): string {
       try { inlineComputed(liveEls[i], cloneEls[i], view); } catch { /* skip element */ }
     }
   }
-  // Rasterise images (fixes an SVG / relative-URL logo that Word can't load) to base64 PNG.
+  // Rasterise <img> (fixes a relative-URL / SVG logo Word can't load) to base64 PNG.
   const liveImgs = liveDoc.querySelectorAll("img");
   const cloneImgs = clone.querySelectorAll("img");
   for (let i = 0; i < liveImgs.length && i < cloneImgs.length; i++) {
@@ -240,6 +260,26 @@ function flattenDocForWord(liveDoc: Document): string {
       const shownW = Math.round(li.getBoundingClientRect().width) || li.width || nw;
       if (shownW) ci.setAttribute("width", String(shownW));
     } catch { /* cross-origin tainted → keep original src */ }
+  }
+  // Rasterise inline <svg> icons (checkboxes / status marks) → PNG, else Word shows a broken ×.
+  const liveSvgs = Array.from(liveDoc.querySelectorAll("svg"));
+  const cloneSvgs = Array.from(clone.querySelectorAll("svg"));
+  for (let i = 0; i < liveSvgs.length && i < cloneSvgs.length; i++) {
+    const ls = liveSvgs[i], cs = cloneSvgs[i];
+    try {
+      const rect = ls.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width || 16)), h = Math.max(1, Math.round(rect.height || 16));
+      const s = ls.cloneNode(true) as SVGElement;
+      s.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      s.setAttribute("width", String(w)); s.setAttribute("height", String(h));
+      const svgStr = new XMLSerializer().serializeToString(s);
+      const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)));
+      const png = await svgDataUrlToPng(dataUrl, w, h, liveDoc);
+      const img = liveDoc.createElement("img");
+      img.setAttribute("src", png); img.setAttribute("width", String(w)); img.setAttribute("height", String(h));
+      img.setAttribute("style", `width:${w}px;height:${h}px;vertical-align:middle`);
+      cs.replaceWith(img);
+    } catch { /* leave the svg as-is */ }
   }
   // Strip UI-only bits + bake date inputs (same rules as cleanDocHtml).
   clone.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, .indus-delcol, .indus-delcell, .indus-msctl, script").forEach((e) => e.remove());
@@ -265,7 +305,7 @@ async function downloadHtmlAsWordHiFi(html: string, base: string): Promise<void>
     if (!idoc) { saveHtmlAsWord(html, base); return; }  // fallback: unflattened
     idoc.open(); idoc.write(html); idoc.close();
     await waitForImages(idoc, 4000);
-    wordBlobDownload(flattenDocForWord(idoc), base);
+    wordBlobDownload(await flattenDocForWord(idoc), base);
   } finally {
     setTimeout(() => iframe.remove(), 100);
   }
@@ -392,11 +432,11 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
   // Save as Word → download the CURRENT document (with any edits) as an editable .doc for MS Word.
   // Flattens the LIVE window's computed styles + rasterises images so Word keeps the colours & logo.
   const wordBtn = mk("📝  Save as Word", "#2b579a", () => {});
-  wordBtn.onclick = () => {
+  wordBtn.onclick = async () => {
     const orig = wordBtn.textContent;
     wordBtn.disabled = true; wordBtn.textContent = "⏳  Preparing…";
     const base = (doc.title || "Document").replace(/[^\w.-]+/g, "_");
-    try { wordBlobDownload(flattenDocForWord(w.document), base); }
+    try { wordBlobDownload(await flattenDocForWord(w.document), base); }
     catch { try { saveHtmlAsWord(cleanDocHtml(w), base); } catch { /* ignore */ } }
     finally { try { wordBtn.textContent = orig; wordBtn.disabled = false; } catch { /* */ } }
   };
