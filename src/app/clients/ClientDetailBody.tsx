@@ -48,7 +48,7 @@ const dlItemCss: React.CSSProperties = {
 
 const APP_LABEL: Record<string, string> = { estimoprime: "Estimoprime", multiunit: "MultiUnit", printudeerp: "PrintudeERP", desktop: "Desktop" };
 const appLabel = (a?: string | null) => (a ? APP_LABEL[a.toLowerCase()] ?? a : "—");
-const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP"];
+const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact"];
 const STATUS_OPTIONS = ["Active", "Expired"];
 const toDateInput = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : "");
 

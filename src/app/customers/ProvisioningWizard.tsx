@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import CrmClientPickerModal from "./CrmClientPickerModal";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 
-const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy"];
+const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact"];
 const BACKUP_TYPES = ["Offset", "Flexo", "Rotogravure"];
 
 // CRM's "Indus Product" is free text (e.g. "Indas Print ERP - Estimo", "Indus Print - Web",
@@ -26,6 +26,7 @@ function guessApplication(indasProduct?: string | null): string {
   if (p.includes("printude")) return "PrintudeERP";
   if (p.includes("multiunit") || p.includes("multi unit")) return "multiunit";
   if (p.includes("coreasy")) return "Coreasy";
+  if (p.includes("estimoreact") || p.includes("estimo react")) return "EstimoReact";
   if (p.includes("estimo") && !p.includes("desktop")) return "estimoprime";
   return "";
 }
