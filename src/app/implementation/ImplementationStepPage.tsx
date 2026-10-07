@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Page, Dropdown } from "indas-ui";
 import type { LucideIcon } from "lucide-react";
-import { Rocket, Activity, FileSpreadsheet, FileCheck2, HardHat, Users2, Package } from "lucide-react";
+import { Rocket, Activity, FileSpreadsheet, FileCheck2, HardHat, Users2, Package, ChevronUp, ChevronDown } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import ClientDetailBody from "@/app/clients/ClientDetailBody";
 import { customersApi, type CustomerCard } from "@/lib/customers";
@@ -44,6 +44,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
   // This step's edit permission comes from the /implementation/<step> module's OWN authority
   // (User Management → Module Authority), not the client-detail-tab (clienttab-*) system.
   const [editable, setEditable] = useState(false);
+  const [compact, setCompact] = useState(false);  // "Collapse selectors" — hide the title + pickers + client card
 
   // Strict Project-Assignment scope: the Client picker shows only the clients assigned to the
   // logged-in user (admin → all). Admin assigns projects via Admin → Project Assignment.
@@ -97,55 +98,78 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
   );
 
   const Icon = meta.icon;
+  const clientLabel = clientOptions.find((o) => o.value === clientId)?.label ?? clientId;
+  const toggleBtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 9, border: "1px solid rgb(var(--color-primary))", background: "rgb(var(--bg-surface))", color: "rgb(var(--color-primary))", fontSize: 12.5, fontWeight: 700, cursor: "pointer" };
 
   return (
     <Page>
-      {/* Centered step heading (matches the app-wide page-header look). */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
-          <Icon size={24} />
-        </span>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>{meta.title}</h1>
-      </div>
+      {compact && clientId ? (
+        // Collapsed — a thin bar frees vertical space so the tabs + data sit right at the top.
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", marginBottom: 12, borderRadius: 10, background: "rgb(var(--bg-subtle))", border: "1px solid rgb(var(--bd-default))", flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0 }}><Icon size={15} /></span>
+          <b style={{ fontSize: 14, color: "rgb(var(--fg-default))" }}>{meta.title}</b>
+          <span style={{ color: "rgb(var(--fg-muted))" }}>·</span>
+          <span style={{ fontSize: 13, color: "rgb(var(--fg-muted))" }}>{clientLabel}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setCompact(false)} style={toggleBtn}><ChevronDown size={14} /> Change</button>
+        </div>
+      ) : (
+        <>
+          {/* Centered step heading (matches the app-wide page-header look). */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
+              <Icon size={24} />
+            </span>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>{meta.title}</h1>
+          </div>
 
-      {/* Indus Product filter + client picker (client list follows the selected product). */}
-      <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 18, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
-            <Package size={16} /> Indus Product
-          </span>
-          <div style={{ width: 220 }}>
-            <Dropdown
-              value={product}
-              onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
-              options={productOptions}
-              placeholder={loading ? "Loading…" : "— Select product —"}
-              searchable
-              size="md"
-            />
+          {/* Indus Product filter + client picker (client list follows the selected product). */}
+          <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
+                <Package size={16} /> Indus Product
+              </span>
+              <div style={{ width: 220 }}>
+                <Dropdown
+                  value={product}
+                  onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
+                  options={productOptions}
+                  placeholder={loading ? "Loading…" : "— Select product —"}
+                  searchable
+                  size="md"
+                />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
+                <Users2 size={16} /> Client
+              </span>
+              <div style={{ width: 360, maxWidth: "100%" }}>
+                <Dropdown
+                  value={clientId}
+                  onValueChange={(v) => setClientId(String(v))}
+                  options={clientOptions}
+                  placeholder={loading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"}
+                  searchable
+                  size="md"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
-            <Users2 size={16} /> Client
-          </span>
-          <div style={{ width: 360, maxWidth: "100%" }}>
-            <Dropdown
-              value={clientId}
-              onValueChange={(v) => setClientId(String(v))}
-              options={clientOptions}
-              placeholder={loading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"}
-              searchable
-              size="md"
-            />
-          </div>
-        </div>
-      </div>
+
+          {/* Collapse the pickers + client card so the tabs/data get the full height (only once a client is picked). */}
+          {clientId && (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+              <button onClick={() => setCompact(true)} style={toggleBtn}><ChevronUp size={14} /> Collapse selectors</button>
+            </div>
+          )}
+        </>
+      )}
 
       {loading ? (
         <BrandedLoader size="md" text="Loading clients…" />
       ) : clientId ? (
-        <ClientDetailBody id={clientId} lockTab={step} lockTabEditable={editable} inModal={false} onClose={() => {}} />
+        <ClientDetailBody id={clientId} lockTab={step} lockTabEditable={editable} inModal={false} compactHeader={compact} onClose={() => {}} />
       ) : (
         <div style={{ padding: "40px 0", textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 14 }}>
           Select a client above to view its {meta.title}.

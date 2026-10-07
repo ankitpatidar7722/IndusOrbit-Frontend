@@ -825,7 +825,7 @@ const SUB_TABS = [
  * bordered card with a dark, legible header. **Edit is IN-PLACE** — the Company Detail
  * tab's cards flip to editable inputs (no second modal); Save persists via customersApi.
  */
-export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean }) {
+export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable, compactHeader = false }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean; compactHeader?: boolean }) {
   const { data: session } = useSession();
   const { openComposer } = useEmailComposer();
   const [c, setC] = useState<CustomerDetail | null>(null);
@@ -1672,5 +1672,5 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     </div>
   );
 
-  return shell(<>{header}{lockTab ? null : tabsBar}{body}</>);
+  return shell(<>{compactHeader ? null : header}{lockTab ? null : tabsBar}{body}</>);
 }
