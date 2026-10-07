@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
-import { Page, Input, Button, Card, CardContent, Dropdown } from "indas-ui";
+import { Page, Input, Button, Card, CardContent } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
@@ -74,7 +75,7 @@ function AssignPage({ createdById }: { createdById: number }) {
           )}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ width: 240 }}>
-              <Dropdown value={devId ? String(devId) : ""} onValueChange={(v) => setDevId(v ? Number(v) : "")}
+              <KDropdown value={devId ? String(devId) : ""} onValueChange={(v) => setDevId(v ? Number(v) : "")}
                 options={devs.map((d) => ({ value: String(d.userID), label: d.fullName }))}
                 placeholder="— Assign to developer —" searchable size="md" />
             </div>

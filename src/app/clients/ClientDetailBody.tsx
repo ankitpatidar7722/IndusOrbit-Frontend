@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useState } from "react";
-import { Tabs, Badge, Button, Dropdown, Switch, useDevice } from "indas-ui";
+import { Tabs, Badge, Button, Switch, useDevice } from "indas-ui";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 import { Pencil, Building2, MapPin, CreditCard, Cloud, KeyRound, ShieldCheck, Rocket, Activity, FileCheck2, HardHat, X, Save, Wand2, Copy, Check, Eye, Download, FileText, FileDown, FileCode, FileSpreadsheet, CheckCircle2, Mail, History, type LucideIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -1436,14 +1437,14 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
     const fv = f[key];
     // Dropdowns include the current saved value so an edit always pre-selects it (even off-list).
-    if (kind === "status") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...STATUS_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
-    if (kind === "app") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...APP_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "status") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...STATUS_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "app") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...APP_OPTIONS, ...(fv ? [String(fv)] : [])])).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
     // Cascading Country → State → City (values stored as names; picking a parent resets children).
-    if (kind === "country") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, country: String(v), state: "", city: "" }))} options={countryNames(fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
-    if (kind === "state") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, state: String(v), city: "" }))} options={stateNames(f.country, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
-    if (kind === "city") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set("city", String(v))} options={cityNames(f.country, f.state, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "country") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, country: String(v), state: "", city: "" }))} options={countryNames(fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "state") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => setF((p) => ({ ...p, state: String(v), city: "" }))} options={stateNames(f.country, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
+    if (kind === "city") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => set("city", String(v))} options={cityNames(f.country, f.state, fv as string).map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />);
     // Application URL: dropdown of distinct ApplicationBaseURL values (current value kept so it pre-selects even if off-list).
-    if (kind === "appurl") return box(<Dropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...appUrls, ...(fv ? [String(fv)] : [])])).filter(Boolean).map((o) => ({ value: o, label: o }))} placeholder="Select URL…" searchable size="md" />);
+    if (kind === "appurl") return box(<KDropdown value={(fv as string) ?? ""} onValueChange={(v) => set(key, String(v))} options={Array.from(new Set([...appUrls, ...(fv ? [String(fv)] : [])])).filter(Boolean).map((o) => ({ value: o, label: o }))} placeholder="Select URL…" searchable size="md" />);
     if (kind === "date") return box(<DateField value={fv as string | undefined} onChange={(v) => set(key, v)} />);
     if (kind === "textarea") return box(<textarea value={(fv as string) ?? ""} onChange={(e) => set(key, e.target.value)} rows={2} style={fldArea} />);
     if (kind === "bool") return box(
@@ -1529,7 +1530,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           <SectionCard icon={CreditCard} title="ERP Subscription" cols={6}>
             {fld("Status", "subscriptionStatus", "status")}
             {cell("Subscription Period", editing
-              ? <Dropdown value={erpPeriod} onValueChange={(v) => pickErpPeriod(String(v))} options={PERIOD_OPTIONS.map((o) => ({ value: o, label: o }))} placeholder="Select…" size="md" />
+              ? <KDropdown value={erpPeriod} onValueChange={(v) => pickErpPeriod(String(v))} options={PERIOD_OPTIONS.map((o) => ({ value: o, label: o }))} placeholder="Select…" size="md" />
               : <div style={roBox}><span style={{ ...valueCss(), color: c.erpSubscriptionPeriod ? T.fg : T.faint }}>{c.erpSubscriptionPeriod || "—"}</span></div>
             )}
             {fld("From Date", "fromDate", "date")}
@@ -1554,7 +1555,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           <SectionCard icon={Cloud} title="Cloud Subscription" cols={4}>
             {fld("Cloud Status", "cloudSubscriptionStatus", "status")}
             {cell("Subscription Period", editing
-              ? <Dropdown value={cloudPeriod} onValueChange={(v) => pickCloudPeriod(String(v))} options={PERIOD_OPTIONS.map((o) => ({ value: o, label: o }))} placeholder="Select…" size="md" />
+              ? <KDropdown value={cloudPeriod} onValueChange={(v) => pickCloudPeriod(String(v))} options={PERIOD_OPTIONS.map((o) => ({ value: o, label: o }))} placeholder="Select…" size="md" />
               : <div style={roBox}><span style={{ ...valueCss(), color: c.cloudSubscriptionPeriod ? T.fg : T.faint }}>{c.cloudSubscriptionPeriod || "—"}</span></div>
             )}
             {fld("Cloud From", "cloudFromDate", "date")}

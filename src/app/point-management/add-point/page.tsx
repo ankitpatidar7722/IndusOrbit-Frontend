@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Page, Card, CardContent, Textarea, Input, Button, Dropdown } from "indas-ui";
+import { Page, Card, CardContent, Textarea, Input, Button } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { Plus, Check, Paperclip, X, Sparkles } from "lucide-react";
 import { PmGuard } from "../PmGuard";
@@ -165,34 +166,34 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <Field label="Product *">
-              <Dropdown value={String(productID || "")} onValueChange={(v) => pickProduct(v ? Number(v) : "")}
+              <KDropdown value={String(productID || "")} onValueChange={(v) => pickProduct(v ? Number(v) : "")}
                 options={productOptions}
                 placeholder="— Select product —" searchable size="md" />
             </Field>
             <Field label="Customer *">
-              <Dropdown value={customerName} onValueChange={(v) => setCustomerName(String(v))}
+              <KDropdown value={customerName} onValueChange={(v) => setCustomerName(String(v))}
                 options={clientNameOptions}
                 placeholder={productID ? "— Select customer —" : "Select a product first"} searchable size="md" disabled={!productID} />
             </Field>
             <Field label="Module *">
-              <Dropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
+              <KDropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
                 options={headOptions} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
             </Field>
             <Field label="Sub Module">
-              <Dropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
+              <KDropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
                 options={subOptions}
                 placeholder={module ? "Select or type…" : "Select a module first"} searchable allowTextInput allowCustomInput size="md" disabled={!module} />
             </Field>
             <Field label="Category">
-              <Dropdown value={category} onValueChange={(v) => setCategory(String(v))}
+              <KDropdown value={category} onValueChange={(v) => setCategory(String(v))}
                 options={categoryOptions} size="md" />
             </Field>
             <Field label="Priority">
-              <Dropdown value={priority} onValueChange={(v) => setPriority(String(v))}
+              <KDropdown value={priority} onValueChange={(v) => setPriority(String(v))}
                 options={PRIORITIES.map((p) => ({ value: p, label: p }))} size="md" />
             </Field>
             <Field label="Complexity">
-              <Dropdown value={complexity} onValueChange={(v) => setComplexity(String(v))}
+              <KDropdown value={complexity} onValueChange={(v) => setComplexity(String(v))}
                 options={[{ value: "", label: "—" }, ...COMPLEXITIES.map((c) => ({ value: c, label: c }))]} placeholder="—" size="md" />
             </Field>
           </div>
@@ -235,7 +236,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           {/* Reported By (defaults to the logged-in user, editable) */}
           <div style={{ marginTop: 16, maxWidth: 320 }}>
             <Field label="Reported By *">
-              <Dropdown value={String(reportedByID || "")} onValueChange={(v) => setReportedByID(Number(v))}
+              <KDropdown value={String(reportedByID || "")} onValueChange={(v) => setReportedByID(Number(v))}
                 options={userOptions} placeholder="— select user —" searchable size="md" />
             </Field>
           </div>

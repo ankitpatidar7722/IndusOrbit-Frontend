@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Page, Dropdown, Button, useModalAlert, Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "indas-ui";
+import { Page, Button, useModalAlert, Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { BookOpen, RefreshCw, Save, SquarePen, Trash2, Eye, Package, Users2 } from "lucide-react";
 import { DataGrid } from "@/components/datagrid";
@@ -289,12 +290,12 @@ export default function SopWebModulesPage() {
       <div style={{ display: "flex", alignItems: "flex-end", gap: 16, background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 12, padding: 18, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 240px", minWidth: 200 }}>
           <label style={{ ...lbl, display: "inline-flex", alignItems: "center", gap: 7 }}><Package size={15} /> Indus Product</label>
-          <Dropdown value={product} onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
+          <KDropdown value={product} onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
             options={productOptions} placeholder={clientsLoading ? "Loading…" : "— Select product —"} searchable size="md" />
         </div>
         <div style={{ flex: "1 1 300px", minWidth: 220 }}>
           <label style={{ ...lbl, display: "inline-flex", alignItems: "center", gap: 7 }}><Users2 size={15} /> Client</label>
-          <Dropdown value={clientId} onValueChange={(v) => setClientId(String(v))}
+          <KDropdown value={clientId} onValueChange={(v) => setClientId(String(v))}
             options={clientOptions}
             placeholder={clientsLoading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"} searchable size="md" />
         </div>

@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Input, Dropdown } from "indas-ui";
+import { Input } from "indas-ui";
 import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2, Loader2, ArrowRight, ArrowRightLeft } from "lucide-react";
 import { customersApi } from "@/lib/customers";
 import {
@@ -259,7 +260,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   };
   const S = (label: string, val: string, on: (v: string) => void, options: string[], extra?: { searchable?: boolean; allowCustom?: boolean }) => (
     <div><Label text={label} />
-      <Dropdown
+      <KDropdown
         value={val ?? ""}
         onValueChange={(v) => on(String(v))}
         options={options.map((o) => ({ value: o, label: o }))}

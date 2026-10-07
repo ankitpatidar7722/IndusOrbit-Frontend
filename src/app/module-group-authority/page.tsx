@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
-import { Page, Dropdown, StandardModal, useModalAlert, Button } from "indas-ui";
+import { Page, StandardModal, useModalAlert, Button } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Layers, Plus, Pencil, Trash2, RefreshCw, Save, Search, CheckSquare, Square } from "lucide-react";
 import { DataGrid } from "@/components/datagrid";
@@ -184,11 +185,11 @@ export default function ModuleGroupAuthorityPage() {
       <div style={{ display: "flex", alignItems: "flex-end", gap: 16, background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 12, padding: 18, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 280px", minWidth: 240 }}>
           <label style={lbl}>Application Name</label>
-          <Dropdown value={app} onValueChange={(v) => setApp(String(v))} options={APP_OPTIONS} placeholder="Select Application Name" size="md" />
+          <KDropdown value={app} onValueChange={(v) => setApp(String(v))} options={APP_OPTIONS} placeholder="Select Application Name" size="md" />
         </div>
         <div style={{ flex: "1 1 280px", minWidth: 240 }}>
           <label style={lbl}>Module Group</label>
-          <Dropdown value={group} onValueChange={(v) => setGroup(String(v))}
+          <KDropdown value={group} onValueChange={(v) => setGroup(String(v))}
             options={groups.map((g) => ({ value: g, label: g }))}
             placeholder={app ? "Select Module Group" : "Select an application first"} searchable size="md" />
         </div>
@@ -239,7 +240,7 @@ export default function ModuleGroupAuthorityPage() {
               <label style={lbl}>Application Name</label>
               {editMode
                 ? <input value={APP_OPTIONS.find((o) => o.value === mApp)?.label ?? mApp} readOnly style={{ ...inputCss, background: "rgb(var(--bg-subtle))", color: "rgb(var(--fg-muted))" }} />
-                : <Dropdown value={mApp} onValueChange={(v) => setMApp(String(v))} options={APP_OPTIONS} size="md" />}
+                : <KDropdown value={mApp} onValueChange={(v) => setMApp(String(v))} options={APP_OPTIONS} size="md" />}
             </div>
             <div>
               <label style={lbl}>Module Group Name</label>

@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Page, Dropdown } from "indas-ui";
+import { Page } from "indas-ui";
 import { Package, Users2, Pencil, ChevronUp, type LucideIcon } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { customersApi, type CustomerCard } from "@/lib/customers";
@@ -154,7 +155,7 @@ export default function BulkModuleShell({
                 <Package size={16} /> Indus Product
               </span>
               <div style={{ width: 220 }}>
-                <Dropdown value={product} onValueChange={(v) => { setProduct(String(v)); setClientId(""); setCompact(false); }} options={productOptions} placeholder={loading ? "Loading…" : "— Select product —"} searchable size="md" />
+                <KDropdown value={product} onValueChange={(v) => { setProduct(String(v)); setClientId(""); setCompact(false); }} options={productOptions} placeholder={loading ? "Loading…" : "— Select product —"} searchable size="md" />
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -162,7 +163,7 @@ export default function BulkModuleShell({
                 <Users2 size={16} /> Client Name
               </span>
               <div style={{ width: 360, maxWidth: "100%" }}>
-                <Dropdown value={clientId} onValueChange={(v) => { setClientId(String(v)); setCompact(false); }} options={clientOptions} disabled={!product || loading} placeholder={!product ? "Select a product first" : loading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"} searchable size="md" />
+                <KDropdown value={clientId} onValueChange={(v) => { setClientId(String(v)); setCompact(false); }} options={clientOptions} disabled={!product || loading} placeholder={!product ? "Select a product first" : loading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"} searchable size="md" />
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useContext, useEffect, useState } from "react";
-import { Dropdown } from "indas-ui";
+
 import { Boxes, Layers } from "lucide-react";
 import { type BulkClientContext, BulkCompactContext } from "@/components/bulk/BulkModuleShell";
 import { getItemGroups, getToolGroups, getLedgerGroups } from "@/bulk/services/api";
@@ -71,12 +72,12 @@ export default function ImportMasterModule({ client }: { client: BulkClientConte
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 18, justifyContent: "center" }}>
           <div style={{ minWidth: 260 }}>
             <div style={labelStyle}><Boxes size={16} /> Module Name (Master)</div>
-            <Dropdown value={master} onValueChange={(v) => setMaster(String(v))} options={MASTER_TYPES} placeholder="— Select master —" searchable size="md" />
+            <KDropdown value={master} onValueChange={(v) => setMaster(String(v))} options={MASTER_TYPES} placeholder="— Select master —" searchable size="md" />
           </div>
           {needsGroup && (
             <div style={{ minWidth: 300 }}>
               <div style={labelStyle}><Layers size={16} /> Sub Module Name (Group)</div>
-              <Dropdown
+              <KDropdown
                 value={group}
                 onValueChange={(v) => setGroup(String(v))}
                 options={groupOptions}

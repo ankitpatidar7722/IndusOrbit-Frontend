@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
-import { Page, StatsGrid, StatsCard, Dropdown, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button, useDevice } from "indas-ui";
+import { Page, StatsGrid, StatsCard, Kpi, ChartCard, DonutChart, BarChart, StandardModal, Button, useDevice } from "indas-ui";
 import { Layers, FolderOpen, CheckSquare, AlarmClock, XCircle, Eye } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
@@ -99,7 +100,7 @@ function DeveloperKpi({ devId }: { devId: number }) {
           <DateField value={to} onChange={setTo} style={{ width: isMobile ? "100%" : 160 }} />
         </div>
         <div style={{ width: isMobile ? "auto" : 200, ...(isMobile ? { gridColumn: "1 / -1" } : {}) }}>
-          <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
+          <KDropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
         </div>
         {(from || to || custId) && (

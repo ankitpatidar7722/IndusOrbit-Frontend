@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Button, Dropdown, useModalAlert } from "indas-ui";
+import { Button, useModalAlert } from "indas-ui";
 import { Trash2, Database, AlertTriangle, ShieldAlert, Lock, CheckCircle2, XCircle, Info, Loader2, ListChecks } from "lucide-react";
 import type { BulkClientContext } from "@/components/bulk/BulkModuleShell";
 import {
@@ -172,8 +173,8 @@ export default function ERPTransactionDeleteModule({ client }: { client: BulkCli
                 <div><div style={{ fontSize: 13.5, fontWeight: 700, color: "#a16207" }}>Warning: This permanently deletes the selected master data.</div><div style={{ fontSize: 12, color: "#a16207" }}>Please ensure you have a backup before proceeding.</div></div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: showSub ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 20, maxWidth: showSub ? "100%" : 420 }}>
-                <div><div style={lbl}>Module Name <span style={{ color: "#dc2626" }}>*</span></div><Dropdown value={moduleId} onValueChange={(v) => onModuleChange(String(v))} options={opt(modules)} placeholder="Select Module Name" searchable size="md" /></div>
-                {showSub && <div><div style={lbl}>Sub Module Name <span style={{ color: "#dc2626" }}>*</span></div><Dropdown value={subId} onValueChange={(v) => setSubId(String(v))} options={opt(subModules)} placeholder="Select Sub-module" searchable size="md" /></div>}
+                <div><div style={lbl}>Module Name <span style={{ color: "#dc2626" }}>*</span></div><KDropdown value={moduleId} onValueChange={(v) => onModuleChange(String(v))} options={opt(modules)} placeholder="Select Module Name" searchable size="md" /></div>
+                {showSub && <div><div style={lbl}>Sub Module Name <span style={{ color: "#dc2626" }}>*</span></div><KDropdown value={subId} onValueChange={(v) => setSubId(String(v))} options={opt(subModules)} placeholder="Select Sub-module" searchable size="md" /></div>}
               </div>
               <div style={{ textAlign: "center" }}>
                 <Button size="md" variant="action-delete" icon={busy ? Loader2 : Trash2} onClick={onMasterDelete} disabled={!canDelete || busy}>{busy ? "Checking…" : "Delete Master Data"}</Button>

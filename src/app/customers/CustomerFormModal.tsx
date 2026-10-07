@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useState } from "react";
-import { StandardModal, Dropdown, Tabs, Button } from "indas-ui";
+import { StandardModal, Tabs, Button } from "indas-ui";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 import { Building2, CreditCard, Cloud, KeyRound, Save, Wand2, type LucideIcon } from "lucide-react";
 import { customersApi, type CustomerDetail, type SubscriptionSave } from "@/lib/customers";
@@ -100,7 +101,7 @@ export default function CustomerFormModal({
   const Sel = (label: string, k: keyof SubscriptionSave, options: string[]) => (
     <div>
       <label style={fldLabel}>{label}</label>
-      <Dropdown value={(f[k] as string) ?? ""} onValueChange={(v) => set(k, String(v))}
+      <KDropdown value={(f[k] as string) ?? ""} onValueChange={(v) => set(k, String(v))}
         options={options.map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />
     </div>
   );
@@ -108,7 +109,7 @@ export default function CustomerFormModal({
   const Loc = (label: string, k: "country" | "state" | "city", options: string[], onPick: (v: string) => void) => (
     <div>
       <label style={fldLabel}>{label}</label>
-      <Dropdown value={(f[k] as string) ?? ""} onValueChange={(v) => onPick(String(v))}
+      <KDropdown value={(f[k] as string) ?? ""} onValueChange={(v) => onPick(String(v))}
         options={options.map((o) => ({ value: o, label: o }))} placeholder="Select…" searchable size="md" />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Page, Dropdown, Button } from "indas-ui";
+import { Page, Button } from "indas-ui";
 import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { customersApi, type CustomerCard } from "@/lib/customers";
@@ -178,7 +179,7 @@ export default function DatabaseBackupPage() {
             <Package size={16} /> Indus Product
           </span>
           <div style={{ width: 220 }}>
-            <Dropdown
+            <KDropdown
               value={product}
               onValueChange={(v) => { setProduct(String(v)); setClientId(""); reset(); }}
               options={productOptions}
@@ -194,7 +195,7 @@ export default function DatabaseBackupPage() {
             <Users2 size={16} /> Client Name
           </span>
           <div style={{ width: 360, maxWidth: "100%" }}>
-            <Dropdown
+            <KDropdown
               value={clientId}
               onValueChange={(v) => { setClientId(String(v)); reset(); }}
               options={clientOptions}

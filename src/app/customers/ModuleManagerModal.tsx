@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StandardModal, Input, Button, Tabs, Badge, Dropdown, Dialog, DialogContent, DialogTitle } from "indas-ui";
+import { StandardModal, Input, Button, Tabs, Badge, Dialog, DialogContent, DialogTitle } from "indas-ui";
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import type { ColumnDef, Table as RTTable } from "@tanstack/react-table";
 import { Copy, Layers, Search, Save, Plus, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, PackagePlus, type LucideIcon } from "lucide-react";
@@ -385,12 +386,12 @@ export function ModuleGroupsTab({ app, connStr, onFlash, clientName }: { app: st
       <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ width: 220 }}>
           <label style={grpLbl}>Application</label>
-          <Dropdown value={groupApp} onValueChange={(v) => setGroupApp(String(v))}
+          <KDropdown value={groupApp} onValueChange={(v) => setGroupApp(String(v))}
             options={APP_OPTIONS.map((a) => ({ value: a, label: appLbl(a) }))} size="md" />
         </div>
         <div style={{ width: 260 }}>
           <label style={grpLbl}>Module Group</label>
-          <Dropdown value={group} onValueChange={(v) => setGroup(String(v))}
+          <KDropdown value={group} onValueChange={(v) => setGroup(String(v))}
             options={groups.map((g) => ({ value: g, label: g }))}
             placeholder="— select —" searchable size="md" />
         </div>

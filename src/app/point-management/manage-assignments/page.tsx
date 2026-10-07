@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Page, Button, Badge, StandardModal, Dropdown, useModalAlert } from "indas-ui";
+import { Page, Button, Badge, StandardModal, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import { UserCog, XCircle, Eye } from "lucide-react";
@@ -107,7 +108,7 @@ function ManageAssignments({ tmsUserId }: { tmsUserId: number }) {
         showFooter saveLabel="Reassign" onSave={doReassign} onCancel={() => setReassignFor(null)} saving={busy}
       >
         <div style={{ fontSize: 12.5, fontWeight: 700, opacity: 0.6, marginBottom: 6 }}>New developer</div>
-        <Dropdown value={newDev ? String(newDev) : ""} onValueChange={(v) => setNewDev(v ? Number(v) : "")}
+        <KDropdown value={newDev ? String(newDev) : ""} onValueChange={(v) => setNewDev(v ? Number(v) : "")}
           options={[{ value: "", label: "— Select developer —" }, ...devs.map((d) => ({ value: String(d.userID), label: d.fullName }))]}
           placeholder="— Select developer —" searchable size="md" />
       </StandardModal>

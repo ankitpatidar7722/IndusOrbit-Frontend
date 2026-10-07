@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Button, Dropdown, useModalAlert, StandardModal } from "indas-ui";
+import { Button, useModalAlert, StandardModal } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataGrid } from "@/components/datagrid";
 import { Boxes, RefreshCw, Save, CheckSquare } from "lucide-react";
@@ -87,7 +88,7 @@ export default function ModuleAuthorityModule({ client }: { client: BulkClientCo
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16, justifyContent: "center" }}>
         <div style={{ minWidth: 220 }}>
           <div style={labelStyle}><Boxes size={16} /> Source Product</div>
-          <Dropdown value={product} onValueChange={(v) => setProduct(String(v))} options={PRODUCTS} placeholder="— Select product —" size="md" />
+          <KDropdown value={product} onValueChange={(v) => setProduct(String(v))} options={PRODUCTS} placeholder="— Select product —" size="md" />
         </div>
         <Button size="sm" variant="action-secondary" icon={RefreshCw} onClick={load} disabled={busy}>Reload</Button>
         <Button size="sm" variant="action-secondary" icon={CheckSquare} onClick={toggleAll} disabled={busy || !rows.length}>{allChecked ? "Uncheck All" : "Check All"}</Button>

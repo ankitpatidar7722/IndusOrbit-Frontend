@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Button, Dropdown, useModalAlert, StandardModal } from "indas-ui";
+import { Button, useModalAlert, StandardModal } from "indas-ui";
 import { Tag, Plus, Pencil, Trash2, Star } from "lucide-react";
 import type { BulkClientContext } from "@/components/bulk/BulkModuleShell";
 import {
@@ -124,7 +125,7 @@ export default function ManagePlansModule({ client }: { client: BulkClientContex
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ minWidth: 240 }}>
             <div style={lbl}>Feature</div>
-            <Dropdown value={featureId} onValueChange={(v) => setFeatureId(String(v))} options={features.map((f) => ({ value: String(f.featureID), label: `${f.featureName} (${f.featureCode})` }))} placeholder="— Select feature —" searchable size="md" />
+            <KDropdown value={featureId} onValueChange={(v) => setFeatureId(String(v))} options={features.map((f) => ({ value: String(f.featureID), label: `${f.featureName} (${f.featureCode})` }))} placeholder="— Select feature —" searchable size="md" />
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div><div style={lbl}>New Feature Code</div><input value={newFeat.code} onChange={(e) => setNewFeat({ ...newFeat, code: e.target.value })} placeholder="e.g. Sahay" style={{ ...INP, width: 140 }} /></div>
@@ -171,7 +172,7 @@ export default function ManagePlansModule({ client }: { client: BulkClientContex
             <div><div style={lbl}>Plan Name *</div><input value={editing.planName} onChange={(e) => onName(e.target.value)} style={INP} /></div>
             <div><div style={lbl}>Display Name</div><input value={editing.planDisplayName ?? ""} onChange={(e) => setField("planDisplayName", e.target.value)} style={INP} /></div>
             <div><div style={lbl}>Plan Code *</div><input value={editing.planCode ?? ""} onChange={(e) => { setCodeTouched(true); setField("planCode", e.target.value); }} style={{ ...INP, fontFamily: "monospace" }} /></div>
-            <div><div style={lbl}>Billing Cycle</div><Dropdown value={editing.billingCycle} onValueChange={(v) => setField("billingCycle", String(v))} options={CYCLES} size="md" /></div>
+            <div><div style={lbl}>Billing Cycle</div><KDropdown value={editing.billingCycle} onValueChange={(v) => setField("billingCycle", String(v))} options={CYCLES} size="md" /></div>
             <div><div style={lbl}>Monthly Price (₹)</div><input type="number" value={editing.unitPrice} onChange={(e) => setField("unitPrice", Number(e.target.value))} style={INP} /></div>
             <div><div style={lbl}>Annual Price (₹)</div><input type="number" value={editing.annualPrice ?? ""} onChange={(e) => setField("annualPrice", e.target.value === "" ? null : Number(e.target.value))} style={INP} /></div>
             <div style={{ gridColumn: "1 / -1", display: "flex", gap: 20, alignItems: "center" }}>

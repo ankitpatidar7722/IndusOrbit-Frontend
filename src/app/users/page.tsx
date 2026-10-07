@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Page, StandardModal, Badge, Button, Dropdown, useModalAlert, useDevice } from "indas-ui";
+import { Page, StandardModal, Badge, Button, useModalAlert, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
@@ -390,12 +391,12 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
             <div><label style={fldLabel}>Email *</label><input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={f.email} onChange={(e) => set("email", e.target.value)} style={fldInput} placeholder="you@indusanalytics.in" /></div>
             <div><label style={fldLabel}>Mobile No</label><input type="tel" inputMode="tel" value={f.mobile ?? ""} onChange={(e) => set("mobile", e.target.value)} style={fldInput} placeholder="Enter mobile number" /></div>
             <div><label style={fldLabel}>Role</label>
-              <Dropdown value={f.role ?? ""} onValueChange={(v) => set("role", String(v))}
+              <KDropdown value={f.role ?? ""} onValueChange={(v) => set("role", String(v))}
                 options={[...(lookups?.roles ?? []), ...(f.role && !(lookups?.roles ?? []).includes(f.role) ? [f.role] : [])].map((r) => ({ value: r, label: r }))}
                 placeholder="Select role…" searchable size="md" />
             </div>
             <div><label style={fldLabel}>Team Lead</label>
-              <Dropdown value={f.reportingManagerId != null ? String(f.reportingManagerId) : ""} onValueChange={(v) => set("reportingManagerId", v ? Number(v) : null)}
+              <KDropdown value={f.reportingManagerId != null ? String(f.reportingManagerId) : ""} onValueChange={(v) => set("reportingManagerId", v ? Number(v) : null)}
                 options={[{ value: "", label: "— none —" }, ...(lookups?.managers ?? []).filter((m) => m.userId !== curId).map((m) => ({ value: String(m.userId), label: m.fullName }))]}
                 placeholder="— none —" searchable size="md" />
             </div>
@@ -476,10 +477,10 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
               <div><label style={fldLabel}>SMTP Server</label><input value={f.smtpServer ?? ""} onChange={(e) => set("smtpServer", e.target.value)} style={fldInput} placeholder="smtp.gmail.com" /></div>
               <div><label style={fldLabel}>Port</label><input inputMode="numeric" value={f.smtpPort ?? ""} onChange={(e) => set("smtpPort", e.target.value)} style={fldInput} placeholder="587" /></div>
               <div><label style={fldLabel}>Authenticate</label>
-                <Dropdown value={f.smtpAuthenticate ? "Yes" : "No"} onValueChange={(v) => set("smtpAuthenticate", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
+                <KDropdown value={f.smtpAuthenticate ? "Yes" : "No"} onValueChange={(v) => set("smtpAuthenticate", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
               </div>
               <div><label style={fldLabel}>Use SSL</label>
-                <Dropdown value={f.smtpUseSSL ? "Yes" : "No"} onValueChange={(v) => set("smtpUseSSL", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
+                <KDropdown value={f.smtpUseSSL ? "Yes" : "No"} onValueChange={(v) => set("smtpUseSSL", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
               </div>
             </div>
 

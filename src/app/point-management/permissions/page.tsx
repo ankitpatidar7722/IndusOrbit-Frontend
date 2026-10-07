@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useState } from "react";
-import { Page, Card, CardContent, Button, Dropdown } from "indas-ui";
+import { Page, Card, CardContent, Button } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { Save, Check } from "lucide-react";
 import { PmGuard } from "../PmGuard";
@@ -56,7 +57,7 @@ function UserPermissions() {
         <CardContent>
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
             <div style={{ minWidth: 300 }}>
-              <Dropdown value={userId ? String(userId) : ""} onValueChange={(v) => pickUser(v ? Number(v) : "")}
+              <KDropdown value={userId ? String(userId) : ""} onValueChange={(v) => pickUser(v ? Number(v) : "")}
                 options={[{ value: "", label: "— Select a user —" }, ...users.map((u) => ({ value: String(u.userId), label: `${u.fullName} (${u.email})` }))]}
                 placeholder="— Select a user —" searchable size="md" />
             </div>

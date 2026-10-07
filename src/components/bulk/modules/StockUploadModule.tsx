@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { Dropdown } from "indas-ui";
+
 import { Boxes, Layers } from "lucide-react";
 import { type BulkClientContext, BulkCompactContext } from "@/components/bulk/BulkModuleShell";
 import {
@@ -168,12 +169,12 @@ export default function StockUploadModule({ client }: { client: BulkClientContex
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 18, justifyContent: "center" }}>
           <div style={{ minWidth: 260 }}>
             <div style={labelStyle}><Boxes size={16} /> Module Name</div>
-            <Dropdown value={kind} onValueChange={(v) => setKind(String(v))} options={MODULES} placeholder="— Select module —" searchable size="md" />
+            <KDropdown value={kind} onValueChange={(v) => setKind(String(v))} options={MODULES} placeholder="— Select module —" searchable size="md" />
           </div>
           {needsGroup && (
             <div style={{ minWidth: 300 }}>
               <div style={labelStyle}><Layers size={16} /> Sub Module Name (Group)</div>
-              <Dropdown value={group} onValueChange={(v) => setGroup(String(v))} options={groupOptions}
+              <KDropdown value={group} onValueChange={(v) => setGroup(String(v))} options={groupOptions}
                 placeholder={loadingGroups ? "Loading groups…" : groupOptions.length ? "— Select group —" : "No groups"} searchable size="md" />
             </div>
           )}

@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Button, Dropdown, useModalAlert } from "indas-ui";
+import { Button, useModalAlert } from "indas-ui";
 import { Users, Mail, Play, Pause } from "lucide-react";
 import type { BulkClientContext } from "@/components/bulk/BulkModuleShell";
 import {
@@ -80,7 +81,7 @@ function FeaturePanel({ featureCode, current, users, companyUserId, onChanged }:
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div style={{ gridColumn: "1 / -1" }}><div style={lbl}>Plan Name</div><input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="e.g. Premium" style={INP} /></div>
-        <div><div style={lbl}>Billing Cycle</div><Dropdown value={cycle} onValueChange={(v) => setCycle(String(v))} options={CYCLES} size="md" /></div>
+        <div><div style={lbl}>Billing Cycle</div><KDropdown value={cycle} onValueChange={(v) => setCycle(String(v))} options={CYCLES} size="md" /></div>
         <div><div style={lbl}>Price {isSahay ? "(per seat)" : ""} ₹</div><input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} style={INP} /></div>
         <div><div style={lbl}>Start Date</div><input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={INP} /></div>
         <div><div style={lbl}>End Date</div><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={INP} /></div>

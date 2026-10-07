@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
-import { Page, DonutChart, Card, CardContent, Dropdown, useDevice } from "indas-ui";
+import { Page, DonutChart, Card, CardContent, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import DateField from "@/components/DateField";
@@ -60,11 +61,11 @@ function CustomerProgress() {
         <label style={{ ...lblStyle, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>From <DateField value={from} onChange={setFrom} style={{ ...selStyle, width: isMobile ? "100%" : 150 }} /></label>
         <label style={{ ...lblStyle, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 4 : 6 }}>To <DateField value={to} onChange={setTo} style={{ ...selStyle, width: isMobile ? "100%" : 150 }} /></label>
         <div style={{ width: isMobile ? "auto" : 200 }}>
-          <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
+          <KDropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
         </div>
         <div style={{ width: isMobile ? "auto" : 200 }}>
-          <Dropdown value={devId != null ? String(devId) : ""} onValueChange={(v) => setDevId(v ? Number(v) : undefined)}
+          <KDropdown value={devId != null ? String(devId) : ""} onValueChange={(v) => setDevId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All developers" }, ...devs.map((d) => ({ value: String(d.userID), label: d.fullName }))]} searchable size="md" />
         </div>
         {(custId || devId || from || to) && <button style={{ ...clearBtnStyle, ...(isMobile ? { gridColumn: "1 / -1", width: "100%" } : {}) }} onClick={() => { setCustId(undefined); setDevId(undefined); setFrom(""); setTo(""); }}>Clear</button>}

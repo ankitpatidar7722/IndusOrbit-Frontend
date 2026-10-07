@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Page, Button, Badge, StandardModal, Input, Dropdown } from "indas-ui";
+import { Page, Button, Badge, StandardModal, Input } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import { DataGrid } from "@/components/datagrid";
 import { Plus, Pencil, Power } from "lucide-react";
@@ -82,7 +83,7 @@ function ManageUsers() {
             <Fld label="Email *"><Input type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Fld>
             <Fld label={form.userID ? "Password (leave blank to keep)" : "Password"}><Input type="password" value={form.password ?? ""} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Fld>
             <Fld label="Role">
-              <Dropdown value={form.role} onValueChange={(v) => setForm({ ...form, role: String(v) })}
+              <KDropdown value={form.role} onValueChange={(v) => setForm({ ...form, role: String(v) })}
                 options={ROLES.map((r) => ({ value: r, label: r }))} size="md" />
             </Fld>
             <Fld label="WhatsApp number"><Input value={form.whatsAppNumber ?? ""} onChange={(e) => setForm({ ...form, whatsAppNumber: e.target.value })} placeholder="+91…" /></Fld>

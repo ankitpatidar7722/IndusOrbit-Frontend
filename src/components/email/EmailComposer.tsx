@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { StandardModal, Dropdown, useModalAlert } from "indas-ui";
+import { StandardModal, useModalAlert } from "indas-ui";
 import { Paperclip, X, Mail, FileText } from "lucide-react";
 import RichTextToolbar from "@/components/email/RichTextToolbar";
 import {
@@ -322,7 +323,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
             <div style={{ ...rowLabel, paddingTop: 8 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><FileText size={13} /></span></div>
             <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 180px", minWidth: 0, maxWidth: 280 }}>
-                <Dropdown
+                <KDropdown
                   value={templateId}
                   onValueChange={(v) => pickTemplate(String(v))}
                   options={[{ value: "", label: "— Use a template —" }, ...templates.map((t) => ({ value: t.id, label: t.name }))]}

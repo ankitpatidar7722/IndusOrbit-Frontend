@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useRef, useState } from "react";
-import { Button, Dropdown, StandardModal } from "indas-ui";
+import { Button, StandardModal } from "indas-ui";
 import { Plus, Pencil, Trash2, FileText, Save, Paperclip, X } from "lucide-react";
 import { templatesApi, deriveVariables, SYSTEM_EMAIL_TEMPLATES, bodyToHtml, type TemplateAttachmentSave } from "@/lib/emailTemplates";
 import { fileToBase64, type EmailTemplate } from "@/lib/email";
@@ -156,7 +157,7 @@ export default function TemplatesManager() {
           </div>
           <div>
             <label style={fldLabel}>Category</label>
-            <Dropdown value={f.category} onValueChange={(v) => setF({ ...f, category: String(v) })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} size="md" />
+            <KDropdown value={f.category} onValueChange={(v) => setF({ ...f, category: String(v) })} options={CATEGORIES.map((c) => ({ value: c, label: c }))} size="md" />
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={fldLabel}>Subject</label>

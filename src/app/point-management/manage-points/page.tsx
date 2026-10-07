@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Page, useModalAlert, Dropdown, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "indas-ui";
+import { Page, useModalAlert, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, XCircle, Send, Check, Edit, Trash2, type LucideIcon } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
@@ -163,11 +164,11 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
 
       <div className="mp-filters" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
         <div style={{ width: 200 }}>
-          <Dropdown value={status} onValueChange={(v) => setStatus(String(v))}
+          <KDropdown value={status} onValueChange={(v) => setStatus(String(v))}
             options={[{ value: "", label: "All statuses" }, ...STATUSES.map((s) => ({ value: s, label: s }))]} searchable size="md" />
         </div>
         <div style={{ width: 200 }}>
-          <Dropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
+          <KDropdown value={custId != null ? String(custId) : ""} onValueChange={(v) => setCustId(v ? Number(v) : undefined)}
             options={[{ value: "", label: "All customers" }, ...customers.map((c) => ({ value: String(c.customerID), label: c.companyName }))]} searchable size="md" />
         </div>
         <label style={lblStyle}>From <DateField value={from} onChange={setFrom} style={{ width: 150 }} /></label>

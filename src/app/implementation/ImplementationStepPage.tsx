@@ -1,7 +1,8 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Page, Dropdown } from "indas-ui";
+import { Page } from "indas-ui";
 import type { LucideIcon } from "lucide-react";
 import { Rocket, Activity, FileSpreadsheet, FileCheck2, HardHat, Users2, Package, ChevronUp, ChevronDown } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
@@ -130,7 +131,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
                 <Package size={16} /> Indus Product
               </span>
               <div style={{ width: 220 }}>
-                <Dropdown
+                <KDropdown
                   value={product}
                   onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
                   options={productOptions}
@@ -145,7 +146,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
                 <Users2 size={16} /> Client
               </span>
               <div style={{ width: 360, maxWidth: "100%" }}>
-                <Dropdown
+                <KDropdown
                   value={clientId}
                   onValueChange={(v) => setClientId(String(v))}
                   options={clientOptions}

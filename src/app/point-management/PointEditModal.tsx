@@ -1,6 +1,7 @@
 "use client";
+import KDropdown from "@/components/KDropdown";
 import { useEffect, useRef, useState } from "react";
-import { StandardModal, Textarea, Button, Dropdown } from "indas-ui";
+import { StandardModal, Textarea, Button } from "indas-ui";
 import { Upload, Paperclip, Trash2 } from "lucide-react";
 import { pmApi, type PmProduct, type PmCategory, type PointGridRow, type NewPoint, type AttachmentRow } from "@/lib/tms";
 import { api, type KeylineModule } from "@/lib/api";
@@ -108,26 +109,26 @@ export default function PointEditModal({ open, point, onClose, onSaved, onError,
       {loading ? <div style={{ padding: 24, textAlign: "center", opacity: 0.6 }}>Loading…</div> : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <div style={fieldWrap}><span style={lbl}>Customer</span>
-            <Dropdown value={customerName} onValueChange={(v) => setCustomerName(String(v))}
+            <KDropdown value={customerName} onValueChange={(v) => setCustomerName(String(v))}
               options={clientNames.map((n) => ({ value: n, label: n }))} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" /></div>
           <div style={fieldWrap}><span style={lbl}>Product</span>
-            <Dropdown value={String(productID || "")} onValueChange={(v) => setProductID(v ? Number(v) : "")}
+            <KDropdown value={String(productID || "")} onValueChange={(v) => setProductID(v ? Number(v) : "")}
               options={products.map((p) => ({ value: String(p.productID), label: p.productName }))} placeholder="— select —" searchable size="md" /></div>
           <div style={fieldWrap}><span style={lbl}>Module</span>
-            <Dropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
+            <KDropdown value={module} onValueChange={(v) => { setModule(String(v)); setSubModule(""); }}
               options={heads.map((h) => ({ value: h, label: h }))} placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" /></div>
           <div style={fieldWrap}><span style={lbl}>Sub Module</span>
-            <Dropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
+            <KDropdown value={subModule} onValueChange={(v) => setSubModule(String(v))}
               options={subsFor(module).map((n) => ({ value: n, label: n }))}
               placeholder={module ? "Select or type…" : "Select a module first"} searchable allowTextInput allowCustomInput size="md" disabled={!module} /></div>
           <div style={fieldWrap}><span style={lbl}>Category</span>
-            <Dropdown value={category} onValueChange={(v) => setCategory(String(v))}
+            <KDropdown value={category} onValueChange={(v) => setCategory(String(v))}
               options={categories.map((c) => ({ value: c.categoryName, label: c.categoryName }))} placeholder="— select —" size="md" /></div>
           <div style={fieldWrap}><span style={lbl}>Priority</span>
-            <Dropdown value={priority} onValueChange={(v) => setPriority(String(v))}
+            <KDropdown value={priority} onValueChange={(v) => setPriority(String(v))}
               options={PRIORITIES.map((p) => ({ value: p, label: p }))} size="md" /></div>
           <div style={fieldWrap}><span style={lbl}>Complexity</span>
-            <Dropdown value={complexity} onValueChange={(v) => setComplexity(String(v))}
+            <KDropdown value={complexity} onValueChange={(v) => setComplexity(String(v))}
               options={[{ value: "", label: "—" }, ...COMPLEXITIES.map((c) => ({ value: c, label: c }))]} placeholder="—" size="md" /></div>
           <div style={{ ...fieldWrap, gridColumn: "1 / -1" }}><span style={lbl}>Description *</span>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Describe the issue / task…" /></div>
