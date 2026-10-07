@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, Dropdown, useModalAlert, TooltipProvider } from "indas-ui";
+import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, useModalAlert, TooltipProvider } from "indas-ui";
+import KDropdown from "@/components/KDropdown";
 // Same full-featured grid as /users (owned source — colored header tint, white filter row, etc.)
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
@@ -317,10 +318,10 @@ function EntityFormModal({
               ) : fd.type === "time" ? (
                 <TimeSelect value={val} onChange={(v) => set(fd.key, v)} />
               ) : fd.type === "select" ? (
-                <Dropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
+                <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                   options={(fd.options ?? []).map((o) => ({ value: o, label: o }))} placeholder="— select —" size="md" />
               ) : fd.type === "module" ? (
-                <Dropdown value={val} onValueChange={(v) => setModule(fd.key, String(v))}
+                <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v))}
                   options={heads.map((h) => ({ value: h, label: h }))} placeholder="— select —" searchable size="md" />
               ) : fd.type === "submodule" ? (
                 (() => {
@@ -331,7 +332,7 @@ function EntityFormModal({
                     const arr = val ? String(val).split(",").map((s) => s.trim()).filter(Boolean) : [];
                     const opts = Array.from(new Set([...base, ...arr]));
                     return (
-                      <Dropdown value={arr}
+                      <KDropdown value={arr}
                         onValueChange={(v) => set(fd.key, (Array.isArray(v) ? v : [String(v)]).map((s) => String(s).trim()).filter(Boolean).join(", "))}
                         options={opts.map((n) => ({ value: n, label: n }))}
                         placeholder={head ? "Select or type sub-modules…" : "Select a module first"}
@@ -339,17 +340,17 @@ function EntityFormModal({
                     );
                   }
                   return (
-                    <Dropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
+                    <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                       options={base.map((n) => ({ value: n, label: n }))}
                       placeholder={head ? "— select —" : "Select a module first"} searchable size="md" disabled={!head} />
                   );
                 })()
               ) : fd.type === "user" ? (
-                <Dropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
+                <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                   options={(val && !userNames.includes(val) ? [val, ...userNames] : userNames).map((n) => ({ value: n, label: n }))}
                   placeholder="— select user —" searchable size="md" />
               ) : fd.type === "person" ? (
-                <Dropdown value={val} onValueChange={(v) => setPerson(fd, String(v))}
+                <KDropdown value={val} onValueChange={(v) => setPerson(fd, String(v))}
                   options={(() => { const names = persons.map((p) => p.fullName); return (val && !names.includes(val) ? [val, ...names] : names).map((n) => ({ value: n, label: n })); })()}
                   placeholder="— select person —" searchable size="md" />
               ) : fd.type === "date" ? (

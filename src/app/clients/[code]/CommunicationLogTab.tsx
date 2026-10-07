@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
-import { Button, Dropdown, Input, StandardModal, useModalAlert } from "indas-ui";
+import { Button, Input, StandardModal, useModalAlert } from "indas-ui";
+import KDropdown from "@/components/KDropdown";
 import { Plus, Phone, Mail, MessageSquare, Video, Users2, Smartphone, Pencil, Trash2, Lock, Search } from "lucide-react";
 import { api, type CommunicationEntry, type CommunicationSave } from "@/lib/api";
 
@@ -176,9 +177,9 @@ export default function CommunicationLogTab({ code, clientName, canEdit, onFlash
             <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))", marginBottom: 12 }}>Interaction with <b>{clientName || "this client"}</b>. &ldquo;Handled By&rdquo; + the exact log time are recorded automatically.</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px 14px" }}>
               <div><label style={lbl}>Date &amp; Time</label><input type="datetime-local" value={f.commDateTime ?? ""} onChange={(e) => setF({ ...f, commDateTime: e.target.value })} style={{ width: "100%", height: 38, padding: "0 10px", borderRadius: 8, border: "1px solid rgb(var(--bd-default))", background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", boxSizing: "border-box" }} /></div>
-              <div><label style={lbl}>Type</label><Dropdown value={f.mode} onValueChange={(v) => setF({ ...f, mode: String(v) })} options={MODES.map((m) => ({ value: m, label: m }))} size="md" /></div>
-              <div><label style={lbl}>Direction</label><Dropdown value={f.direction} onValueChange={(v) => setF({ ...f, direction: String(v) })} options={DIRECTIONS.map((d) => ({ value: d, label: d }))} size="md" /></div>
-              <div><label style={lbl}>Outcome</label><Dropdown value={f.outcome} onValueChange={(v) => setF({ ...f, outcome: String(v) })} options={OUTCOMES.map((o) => ({ value: o, label: o }))} size="md" /></div>
+              <div><label style={lbl}>Type</label><KDropdown value={f.mode} onValueChange={(v) => setF({ ...f, mode: String(v) })} options={MODES.map((m) => ({ value: m, label: m }))} size="md" /></div>
+              <div><label style={lbl}>Direction</label><KDropdown value={f.direction} onValueChange={(v) => setF({ ...f, direction: String(v) })} options={DIRECTIONS.map((d) => ({ value: d, label: d }))} size="md" /></div>
+              <div><label style={lbl}>Outcome</label><KDropdown value={f.outcome} onValueChange={(v) => setF({ ...f, outcome: String(v) })} options={OUTCOMES.map((o) => ({ value: o, label: o }))} size="md" /></div>
               <div><label style={lbl}>Client Contact Person</label><Input value={f.contactPerson ?? ""} onChange={(e) => setF({ ...f, contactPerson: e.target.value })} placeholder="e.g. Rakesh (Owner)" /></div>
               <div><label style={lbl}>Contact No / Email</label><Input value={f.contactInfo ?? ""} onChange={(e) => setF({ ...f, contactInfo: e.target.value })} placeholder="+91… / name@…" /></div>
               <div><label style={lbl}>Duration (min)</label><Input type="number" value={(f.durationMinutes ?? "") as never} onChange={(e) => setF({ ...f, durationMinutes: e.target.value ? Number(e.target.value) : null })} /></div>
