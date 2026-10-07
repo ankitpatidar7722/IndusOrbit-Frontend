@@ -28,7 +28,7 @@ type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "mod
 // autofill: for a "person" field — on select, also fill the given keys from the chosen app-user (mobile / age-from-DOB).
 // span: grid-column width on a 12-col layout — lets a form pack rows of 3 (span 4) or 4 (span 3) fields; omit for the default 3-up grid.
 // autoGrow: textarea that grows its height to fit the text inside it (no scrollbar, no manual drag handle).
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean };
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean; multi?: boolean };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -325,9 +325,22 @@ function EntityFormModal({
               ) : fd.type === "submodule" ? (
                 (() => {
                   const head = (f[fd.dependsOn ?? ""] as string) || "";
+                  const base = subsFor(head);
+                  if (fd.multi) {
+                    // Multiple sub-modules, typable: value stored as a comma-joined string, shown as tags.
+                    const arr = val ? String(val).split(",").map((s) => s.trim()).filter(Boolean) : [];
+                    const opts = Array.from(new Set([...base, ...arr]));
+                    return (
+                      <Dropdown value={arr}
+                        onValueChange={(v) => set(fd.key, (Array.isArray(v) ? v : [String(v)]).map((s) => String(s).trim()).filter(Boolean).join(", "))}
+                        options={opts.map((n) => ({ value: n, label: n }))}
+                        placeholder={head ? "Select or type sub-modules…" : "Select a module first"}
+                        searchable multiSelect showAsTags allowTextInput allowCustomInput size="md" disabled={!head} />
+                    );
+                  }
                   return (
                     <Dropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
-                      options={subsFor(head).map((n) => ({ value: n, label: n }))}
+                      options={base.map((n) => ({ value: n, label: n }))}
                       placeholder={head ? "— select —" : "Select a module first"} searchable size="md" disabled={!head} />
                   );
                 })()
@@ -1027,7 +1040,7 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
 const TRAINING_FIELDS: FieldDef[] = [
   // Row 1 — 4 fields (span 3 each = 12)
   { key: "moduleName", label: "Main Module", type: "module", span: 3 },
-  { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName", span: 3 },
+  { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName", span: 3, multi: true },
   { key: "timelineDays", label: "Timeline in Days", span: 3 },
   { key: "logDate", label: "Schedule Date", type: "date", span: 3 },
   // Row 2 — 3 fields (span 4 each = 12)
