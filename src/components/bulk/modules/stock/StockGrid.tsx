@@ -71,12 +71,19 @@ export default function StockGrid({ adapter, companyName, companyUserId }: { ada
   const [selected, setSelected] = useState<Row[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // reset flow (item only): date range → shared 3-captcha + credential (SecurityClearModal).
+  // reset flow (item): date range → pick items → shared 3-captcha + credential (SecurityClearModal).
+  // (floor reset skips the item-picker — floor stock is warehouse-level, not per item.)
   const [resetKind, setResetKind] = useState<"" | "item" | "floor">("");
   const [resetDatesOpen, setResetDatesOpen] = useState(false);
   const [resetSecOpen, setResetSecOpen] = useState(false);
   const [resetError, setResetError] = useState("");
   const [dates, setDates] = useState({ from: "", to: "" });
+  // item-picker (which items' stock to zero out) — mirrors the old BulkImport "Select Items to Reset".
+  const [resetSelectOpen, setResetSelectOpen] = useState(false);
+  const [resetLoadingItems, setResetLoadingItems] = useState(false);
+  const [resetItems, setResetItems] = useState<{ id: number; code: string; name: string; qty: number; unit: string }[]>([]);
+  const [resetSel, setResetSel] = useState<Set<number>>(new Set());
+  const [resetSearch, setResetSearch] = useState("");
 
   const editable = mode === "template" || mode === "preview" || mode === "validated";
 
@@ -245,15 +252,48 @@ export default function StockGrid({ adapter, companyName, companyUserId }: { ada
 
   // ---- reset flow (item only) ----
   const startReset = (kind: "item" | "floor") => { setResetKind(kind); setDates({ from: "", to: "" }); setResetDatesOpen(true); };
-  const cancelReset = () => { setResetKind(""); setResetDatesOpen(false); setResetSecOpen(false); setResetError(""); };
-  const datesNext = () => { if ((dates.from && !dates.to) || (!dates.from && dates.to)) { showError("Date range", "Enter both dates, or leave both blank for ALL."); return; } setResetDatesOpen(false); setResetError(""); setResetSecOpen(true); };
+  const cancelReset = () => { setResetKind(""); setResetDatesOpen(false); setResetSelectOpen(false); setResetSecOpen(false); setResetError(""); setResetSearch(""); };
+  const datesNext = async () => {
+    if ((dates.from && !dates.to) || (!dates.from && dates.to)) { showError("Date range", "Enter both dates, or leave both blank for ALL."); return; }
+    setResetDatesOpen(false); setResetError("");
+    if (resetKind === "item") await openItemSelect();  // pick which items to reset
+    else setResetSecOpen(true);                          // floor → straight to security
+  };
+
+  // Load the items that currently have stock (grouped, with total qty) and open the picker. Pre-selects
+  // the grid-selected items if any, else selects all. Only the ticked items' stock gets zeroed out.
+  const openItemSelect = async () => {
+    setResetSelectOpen(true); setResetLoadingItems(true); setResetSearch(""); setResetSel(new Set());
+    try {
+      const data = (await adapter.load()) as Record<string, unknown>[];
+      const grouped = new Map<number, { id: number; code: string; name: string; qty: number; unit: string }>();
+      for (const row of data ?? []) {
+        const id = Number(row.itemID ?? row.ItemID ?? (row as Record<string, unknown>)[adapter.idField]);
+        if (!id) continue;
+        if (!grouped.has(id)) grouped.set(id, { id, code: String(row.itemCode ?? row.ItemCode ?? ""), name: String(row.itemName ?? row.ItemName ?? ""), qty: 0, unit: String(row.stockUnit ?? row.StockUnit ?? "") });
+        grouped.get(id)!.qty += num(row.receiptQuantity ?? row.ReceiptQuantity);
+      }
+      const list = [...grouped.values()].sort((a, b) => a.code.localeCompare(b.code));
+      setResetItems(list);
+      const gridIds = new Set(selected.map((r) => Number((r as Record<string, unknown>)[adapter.idField])).filter((n) => n > 0));
+      setResetSel(gridIds.size ? gridIds : new Set(list.map((i) => i.id)));
+    } catch {
+      showError("Error", "Failed to load stock items for selection.");
+      setResetSelectOpen(false); setResetKind("");
+    } finally { setResetLoadingItems(false); }
+  };
+  const selectNext = () => {
+    if (resetSel.size === 0) { showError("No items selected", "Tick at least one item to reset."); return; }
+    setResetSelectOpen(false); setResetSecOpen(true);
+  };
+
   const doReset = async (username: string, password: string, reason: string) => {
     if (!adapter.reset) return;
     setResetError(""); setBusy(true);
     try {
       const from = dates.from || undefined, to = dates.to || undefined;
       if (resetKind === "item") {
-        const ids = selected.map((r) => Number((r as Record<string, unknown>)[adapter.idField])).filter((n) => n > 0);
+        const ids = Array.from(resetSel).filter((n) => n > 0);  // the items ticked in the picker
         await adapter.reset.itemStock(username, password, reason, ids, from, to);
       } else await adapter.reset.floorStock(username, password, reason, from, to);
       showSuccess("Reset complete", resetKind === "item" ? "Item stock reset." : "Floor stock reset.", 2600);
@@ -299,7 +339,7 @@ export default function StockGrid({ adapter, companyName, companyUserId }: { ada
       {resetDatesOpen && (
         <StandardModal isOpen title={`${resetKind === "item" ? "Reset Item Stock" : "Reset Floor Stock"} — Date Range`} onClose={cancelReset} size="sm">
           <div style={{ padding: 6, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))" }}>Enter both dates to reset a range, or leave both blank to reset ALL{resetKind === "item" ? " (selected rows, else all items)" : ""} for <b>{companyName}</b>.</div>
+            <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))" }}>Enter both dates to reset a range, or leave both blank for ALL dates{resetKind === "item" ? " — you'll pick which items next" : ""}, for <b>{companyName}</b>.</div>
             <div style={{ display: "flex", gap: 10 }}>
               <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>From</div><input type="date" value={dates.from} onChange={(e) => setDates({ ...dates, from: e.target.value })} style={CRED_INP} /></div>
               <div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>To</div><input type="date" value={dates.to} onChange={(e) => setDates({ ...dates, to: e.target.value })} style={CRED_INP} /></div>
@@ -311,6 +351,58 @@ export default function StockGrid({ adapter, companyName, companyUserId }: { ada
           </div>
         </StandardModal>
       )}
+      {/* Reset (item) — pick which items' stock to zero out (mirrors the old BulkImport "Select Items to Reset"). */}
+      {resetSelectOpen && (() => {
+        const q = resetSearch.trim().toLowerCase();
+        const filtered = q ? resetItems.filter((it) => it.code.toLowerCase().includes(q) || it.name.toLowerCase().includes(q)) : resetItems;
+        const allFilteredSel = filtered.length > 0 && filtered.every((it) => resetSel.has(it.id));
+        const allSelected = resetItems.length > 0 && resetSel.size === resetItems.length;
+        const toggle = (id: number) => setResetSel((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+        const toggleAll = () => setResetSel((prev) => { const n = new Set(prev); filtered.forEach((it) => { if (allFilteredSel) n.delete(it.id); else n.add(it.id); }); return n; });
+        return (
+          <StandardModal isOpen title="Select Items to Reset" onClose={cancelReset} size="md">
+            <div style={{ padding: 4, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))" }}>Only the ticked items&rsquo; stock will be zeroed out for <b>{companyName}</b>.</div>
+              {resetLoadingItems ? (
+                <div style={{ padding: "34px 0", textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 13 }}>Loading items…</div>
+              ) : resetItems.length === 0 ? (
+                <div style={{ padding: "34px 0", textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 13 }}>No stock items found for this group.</div>
+              ) : (
+                <>
+                  <input value={resetSearch} onChange={(e) => setResetSearch(e.target.value)} placeholder="Search item code or name…" style={CRED_INP} />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 2px 8px", borderBottom: "1px solid rgb(var(--border-default))" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <input type="checkbox" checked={allFilteredSel} onChange={toggleAll} /> Select All
+                    </label>
+                    <span style={{ fontSize: 12, color: "rgb(var(--fg-muted))" }}>{resetSel.size} of {resetItems.length} selected</span>
+                  </div>
+                  <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                    {filtered.map((it) => (
+                      <label key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: "1px solid rgb(var(--border-default))", cursor: "pointer" }}>
+                        <input type="checkbox" checked={resetSel.has(it.id)} onChange={() => toggle(it.id)} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{it.code}</div>
+                          <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name || "—"}</div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--color-primary))" }}>{it.qty}</div>
+                          <div style={{ fontSize: 11, color: "rgb(var(--fg-muted))" }}>{it.unit}</div>
+                        </div>
+                      </label>
+                    ))}
+                    {filtered.length === 0 && <div style={{ padding: 16, textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 12.5 }}>No items match &ldquo;{resetSearch}&rdquo;.</div>}
+                  </div>
+                </>
+              )}
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+                <Button size="sm" variant="action-secondary" onClick={cancelReset}>Cancel</Button>
+                <Button size="sm" onClick={selectNext} disabled={resetLoadingItems || resetSel.size === 0}>Next{allSelected ? " (All)" : ` (${resetSel.size})`}</Button>
+              </div>
+            </div>
+          </StandardModal>
+        );
+      })()}
+
       <SecurityClearModal open={resetSecOpen} groupLabel={resetKind === "item" ? "Item Stock" : "Floor Stock"} companyName={companyName} companyUserId={companyUserId}
         busy={busy} error={resetError} actionLabel="Reset Stock" onCancel={cancelReset} onSubmit={doReset} />
 
