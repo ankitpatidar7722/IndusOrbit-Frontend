@@ -9,6 +9,7 @@ import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upl
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
+import CommunicationLogTab from "./CommunicationLogTab";
 import { usersApi } from "@/lib/users";
 import { fetchUserPermissions } from "@/lib/featurePermissions";
 import { statusVariant } from "@/lib/ui";
@@ -1199,6 +1200,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
     { id: "milestones", label: "Milestone Roadmap" },
     { id: "training", label: "Training & Daily Status" },
     { id: "cr", label: "Change Request" },
+    { id: "comm", label: "Communication Log" },
   ];
   return (
     <div>
@@ -1225,6 +1227,9 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
           sendToPoint={(cd, id) => api.changeRequestToPoint(cd, id, { clientName: clientName ?? undefined, application: clientApplication ?? undefined })}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "changerequest", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addChangeRequest, update: api.updateChangeRequest, del: api.deleteChangeRequest }} canEdit={canEdit} />
+      )}
+      {sub === "comm" && (
+        <CommunicationLogTab code={code} clientName={clientName} canEdit={canEdit} onFlash={setFlash} />
       )}
     </div>
   );

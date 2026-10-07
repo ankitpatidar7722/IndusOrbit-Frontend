@@ -105,6 +105,22 @@ export interface ClientDetail {
 
 export interface Stats { total: number; inImplementation: number; goLive: number; openChangeRequests: number; }
 
+/** A Communication-Log timeline row — a manually-logged interaction OR an auto-pulled email (read-only). */
+export interface CommunicationEntry {
+  id: number; source: "log" | "email"; editable: boolean;
+  when?: string | null; mode: string; direction: string;
+  contactPerson?: string | null; contactInfo?: string | null; outcome?: string | null;
+  durationMinutes?: number | null; subject?: string | null; notes?: string | null;
+  followUpDate?: string | null; handledBy?: string | null; loggedBy?: string | null; loggedAt?: string | null;
+}
+/** Write payload for a manual Communication-Log entry. */
+export interface CommunicationSave {
+  commDateTime?: string | null; mode: string; direction: string;
+  contactPerson?: string | null; contactInfo?: string | null; outcome: string;
+  durationMinutes?: number | null; subject?: string | null; notes?: string | null;
+  followUpDate?: string | null; handledBy?: string | null;
+}
+
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -145,6 +161,12 @@ export const api = {
   sopStatusGet: (clientCode: string) => j<{ success: boolean; data: SopStatusRow[] }>(`/api/sop-status?clientCode=${encodeURIComponent(clientCode)}`),
   sopStatusSave: (body: { clientCode: string; moduleName: string; moduleHeadName?: string; moduleDisplayName?: string; sopSlug?: string; youtubeLink?: string; sopDocument?: string; status: boolean; userId?: number }) =>
     j<{ success: boolean }>("/api/sop-status", { method: "POST", body: JSON.stringify(body) }),
+
+  // Communication Log (call / email / WhatsApp / meeting interactions with the client).
+  getCommunications: (code: string) => j<CommunicationEntry[]>(`/api/clients/${encodeURIComponent(code)}/communications`),
+  addCommunication: (code: string, b: CommunicationSave) => j<unknown>(`/api/clients/${code}/communications`, { method: "POST", body: JSON.stringify(b) }),
+  updateCommunication: (code: string, id: number, b: CommunicationSave) => j<unknown>(`/api/clients/${code}/communications/${id}`, { method: "PUT", body: JSON.stringify(b) }),
+  deleteCommunication: (code: string, id: number) => j<void>(`/api/clients/${code}/communications/${id}`, { method: "DELETE" }),
 
   addChangeRequest: (code: string, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests`, { method: "POST", body: JSON.stringify(b) }),
   updateChangeRequest: (code: string, id: number, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests/${id}`, { method: "PUT", body: JSON.stringify(b) }),
