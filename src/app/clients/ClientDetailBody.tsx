@@ -534,23 +534,7 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     } finally { try { printBtn.textContent = orig; printBtn.disabled = false; } catch { /* */ } }
   };
   bar.appendChild(printBtn);
-  // Save as Word → download the CURRENT document (with any edits) as an editable .doc for MS Word.
-  // Flattens the LIVE window's computed styles + rasterises images so Word keeps the colours & logo.
-  const wordBtn = mk("📝  Save as Word", "#2b579a", () => {});
-  wordBtn.onclick = async () => {
-    const orig = wordBtn.textContent;
-    wordBtn.disabled = true; wordBtn.textContent = "⏳  Preparing…";
-    const base = (doc.title || "Document").replace(/[^\w.-]+/g, "_");
-    const html = cleanDocHtml(w);
-    try {
-      // Exact look (server screenshot of the current document). Fall back to the editable flatten if the
-      // server has no renderer.
-      const ok = await downloadWordExact(html, base);
-      if (!ok) wordBlobDownload(await flattenDocForWord(w.document), base);
-    } catch { try { saveHtmlAsWord(html, base); } catch { /* ignore */ } }
-    finally { try { wordBtn.textContent = orig; wordBtn.disabled = false; } catch { /* */ } }
-  };
-  bar.appendChild(wordBtn);
+  // "Save as Word" button intentionally not shown in the viewer toolbar (per request).
   bar.appendChild(mk("✕  Close", "#5b6b73", () => w.close()));
   doc.body.insertBefore(bar, doc.body.firstChild);
 
