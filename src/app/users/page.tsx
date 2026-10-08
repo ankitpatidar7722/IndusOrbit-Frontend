@@ -1,5 +1,6 @@
 "use client";
 import KDropdown from "@/components/KDropdown";
+import { usePageAccess } from "@/contexts/ModuleAuthContext";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Page, StandardModal, Badge, Button, useModalAlert, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
@@ -534,6 +535,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
 
 // ── Page ─────────────────────────────────────────────────
 export default function UsersPage() {
+  const access = usePageAccess();  // /users module authority — gates the Create User control
   const [rows, setRows] = useState<UserListRow[]>([]);
   const [lookups, setLookups] = useState<UserLookups | null>(null);
   const [loading, setLoading] = useState(true);
@@ -638,9 +640,11 @@ export default function UsersPage() {
           })}
         </div>
 
-        <button onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
-          <UserPlus size={15} /> Create User
-        </button>
+        {access.canSave && (
+          <button onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
+            <UserPlus size={15} /> Create User
+          </button>
+        )}
       </div>
 
       <DataGrid<UserListRow>

@@ -18,10 +18,17 @@ export default function KDropdown(props: Props) {
 
   const onKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    if (props.multiSelect || props.disabled) return;
-    // If the list is open, let indas-ui navigate the options.
+    if (props.disabled) return;
+    // If the list is open, let indas-ui navigate the options (single or multi).
     const trigger = ref.current?.querySelector<HTMLElement>("[aria-expanded]");
     if (trigger?.getAttribute("aria-expanded") === "true") return;
+
+    // Multi-select: "cycling" a single value makes no sense — open the list so the user can
+    // arrow-navigate and Space/Enter to toggle options.
+    if (props.multiSelect) {
+      if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); trigger?.click(); }
+      return;
+    }
 
     const opts = (props.options ?? []).filter((o) => !(o as { disabled?: boolean }).disabled);
     if (opts.length === 0) return;

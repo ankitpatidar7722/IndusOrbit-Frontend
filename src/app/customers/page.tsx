@@ -14,6 +14,7 @@ import CustomerFormModal from "./CustomerFormModal";
 import DeleteCustomerModal from "./DeleteCustomerModal";
 import ProvisioningWizard from "./ProvisioningWizard";
 import ModuleManagerModal from "./ModuleManagerModal";
+import { usePageAccess } from "@/contexts/ModuleAuthContext";
 
 const APP_LABEL: Record<string, string> = {
   estimoprime: "EstimoPrime", multiunit: "MultiUnit", printudeerp: "PrintudeERP",
@@ -30,6 +31,7 @@ function Field({ label, value, mono }: { label: string; value?: React.ReactNode;
 }
 
 export default function CustomersPage() {
+  const access = usePageAccess();  // /customers module authority — gates Create/Edit/Delete controls
   const [rows, setRows] = useState<CustomerCard[]>([]);
   const [stats, setStats] = useState<CustomerStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,8 +152,8 @@ export default function CustomersPage() {
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 12.5, opacity: 0.6 }}>{filtered.length} of {rows.length}</span>
-          <Button size="sm" variant="outline" onClick={() => setWizardOpen(true)}><Server size={15} style={{ verticalAlign: -3, marginRight: 4 }} />Provision Client</Button>
-          <Button size="sm" onClick={openCreate}><Plus size={15} style={{ verticalAlign: -3, marginRight: 4 }} />New Subscription</Button>
+          {access.canSave && <Button size="sm" variant="outline" onClick={() => setWizardOpen(true)}><Server size={15} style={{ verticalAlign: -3, marginRight: 4 }} />Provision Client</Button>}
+          {access.canSave && <Button size="sm" onClick={openCreate}><Plus size={15} style={{ verticalAlign: -3, marginRight: 4 }} />New Subscription</Button>}
         </div>
       </div>
 
@@ -191,9 +193,9 @@ export default function CustomersPage() {
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--bd-subtle,#eef1f6)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
                 <span style={{ fontSize: 11.5, opacity: 0.6, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.gstin || "No GSTIN"}</span>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <Button size="sm" variant="ghost" title="Modules" onClick={() => { setModTarget(c); setModOpen(true); }}><SlidersHorizontal size={14} /></Button>
-                  <Button size="sm" variant="ghost" title="Edit" onClick={() => openEdit(c.companyUserID)}><Pencil size={14} /></Button>
-                  <Button size="sm" variant="ghost" title="Delete" onClick={() => openDelete(c)}><Trash2 size={14} /></Button>
+                  {access.canEdit && <Button size="sm" variant="ghost" title="Modules" onClick={() => { setModTarget(c); setModOpen(true); }}><SlidersHorizontal size={14} /></Button>}
+                  {access.canEdit && <Button size="sm" variant="ghost" title="Edit" onClick={() => openEdit(c.companyUserID)}><Pencil size={14} /></Button>}
+                  {access.canDelete && <Button size="sm" variant="ghost" title="Delete" onClick={() => openDelete(c)}><Trash2 size={14} /></Button>}
                   <Button size="sm" variant="outline" onClick={() => openDetail(c.companyUserID)}>View</Button>
                 </div>
               </div>

@@ -810,7 +810,7 @@ const SUB_TABS = [
  * bordered card with a dark, legible header. **Edit is IN-PLACE** — the Company Detail
  * tab's cards flip to editable inputs (no second modal); Save persists via customersApi.
  */
-export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable, compactHeader = false }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean; compactHeader?: boolean }) {
+export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable, lockTabDelete, compactHeader = false }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean; lockTabDelete?: boolean; compactHeader?: boolean }) {
   const { data: session } = useSession();
   const { openComposer } = useEmailComposer();
   const [c, setC] = useState<CustomerDetail | null>(null);
@@ -983,6 +983,13 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     (lockTab && tabId === lockTab && lockTabEditable !== undefined)
       ? lockTabEditable
       : (perms[tabId]?.canEdit ?? false);
+  // Delete authority. For the locked Implementation tab it comes from that module's own CanDelete
+  // (lockTabDelete); the client-detail-tab (clienttab-*) perms don't track delete separately, so on
+  // the /clients path it falls back to edit rights (unchanged behaviour there).
+  const canDelete = (tabId: string) =>
+    (lockTab && tabId === lockTab && lockTabDelete !== undefined)
+      ? lockTabDelete
+      : canEdit(tabId);
   const visibleTabs = TABS.filter((t) => canView(t.id));
 
   // ── Finalized Kick-Off / Sign-Off documents (edit → save → view/download) ──
@@ -1595,7 +1602,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         </div>
       )}
       {tab === "tracker" && <TrackerPanel code={trackerCode} view="tracker" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientApplication={c.applicationName} canEdit={canEdit("tracker")} />}
-      {tab === "templates" && <TemplateMasterPanel client={c} canEdit={canEdit("templates")} />}
+      {tab === "templates" && <TemplateMasterPanel client={c} canEdit={canEdit("templates")} canDelete={canDelete("templates")} />}
       {tab === "signoff" && (
         <div>
           {renderDocBar("SignOff", "Sign-Off")}

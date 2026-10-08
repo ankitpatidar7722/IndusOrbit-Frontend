@@ -45,6 +45,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
   // This step's edit permission comes from the /implementation/<step> module's OWN authority
   // (User Management → Module Authority), not the client-detail-tab (clienttab-*) system.
   const [editable, setEditable] = useState(false);
+  const [deletable, setDeletable] = useState(false);  // this step's module CanDelete
   const [compact, setCompact] = useState(false);  // "Collapse selectors" — hide the title + pickers + client card
 
   // Strict Project-Assignment scope: the Client picker shows only the clients assigned to the
@@ -59,6 +60,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
     fetchMyModulePerms(uid).then((perms) => {
       const p = perms[`/implementation/${step}`];
       setEditable(!!p && (p.canEdit || p.canSave));  // edit OR save authority → editable
+      setDeletable(!!p && p.canDelete);              // delete gated on its OWN CanDelete
     }).catch(() => {});
   }, [session, step]);
 
@@ -170,7 +172,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
       {loading ? (
         <BrandedLoader size="md" text="Loading clients…" />
       ) : clientId ? (
-        <ClientDetailBody id={clientId} lockTab={step} lockTabEditable={editable} inModal={false} compactHeader={compact} onClose={() => {}} />
+        <ClientDetailBody id={clientId} lockTab={step} lockTabEditable={editable} lockTabDelete={deletable} inModal={false} compactHeader={compact} onClose={() => {}} />
       ) : (
         <div style={{ padding: "40px 0", textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 14 }}>
           Select a client above to view its {meta.title}.

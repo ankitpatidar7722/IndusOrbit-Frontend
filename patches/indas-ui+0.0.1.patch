@@ -1,5 +1,5 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..78142c9 100644
+index 99c0137..c20c7fd 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
 @@ -3168,7 +3168,7 @@ function SingleSelect({
@@ -35,7 +35,30 @@ index 99c0137..78142c9 100644
                      "button",
                      {
                        type: "button",
-@@ -4866,6 +4871,10 @@ function Dropdown({
+@@ -4523,15 +4528,19 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+         value: searchTerm,
+         onChange: (e) => setSearchTerm(e.target.value),
+         onKeyDown: (e) => {
++          // INDUS PATCH: always let the option-navigation keys bubble to the list container's
++          // keydown handler so the MULTI-select is keyboard-operable (ArrowUp/Down highlight,
++          // Enter toggles & keeps the list open). Previously stopAllKeyPropagation swallowed
++          // them, so a focused multi-select search box couldn't navigate/select via keyboard.
++          if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
++            return;
++          }
+           if (stopAllKeyPropagation) {
+             if (e.key !== "Escape") {
+               e.stopPropagation();
+             }
+             return;
+           }
+-          if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
+-            return;
+-          }
+           e.stopPropagation();
+         }
+       }
+@@ -4866,6 +4875,10 @@ function Dropdown({
              sticky: "always",
              collisionPadding: 16,
              onOpenAutoFocus: (e) => e.preventDefault(),
@@ -46,7 +69,7 @@ index 99c0137..78142c9 100644
              children: /* @__PURE__ */ jsxRuntime.jsx(
                MultiSelect,
                {
-@@ -5669,7 +5678,7 @@ function DatePicker({
+@@ -5669,7 +5682,7 @@ function DatePicker({
      return returnFormat === "string" ? getLocalDateString(date) : date;
    };
    React26__namespace.useEffect(() => {
@@ -55,7 +78,7 @@ index 99c0137..78142c9 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -7691,7 +7700,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
+@@ -7691,7 +7704,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
  function useSidebarPreferences() {
    const context = React26.useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -64,7 +87,7 @@ index 99c0137..78142c9 100644
    }
    return context;
  }
-@@ -7940,6 +7949,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -7940,6 +7953,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -76,7 +99,7 @@ index 99c0137..78142c9 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return lucideReact.Gauge;
    } else if (name.includes("sales")) {
-@@ -8052,7 +8066,7 @@ function DynamicSidebar({
+@@ -8052,7 +8070,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);
@@ -85,8 +108,58 @@ index 99c0137..78142c9 100644
          try {
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
+@@ -26010,7 +26028,8 @@ function StandardModal({
+   cancelIcon: CancelIcon = lucideReact.XCircle,
+   saving = false,
+   ariaDescribedBy = "modal-description",
+-  ariaDescription
++  ariaDescription,
++  disableOutsideClose = false
+ }) {
+   const handleCancel = () => {
+     if (onCancel) {
+@@ -26050,6 +26069,8 @@ function StandardModal({
+         className
+       ),
+       hideCloseButton: true,
++      disableOutsideClick: disableOutsideClose,
++      onEscapeKeyDown: disableOutsideClose ? (e) => e.preventDefault() : void 0,
+       "aria-describedby": ariaDescribedBy,
+       children: [
+         /* @__PURE__ */ jsxRuntime.jsxs(DialogHeader, { className: "flex-shrink-0 px-6 pt-3 pb-2 border-b border-[rgb(var(--bd-default))] bg-gradient-to-r from-blue-50 to-indigo-50", children: [
+diff --git a/node_modules/indas-ui/dist/index.d.cts b/node_modules/indas-ui/dist/index.d.cts
+index 4bdc704..82192e3 100644
+--- a/node_modules/indas-ui/dist/index.d.cts
++++ b/node_modules/indas-ui/dist/index.d.cts
+@@ -2928,8 +2928,11 @@ interface StandardModalProps {
+     saving?: boolean;
+     ariaDescribedBy?: string;
+     ariaDescription?: string;
++    /** When true, the modal can be closed ONLY via its buttons — clicking the backdrop/outside
++     *  and pressing Escape no longer dismiss it (prevents accidental data loss in forms). */
++    disableOutsideClose?: boolean;
+ }
+-declare function StandardModal({ isOpen, onClose, title, subtitle, badge, children, size, className, showFooter, footerActions, onSave, onCancel, saveLabel, cancelLabel, saveIcon: SaveIcon, cancelIcon: CancelIcon, saving, ariaDescribedBy, ariaDescription }: StandardModalProps): react_jsx_runtime.JSX.Element;
++declare function StandardModal({ isOpen, onClose, title, subtitle, badge, children, size, className, showFooter, footerActions, onSave, onCancel, saveLabel, cancelLabel, saveIcon: SaveIcon, cancelIcon: CancelIcon, saving, ariaDescribedBy, ariaDescription, disableOutsideClose }: StandardModalProps): react_jsx_runtime.JSX.Element;
+ 
+ type EditableCellType = 'text' | 'number' | 'decimal';
+ interface EditableCellProps {
+diff --git a/node_modules/indas-ui/dist/index.d.ts b/node_modules/indas-ui/dist/index.d.ts
+index 4bdc704..64a1a6c 100644
+--- a/node_modules/indas-ui/dist/index.d.ts
++++ b/node_modules/indas-ui/dist/index.d.ts
+@@ -2928,6 +2928,9 @@ interface StandardModalProps {
+     saving?: boolean;
+     ariaDescribedBy?: string;
+     ariaDescription?: string;
++    /** When true, the modal can be closed ONLY via its buttons — clicking the backdrop/outside
++     *  and pressing Escape no longer dismiss it (prevents accidental data loss in forms). */
++    disableOutsideClose?: boolean;
+ }
+ declare function StandardModal({ isOpen, onClose, title, subtitle, badge, children, size, className, showFooter, footerActions, onSave, onCancel, saveLabel, cancelLabel, saveIcon: SaveIcon, cancelIcon: CancelIcon, saving, ariaDescribedBy, ariaDescription }: StandardModalProps): react_jsx_runtime.JSX.Element;
+ 
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..2d1827b 100644
+index 920f23c..8098310 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
 @@ -1109,7 +1109,7 @@ function SingleSelect({
@@ -161,7 +234,7 @@ index 920f23c..2d1827b 100644
              children: [
                searchable && /* @__PURE__ */ jsx(
                  DropdownSearch,
-@@ -2463,6 +2482,10 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+@@ -2463,16 +2482,24 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
          className: "w-full text-xs bg-transparent text-[rgb(var(--fg-default))] placeholder:text-[rgb(var(--fg-muted))] focus:outline-none",
          value: searchTerm,
          onChange: (e) => setSearchTerm(e.target.value),
@@ -170,9 +243,26 @@ index 920f23c..2d1827b 100644
 +        onTouchStart: (e) => e.stopPropagation(),
 +        onClick: (e) => e.stopPropagation(),
          onKeyDown: (e) => {
++          // INDUS PATCH: always let the option-navigation keys bubble to the list container's
++          // keydown handler so the MULTI-select is keyboard-operable (ArrowUp/Down highlight,
++          // Enter toggles & keeps the list open). Previously stopAllKeyPropagation swallowed
++          // them, so a focused multi-select search box couldn't navigate/select via keyboard.
++          if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
++            return;
++          }
            if (stopAllKeyPropagation) {
              if (e.key !== "Escape") {
-@@ -2798,8 +2821,11 @@ function Dropdown({
+               e.stopPropagation();
+             }
+             return;
+           }
+-          if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
+-            return;
+-          }
+           e.stopPropagation();
+         }
+       }
+@@ -2798,8 +2825,11 @@ function Dropdown({
              ref: dropdownContentRef,
              className: cn(
                getDropdownClassName2.content(),
@@ -184,7 +274,7 @@ index 920f23c..2d1827b 100644
              side: "bottom",
              align: "start",
              sideOffset: 4,
-@@ -2807,6 +2833,10 @@ function Dropdown({
+@@ -2807,6 +2837,10 @@ function Dropdown({
              sticky: "always",
              collisionPadding: 16,
              onOpenAutoFocus: (e) => e.preventDefault(),
@@ -195,7 +285,7 @@ index 920f23c..2d1827b 100644
              children: /* @__PURE__ */ jsx(
                MultiSelect,
                {
-@@ -3610,7 +3640,7 @@ function DatePicker({
+@@ -3610,7 +3644,7 @@ function DatePicker({
      return returnFormat === "string" ? getLocalDateString(date) : date;
    };
    React26.useEffect(() => {
@@ -204,7 +294,7 @@ index 920f23c..2d1827b 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -4315,6 +4345,11 @@ function DatePicker({
+@@ -4315,6 +4349,11 @@ function DatePicker({
            placeholder: getPlaceholder(),
            disabled,
            error,
@@ -216,7 +306,7 @@ index 920f23c..2d1827b 100644
            className: cn(
              "pl-2 pr-9 text-xs w-full",
              error && "border-red-300"
-@@ -4329,6 +4364,7 @@ function DatePicker({
+@@ -4329,6 +4368,7 @@ function DatePicker({
          {
            ref: calendarRef,
            className: cn(
@@ -224,7 +314,7 @@ index 920f23c..2d1827b 100644
              "z-[300] bg-[rgb(var(--bg-surface))] rounded-xl shadow-2xl border border-[rgb(var(--bd-default))] backdrop-blur-sm",
              "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
              "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-@@ -4352,7 +4388,13 @@ function DatePicker({
+@@ -4352,7 +4392,13 @@ function DatePicker({
              }
            },
            style: {
@@ -239,7 +329,7 @@ index 920f23c..2d1827b 100644
            },
            children: [
              /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-3", children: [
-@@ -5632,7 +5674,7 @@ var SidebarPreferencesContext = createContext(void 0);
+@@ -5632,7 +5678,7 @@ var SidebarPreferencesContext = createContext(void 0);
  function useSidebarPreferences() {
    const context = useContext(SidebarPreferencesContext);
    if (context === void 0) {
@@ -248,7 +338,7 @@ index 920f23c..2d1827b 100644
    }
    return context;
  }
-@@ -5881,6 +5923,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
+@@ -5881,6 +5927,11 @@ var QUICK_CREATE_ROUTES = /* @__PURE__ */ new Set([
  ]);
  var getGroupIcon = (groupName) => {
    const name = groupName.toLowerCase();
@@ -260,7 +350,7 @@ index 920f23c..2d1827b 100644
    if (name.includes("dashboard") || name.includes("home")) {
      return Gauge;
    } else if (name.includes("sales")) {
-@@ -5993,7 +6040,7 @@ function DynamicSidebar({
+@@ -5993,7 +6044,7 @@ function DynamicSidebar({
        const cacheKey = `nav_${companyId}_${userId}_${sessionKey}`;
        const cachedNav = localStorage.getItem(cacheKey);
        const cacheTime = localStorage.getItem(`${cacheKey}_time`);
@@ -269,7 +359,7 @@ index 920f23c..2d1827b 100644
          try {
            const navigation = JSON.parse(cachedNav);
            setGroupedModules(navigation);
-@@ -10119,6 +10166,7 @@ function ModalAlert({
+@@ -10119,6 +10170,7 @@ function ModalAlert({
        DialogPrimitive.Content,
        {
          className: cn(
@@ -277,3 +367,22 @@ index 920f23c..2d1827b 100644
            "fixed left-[50%] top-[50%] z-[201] grid w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] border shadow-2xl rounded-2xl overflow-hidden",
            colors.bg,
            colors.border,
+@@ -23951,7 +24003,8 @@ function StandardModal({
+   cancelIcon: CancelIcon = XCircle,
+   saving = false,
+   ariaDescribedBy = "modal-description",
+-  ariaDescription
++  ariaDescription,
++  disableOutsideClose = false
+ }) {
+   const handleCancel = () => {
+     if (onCancel) {
+@@ -23991,6 +24044,8 @@ function StandardModal({
+         className
+       ),
+       hideCloseButton: true,
++      disableOutsideClick: disableOutsideClose,
++      onEscapeKeyDown: disableOutsideClose ? (e) => e.preventDefault() : void 0,
+       "aria-describedby": ariaDescribedBy,
+       children: [
+         /* @__PURE__ */ jsxs(DialogHeader, { className: "flex-shrink-0 px-6 pt-3 pb-2 border-b border-[rgb(var(--bd-default))] bg-gradient-to-r from-blue-50 to-indigo-50", children: [

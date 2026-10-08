@@ -15,10 +15,12 @@ import { MessagingPanelProvider } from "@/components/messaging/MessagingPanelPro
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationToaster from "@/components/NotificationToaster";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import SessionHeartbeat from "@/components/SessionHeartbeat";
 import MobileNav from "@/components/MobileNav";
 import BottomNav from "@/components/BottomNav";
 import PullToRefresh from "@/components/PullToRefresh";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
+import { ModuleAuthProvider } from "@/contexts/ModuleAuthContext";
 import { suppressBenignIndasUiWarnings } from "@/lib/suppressBenignWarnings";
 
 // Silence known-benign React-19 dev warnings from indas-ui's Radix-based dropdowns (see the util). Runs
@@ -71,7 +73,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             <TopHeader />
             <div style={{ flex: 1, minHeight: 0 }}>
               <AppShell sidebar={{ companyId: u.CompanyID, userId: u.UserID }}>
-                <RouteAccessGuard>{children}</RouteAccessGuard>
+                <ModuleAuthProvider>
+                  <RouteAccessGuard>{children}</RouteAccessGuard>
+                </ModuleAuthProvider>
               </AppShell>
             </div>
             {/* Native-app bottom navigation — mobile only (hidden ≥ lg via CSS). */}
@@ -80,6 +84,8 @@ function Shell({ children }: { children: React.ReactNode }) {
           {/* Pull-down-to-refresh (touch devices only). */}
           <PullToRefresh />
           <NotificationToaster />
+          {/* Keeps the login session's "time used" accurate (audit → Sessions). */}
+          <SessionHeartbeat />
         </MessagingPanelProvider>
       </EmailComposerProvider>
     </NotificationsProvider>

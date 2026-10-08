@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "indas-ui";
 import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2, Loader2, ArrowRight, ArrowRightLeft } from "lucide-react";
+import { useInProgressNavGuard } from "@/hooks/useInProgressNavGuard";
+import LeaveGuardDialog from "@/components/LeaveGuardDialog";
 import { customersApi } from "@/lib/customers";
 import {
   provisioningApi, generateDatabaseName,
@@ -134,6 +136,11 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   const go = (n: number) => { setStep(n); setMaxStep((m) => Math.max(m, n)); setErr(null); };
   const dbCreated = !!setup;               // once the DB is created, step 1 is locked (Continue, not re-create)
   const workingNow = busy || creating;     // any in-flight save/creation → lock Close / Cancel / actions
+
+  // While a database is being created (or any step is saving), block leaving the page — navigating to
+  // another module in the same tab, or closing / refreshing the tab — behind a Leave / Cancel popup, so
+  // the user doesn't abandon an in-flight provisioning run by accident.
+  const navGuard = useInProgressNavGuard(isOpen && workingNow);
 
   // Apply everything that depends on a freshly-created database, then advance to Subscription.
   function afterDatabaseCreated(r: SetupDatabaseResponse) {
@@ -298,7 +305,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   const meta = STEP_META[step];
   return createPortal(
     <div className="provision-overlay" style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(12,20,33,.55)", display: "grid", placeItems: "center", padding: 18 }}>
-      <div onClick={(e) => e.stopPropagation()} className="provision-panel" style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="provision-panel" data-navguard-safe style={{ position: "relative", width: "min(1120px,97vw)", maxHeight: "94vh", display: "flex", flexDirection: "column", background: "rgb(var(--bg-surface))", borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,.42)" }}>
         <style>{`@keyframes pm-spin{to{transform:rotate(360deg)}} .pm-spin{animation:pm-spin 1s linear infinite}`}</style>
 
         {/* premium gradient header + step pills */}
@@ -594,6 +601,18 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           }}
         />
       </div>
+
+      {/* Leave / Cancel confirmation — shown when the user tries to navigate away (sidebar / in-app link)
+          while a database is being created. Tab-close / refresh is handled by the guard's native prompt. */}
+      <LeaveGuardDialog
+        open={navGuard.blocked}
+        title="Leave while setup is running?"
+        message={creating
+          ? "A client database is being created right now. If you leave this page you'll lose track of its progress."
+          : "This step is still saving. If you leave this page you may lose unsaved changes."}
+        onConfirm={navGuard.confirmLeave}
+        onCancel={navGuard.cancelLeave}
+      />
     </div>,
     document.body
   );

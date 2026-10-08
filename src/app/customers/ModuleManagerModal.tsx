@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StandardModal, Input, Button, Tabs, Badge, Dialog, DialogContent, DialogTitle } from "indas-ui";
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import type { ColumnDef, Table as RTTable } from "@tanstack/react-table";
-import { Copy, Layers, Search, Save, Plus, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, PackagePlus, type LucideIcon } from "lucide-react";
+import { Copy, Layers, Search, Save, Plus, ShieldCheck, ChevronDown, RotateCcw, Info, AlertTriangle, CheckCircle2, PackagePlus, RefreshCw, type LucideIcon } from "lucide-react";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 import { modulesApi, type ModuleSettingsRow, type ModuleGroupModuleRow, type ClientDropdownItem, type ClientModuleDto, type IndusToolModuleDto } from "@/lib/modules";
+import { groupSyncApi, GROUP_SYNC_MODULES, type GroupSyncType, type ItemGroupComparison } from "@/lib/groupSync";
 
 const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP"];
 
@@ -101,6 +102,7 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false); // "Copy As" — copy this client's modules to another
+  const [syncType, setSyncType] = useState<GroupSyncType | null>(null); // open Item/Ledger/Tool group-sync dialog
 
   const load = useCallback(async () => {
     if (!app || !connStr) return;
@@ -139,6 +141,21 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
     { accessorKey: "moduleHeadName", header: "Module Head" },
     { accessorKey: "moduleDisplayName", header: "Module Display Name" },
     { accessorKey: "moduleName", header: "Module Name" },
+    {
+      // Group-sync action — only the Item / Ledger / Tool master rows get it.
+      id: "groupsync", header: "", size: 64, enableSorting: false, enableHiding: false, meta: { title: "Groups" },
+      cell: ({ row }) => {
+        const t = GROUP_SYNC_MODULES[row.original.moduleName];
+        if (!t) return null;
+        return (
+          <button type="button" title={`Sync ${t} Groups`} aria-label={`Sync ${t} Groups`}
+            onClick={() => setSyncType(t)}
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 7, border: "1px solid rgb(var(--bd-default))", background: "rgb(var(--bg-surface))", color: "rgb(var(--color-primary))", cursor: "pointer" }}>
+            <RefreshCw size={14} />
+          </button>
+        );
+      },
+    },
   ], [toggle, setStatusMany]);
 
   async function save() {
@@ -193,7 +210,87 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
           <CopyModulesTab source={source} connStr={connStr} onFlash={(m) => { onFlash(m); setCopyOpen(false); }} />
         </StandardModal>
       )}
+      {syncType && (
+        <GroupSyncDialog type={syncType} connStr={connStr} targetCompany={source?.companyUserID ?? ""} clientName={source?.companyName}
+          onClose={() => setSyncType(null)} onFlash={(m) => { onFlash(m); setSyncType(null); }} />
+      )}
     </div>
+  );
+}
+
+/** "Group Sync Status" dialog — sync a master's Item/Ledger/Tool groups from the Source DB into the
+ *  client's own DB. Lists each group with an Active toggle; Save pushes the chosen states. */
+function GroupSyncDialog({ type, connStr, targetCompany, clientName, onClose, onFlash }:
+  { type: GroupSyncType; connStr: string; targetCompany: string; clientName?: string | null; onClose: () => void; onFlash: (m: string) => void }) {
+  const [rows, setRows] = useState<ItemGroupComparison[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!connStr) { setErr("Client connection is required."); return; }
+    setLoading(true); setErr(null);
+    try { setRows(await groupSyncApi.comparison(type, connStr, targetCompany)); }
+    catch (e) { setErr(String(e)); } finally { setLoading(false); }
+  }, [type, connStr, targetCompany]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = (id: number) => setRows((p) => p.map((g) => g.itemGroupId === id ? { ...g, status: !g.status } : g));
+
+  async function save() {
+    setSaving(true); setErr(null);
+    try { await groupSyncApi.sync(type, connStr, rows, targetCompany); onFlash(`${type} groups synchronized successfully.`); }
+    catch (e) { setErr(String(e)); setSaving(false); }
+  }
+
+  const th: React.CSSProperties = { textAlign: "left", padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: "rgb(var(--color-primary))" };
+  const td: React.CSSProperties = { padding: "8px 12px", fontSize: 13, borderBottom: "1px solid rgb(var(--bd-default))" };
+
+  return (
+    <StandardModal isOpen onClose={onClose} title={`${type} Group Sync Status`}
+      subtitle={`Syncing ${type} groups from Source to ${clientName || "client"} database.`} size="lg" showFooter={false}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+        <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+          <RefreshCw size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Refresh
+        </Button>
+      </div>
+      {err && <div style={{ color: "#b4541a", fontSize: 12.5, marginBottom: 8 }}>{err}</div>}
+      {loading ? <div style={{ padding: 30, textAlign: "center", opacity: 0.6 }}>Loading groups…</div> : (
+        <div style={{ maxHeight: "52vh", overflow: "auto", border: "1px solid rgb(var(--bd-default))", borderRadius: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr>
+              <th style={{ ...th, width: 60 }}>ID</th>
+              <th style={th}>{type} Group Name</th>
+              <th style={{ ...th, width: 90, textAlign: "center" }}>Status</th>
+              <th style={{ ...th, width: 120 }}>Details</th>
+            </tr></thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td style={{ ...td, textAlign: "center", opacity: 0.6 }} colSpan={4}>No groups found.</td></tr>
+              ) : rows.map((g) => (
+                <tr key={g.itemGroupId}>
+                  <td style={td}>{g.itemGroupId}</td>
+                  <td style={td}>{g.itemGroupName}</td>
+                  <td style={{ ...td, textAlign: "center" }}>
+                    <input type="checkbox" style={{ width: 16, height: 16, cursor: "pointer" }}
+                      checked={g.status} onChange={() => toggle(g.itemGroupId)} />
+                  </td>
+                  <td style={{ ...td, fontWeight: 600, color: g.status ? "rgb(var(--color-success))" : "rgb(var(--fg-muted))" }}>
+                    {g.status ? "Active" : "Inactive"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+        <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>Close</Button>
+        <Button size="sm" onClick={save} disabled={saving || loading}>
+          <Save size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </div>
+    </StandardModal>
   );
 }
 

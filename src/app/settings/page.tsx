@@ -2,6 +2,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { recordLogout } from "@/lib/sessionTracking";
 import { Card, CardContent, Switch, Input, useModalAlert, ThemeContext, useDevice } from "indas-ui";
 
 import {
@@ -284,13 +285,13 @@ export default function SettingsPage() {
   const clearData = () => {
     showWarning("Clear App Data", "This signs you out and wipes local preferences, cache and cookies on this device. Continue?", [
       { label: "Cancel", variant: "secondary", onClick: () => hideAlert() },
-      { label: "Clear & Sign out", variant: "primary", onClick: () => { hideAlert(); try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ } signOut({ callbackUrl: "/login" }); } },
+      { label: "Clear & Sign out", variant: "primary", onClick: async () => { hideAlert(); await recordLogout(); try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ } signOut({ callbackUrl: "/login" }); } },
     ]);
   };
   const doLogout = () => {
     showWarning("Log out?", "You will be signed out of Indus Command Center.", [
       { label: "Cancel", variant: "secondary", onClick: () => hideAlert() },
-      { label: "Log Out", variant: "primary", onClick: () => { hideAlert(); signOut({ callbackUrl: "/login" }); } },
+      { label: "Log Out", variant: "primary", onClick: async () => { hideAlert(); await recordLogout(); signOut({ callbackUrl: "/login" }); } },
     ]);
   };
 

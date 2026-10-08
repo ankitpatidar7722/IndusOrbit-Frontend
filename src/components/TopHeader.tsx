@@ -1,7 +1,8 @@
 "use client";
 import { useState, useContext } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signOutTracked } from "@/lib/sessionTracking";
 import { ThemeContext } from "indas-ui";
 import { Mail, LogOut, User as UserIcon, PanelLeft, Settings as SettingsIcon, MessageSquare, Sun, Moon, BookOpen } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
@@ -119,7 +120,7 @@ export default function TopHeader() {
               <SettingsIcon size={15} /> Settings
             </button>
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOutTracked()}
               style={{ width: "100%", textAlign: "left", padding: "10px 14px", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#c0392b" }}
             >
               <LogOut size={15} /> Sign out

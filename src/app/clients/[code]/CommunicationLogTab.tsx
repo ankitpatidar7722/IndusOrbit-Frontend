@@ -172,7 +172,7 @@ export default function CommunicationLogTab({ code, clientName, canEdit, onFlash
       </div>
 
       {modal.open && (
-        <StandardModal isOpen title={modal.editId ? "Edit Communication" : "Log Communication"} onClose={() => setModal({ open: false, editId: null })} size="lg" showFooter={false}>
+        <StandardModal isOpen title={modal.editId ? "Edit Communication" : "Log Communication"} onClose={() => setModal({ open: false, editId: null })} size="lg" showFooter={false} disableOutsideClose>
           <div style={{ padding: 2 }}>
             <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))", marginBottom: 12 }}>Interaction with <b>{clientName || "this client"}</b>. &ldquo;Handled By&rdquo; + the exact log time are recorded automatically.</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px 14px" }}>

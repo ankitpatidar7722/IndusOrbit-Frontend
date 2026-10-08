@@ -46,7 +46,7 @@ function TriCheck({ checked, indeterminate, onChange }: { checked: boolean; inde
  * templates (same set shows for every client). Multi-select templates and email them to the
  * client to fill in for master upload; or download / upload / soft-delete.
  */
-export default function TemplateMasterPanel({ client, canEdit = true }: { client: CustomerDetail; canEdit?: boolean }) {
+export default function TemplateMasterPanel({ client, canEdit = true, canDelete = true }: { client: CustomerDetail; canEdit?: boolean; canDelete?: boolean }) {
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const { openComposer } = useEmailComposer();
   const { data: session } = useSession();
@@ -229,7 +229,7 @@ export default function TemplateMasterPanel({ client, canEdit = true }: { client
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <a href={masterTemplatesApi.downloadUrl(t.group, t.name)} download style={iconBtn} title="Download"><Download size={15} /></a>
-                      {canEdit && <button style={{ ...iconBtn, color: "#b03030", borderColor: "#eec4c4" }} disabled={busy === keyOf(t)} title="Remove" onClick={() => remove(t)}><Trash2 size={15} /></button>}
+                      {canDelete && <button style={{ ...iconBtn, color: "#b03030", borderColor: "#eec4c4" }} disabled={busy === keyOf(t)} title="Remove" onClick={() => remove(t)}><Trash2 size={15} /></button>}
                     </div>
                   </div>
                 ))}

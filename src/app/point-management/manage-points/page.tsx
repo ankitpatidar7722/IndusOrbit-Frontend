@@ -1,5 +1,6 @@
 "use client";
 import KDropdown from "@/components/KDropdown";
+import { usePageAccess } from "@/contexts/ModuleAuthContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Page, useModalAlert, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -50,6 +51,7 @@ function IconAction({ icon: Icon, label, tone, onClick, disabled }: {
 }
 
 function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: boolean }) {
+  const access = usePageAccess();  // /point-management/manage-points authority — gates Edit/Delete
   const [rows, setRows] = useState<PointGridRow[]>([]);
   const [customers, setCustomers] = useState<PmCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,14 +150,14 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
         return (
           <div style={{ display: "flex", gap: 2, justifyContent: "center" }}>
             <IconAction icon={Eye} label="View" tone="view" onClick={() => drawer.open(r.pointID)} />
-            {isQueue && <IconAction icon={Edit} label="Edit" tone="edit" onClick={() => setEditPoint(r)} />}
-            {isQueue && <IconAction icon={Trash2} label="Delete" tone="delete" onClick={() => deletePoint(r)} />}
+            {isQueue && access.canEdit && <IconAction icon={Edit} label="Edit" tone="edit" onClick={() => setEditPoint(r)} />}
+            {isQueue && access.canDelete && <IconAction icon={Trash2} label="Delete" tone="delete" onClick={() => deletePoint(r)} />}
             {!isClosed && <IconAction icon={XCircle} label="Close" tone="close" onClick={() => closePoint(r)} />}
           </div>
         );
       },
     },
-  ], [drawer, closePoint, deletePoint, sendToTracker]);
+  ], [drawer, closePoint, deletePoint, sendToTracker, access.canEdit, access.canDelete]);
 
   return (
     <Page>

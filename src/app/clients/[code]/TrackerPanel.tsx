@@ -291,7 +291,7 @@ function EntityFormModal({
 
   return (
     <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size={columns && columns >= 5 ? "xl" : "lg"} showFooter={!readOnly}
-      onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving}>
+      onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving} disableOutsideClose>
       <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
         {fields.map((fd) => {
           const val = (f[fd.key] as string) ?? "";
@@ -439,7 +439,7 @@ function ImportPreviewModal({ open, title, fields, initialRows, onClose, onImpor
 
   return (
     <StandardModal isOpen={open} onClose={onClose} title={`Import Preview — ${title}`}
-      subtitle="Review & edit the rows below. Fix any red cells, then Import." size="full" showFooter={false}>
+      subtitle="Review & edit the rows below. Fix any red cells, then Import." size="full" showFooter={false} disableOutsideClose>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))" }}>
           <b style={{ color: "rgb(var(--fg-default))" }}>{rows.length}</b> row{rows.length !== 1 ? "s" : ""} ·{" "}

@@ -6,6 +6,8 @@ import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateC
 import BrandedLoader from "@/components/BrandedLoader";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 import { databaseBackupApi } from "@/lib/databaseBackup";
+import { useInProgressNavGuard } from "@/hooks/useInProgressNavGuard";
+import LeaveGuardDialog from "@/components/LeaveGuardDialog";
 
 // Friendly product labels (keys are NORMALIZED applicationName) — mirrors ImplementationStepPage.
 const PRODUCT_LABEL: Record<string, string> = {
@@ -162,8 +164,15 @@ export default function DatabaseBackupPage() {
 
   const busy = phase === "running";
 
+  // While a backup is being prepared + streamed, block leaving the page (sidebar / in-app nav → Leave/Cancel
+  // popup; tab close / refresh → native prompt) so the user doesn't abandon the in-flight backup by accident.
+  const navGuard = useInProgressNavGuard(busy);
+
   return (
     <Page>
+      {/* data-navguard-safe: clicks on THIS page's own controls are ignored by the guard — only the
+          sidebar / header (outside this subtree) count as "leaving". */}
+      <div data-navguard-safe>
       {/* Heading */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
@@ -272,6 +281,16 @@ export default function DatabaseBackupPage() {
           )}
         </div>
       )}
+      </div>{/* end data-navguard-safe */}
+
+      {/* Leave / Cancel popup when the user navigates away mid-backup (tab-close handled natively). */}
+      <LeaveGuardDialog
+        open={navGuard.blocked}
+        title="Leave while the backup is running?"
+        message="A database backup is being prepared and downloaded right now. If you leave this page it will be cancelled."
+        onConfirm={navGuard.confirmLeave}
+        onCancel={navGuard.cancelLeave}
+      />
     </Page>
   );
 }
