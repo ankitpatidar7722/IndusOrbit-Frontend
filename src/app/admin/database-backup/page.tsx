@@ -38,6 +38,7 @@ export default function DatabaseBackupPage() {
   const targetRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const easeRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingDownloadRef = useRef<string>("");   // operationId to download once phase flips to "done"
 
   useEffect(() => {
     customersApi.list({ assignedOnly: true })
@@ -143,8 +144,12 @@ export default function DatabaseBackupPage() {
             setPercent(100);
             setStage("Complete");
             setMessage("Backup downloaded successfully.");
+            // Defer the actual download to AFTER the page is marked "done" (see the effect below) —
+            // so the in-progress nav guard (active only while phase==="running") has released its
+            // beforeunload handler first; otherwise the download's brief cross-origin navigation
+            // pops a spurious "Leave site?" prompt and the file never downloads.
+            pendingDownloadRef.current = operationId;
             setPhase("done");
-            triggerDownload(operationId);
           } else {
             setPhase("error");
             setMessage(st.error || st.message || "Backup failed.");
@@ -167,6 +172,18 @@ export default function DatabaseBackupPage() {
   // While a backup is being prepared + streamed, block leaving the page (sidebar / in-app nav → Leave/Cancel
   // popup; tab close / refresh → native prompt) so the user doesn't abandon the in-flight backup by accident.
   const navGuard = useInProgressNavGuard(busy);
+
+  // Trigger the browser download only once phase === "done" (guard released). A 0ms timeout pushes it
+  // to the next macrotask, so the nav guard's beforeunload cleanup has definitely run and the
+  // download no longer fires a "Leave site?" prompt.
+  useEffect(() => {
+    if (phase !== "done" || !pendingDownloadRef.current) return;
+    const id = pendingDownloadRef.current;
+    pendingDownloadRef.current = "";
+    const t = setTimeout(() => triggerDownload(id), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   return (
     <Page>
