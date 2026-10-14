@@ -36,8 +36,9 @@ function guessApplication(indasProduct?: string | null): string {
 // Per-application login URL shown on the success screen (keys are lower-cased).
 const APP_LOGIN_URL: Record<string, string> = {
   estimoprime: "https://estimo.indusanalytics.co.in/CompanyLogin.aspx",
-  printudeerp: "https://erp.printude.ai",
+  printudeerp: "https://printude.indusanalytics.co.in",
   multiunit: "https://estimomultiunit.indusanalytics.co.in/CompanyLogin.aspx",
+  estimoreact: "https://estimoapp.indusanalytics.co.in",
 };
 
 const STEPS = [
@@ -525,11 +526,16 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
       )}
 
       {step === 6 && done && (() => {
-        const loginUrl = APP_LOGIN_URL[(setup?.applicationName || "").toLowerCase()] || "https://estimo.indusanalytics.co.in/CompanyLogin.aspx";
+        const appLower = (setup?.applicationName || "").toLowerCase();
+        const isReact = appLower === "estimoreact";
+        const loginUrl = APP_LOGIN_URL[appLower] || "https://estimo.indusanalytics.co.in/CompanyLogin.aspx";
         const creds: [string, string][] = [
           ["Company Name", (sub.companyName as string) || setup?.clientName || "—"],
           ["URL", loginUrl],
-          ["Company Login Name", done.companyUserID || "—"],
+          // EstimoReact logs in with the Company Code; the other apps use the Company Login Name.
+          isReact
+            ? ["Company Code", (sub.companyCode as string) || "—"]
+            : ["Company Login Name", done.companyUserID || "—"],
           ["Password", done.password || "—"],
           ["User Name", done.userName || "—"],
           ["Password", done.userPassword || "—"],

@@ -67,5 +67,8 @@ export const provisioningApi = {
 export function generateDatabaseName(app: string, client: string): string {
   const c = client.trim().replace(/\s+/g, "");
   if (!c) return "";
-  return app.toLowerCase() === "printudeerp" ? `IndusPrintude${c}` : `IndusEnterprise${c}`;
+  const a = app.toLowerCase();
+  if (a === "printudeerp") return `IndusPrintude${c}`;
+  if (a === "estimoreact") return `IndusEnterpriseReact${c}`;
+  return `IndusEnterprise${c}`;
 }
