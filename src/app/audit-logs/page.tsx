@@ -36,13 +36,14 @@ const shortDevice = (id?: string | null): string => !id ? "—" : (id.length > 1
 const lbl: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 600, color: T.muted, marginBottom: 4 };
 const dateInput: React.CSSProperties = { height: 38, padding: "0 10px", fontSize: 13, border: `1px solid ${T.bd}`, borderRadius: 9, background: T.surface, color: T.fg, outline: "none" };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = ["50", "100", "200", "500"];
 
 export default function AuditLogsPage() {
   const [view, setView] = useState<"activity" | "sessions">("activity");
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(false);
   const [facets, setFacets] = useState<AuditFacets>({ modules: [], actions: [], users: [] });
   const [detail, setDetail] = useState<AuditRow | null>(null);
@@ -58,7 +59,7 @@ export default function AuditLogsPage() {
 
   useEffect(() => { auditApi.facets().then((f) => { if (f.success) setFacets(f); }).catch(() => {}); }, []);
 
-  const load = useCallback(async (p = page) => {
+  const load = useCallback(async (p = page, size = pageSize) => {
     setLoading(true);
     try {
       const r = await auditApi.list({
@@ -66,11 +67,11 @@ export default function AuditLogsPage() {
         userId: userId ? Number(userId) : undefined,
         from: from ? new Date(from).toISOString() : undefined,
         to: to ? new Date(to + "T23:59:59").toISOString() : undefined,
-        page: p, pageSize: PAGE_SIZE,
+        page: p, pageSize: size,
       });
       if (r.success) { setRows(r.rows); setTotal(r.total); setPage(r.page); }
     } catch { setRows([]); setTotal(0); } finally { setLoading(false); }
-  }, [page, search, module, client, action, userId, from, to]);
+  }, [page, pageSize, search, module, client, action, userId, from, to]);
 
   useEffect(() => { load(1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   const applyFilters = () => load(1);
@@ -113,7 +114,7 @@ export default function AuditLogsPage() {
     },
   ], []);
 
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <Page>
@@ -174,13 +175,19 @@ export default function AuditLogsPage() {
           data={rows} columns={columns} getRowId={(r) => String(r.id)}
           title={`${total.toLocaleString("en-IN")} event${total === 1 ? "" : "s"}`}
           loading={loading} mainColumns="summary" enableSearch enableSorting enableExport
+          enablePagination={false}  /* server-side paging below is the single pager (grid's own pager would double up) */
         />
       </div>
 
-      {/* Server pager */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13, color: T.muted }}>
-        <span>{total === 0 ? "No events" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total.toLocaleString("en-IN")}`}</span>
+      {/* Server pager — the single source of truth (the grid's own pager is disabled above). */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13, color: T.muted, flexWrap: "wrap", gap: 10 }}>
+        <span>{total === 0 ? "No events" : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString("en-IN")}`}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12.5, color: T.faint }}>Rows</span>
+          <div style={{ width: 92 }}>
+            <Dropdown value={String(pageSize)} onValueChange={(v) => { const s = Number(v); setPageSize(s); setPage(1); load(1, s); }}
+              size="sm" options={PAGE_SIZE_OPTIONS.map((o) => ({ value: o, label: o }))} />
+          </div>
           <Button size="sm" variant="outline" icon={ChevronLeft} disabled={page <= 1 || loading} onClick={() => load(page - 1)}>Prev</Button>
           <span style={{ fontSize: 12.5 }}>Page {page} / {lastPage}</span>
           <Button size="sm" variant="outline" disabled={page >= lastPage || loading} onClick={() => load(page + 1)}>Next <ChevronRight size={14} style={{ verticalAlign: -2 }} /></Button>
@@ -243,7 +250,7 @@ function SessionsView() {
       <div style={{ border: `1px solid ${T.bd}`, borderRadius: 12, overflow: "hidden", background: T.surface }}>
         <DataGrid<SessionRow> data={rows} columns={columns} getRowId={(r) => String(r.id)}
           title={`${total.toLocaleString("en-IN")} session${total === 1 ? "" : "s"}`} loading={loading}
-          mainColumns="userName" enableSearch enableSorting enableExport />
+          mainColumns="userName" enableSearch enableSorting enableExport enablePagination={false} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13, color: T.muted }}>
         <span>{total === 0 ? "No sessions" : `Showing ${(page - 1) * SIZE + 1}–${Math.min(page * SIZE, total)} of ${total.toLocaleString("en-IN")}`}</span>

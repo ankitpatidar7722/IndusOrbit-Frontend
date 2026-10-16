@@ -263,7 +263,7 @@ export default function ToolMasterModule({ client, groupId, groupName }: { clien
       const payload = rows.map((r) => cleanForApi(r, groupId, groupName));
       const res = await validateTools(payload, groupId); setResult(res);
       if (!res.isValid) { showError("Fix errors first", "Correct the issues shown in the Validation Summary before saving."); return; }
-      const imp = await importTools(payload, groupId);
+      const imp = await importTools(payload, groupId, client.applicationName ?? undefined);
       if (imp.success) {
         showSuccess("Imported", `${imp.importedRows ?? rows.length} record(s) imported.`, 3000);
         if ((imp.errorRows ?? 0) > 0 && imp.errorMessages?.length) setSummary({ title: `${imp.errorRows} Row(s) Failed During Import`, messages: imp.errorMessages });

@@ -8,6 +8,7 @@ import {
   getModules, checkMasterUsage, deleteMasterData, deleteUnusedMasterData, getBulkTargetCompany,
   type ModuleDto, type MasterUsageResult, type DeleteMasterDataResult,
 } from "@/bulk/services/api";
+import { userIdHeader } from "@/lib/currentUser";
 
 // "ERP Transaction Delete" — Indus360 rebuild of ERPTransactionDelete.tsx (improved UI, all features):
 // Tab 1 Master-wise delete (usage pre-check → delete-all OR delete-unused, single credential auth) and
@@ -123,7 +124,7 @@ export default function ERPTransactionDeleteModule({ client }: { client: BulkCli
     const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
     try {
       const res = await fetch(`${base}/bulk/api/transactiondelete/clear-all-transactions`, {
-        method: "POST", headers: { "Content-Type": "application/json", "X-Target-Company": getBulkTargetCompany() || "" },
+        method: "POST", headers: { "Content-Type": "application/json", "X-Target-Company": getBulkTargetCompany() || "", ...userIdHeader() },
         body: JSON.stringify({ Username: creds.username, Password: creds.password, Reason: creds.reason }),
       });
       if (!res.ok) { setBusy(false); setAuthError(res.status === 401 ? "Invalid username or password. Please try again." : (await res.text()) || `Execution failed with status ${res.status}`); return; }

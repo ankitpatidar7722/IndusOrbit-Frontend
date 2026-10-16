@@ -1,6 +1,8 @@
 // Item / Ledger / Tool "group sync" — compare the master's groups between the shared Source DB and a
 // client's own DB, then sync the selected ones into the client DB. Backend already exists in the merged
 // BulkImport API (served under /bulk/api/...), so this is a thin typed client over those two endpoints.
+import { userIdHeader } from "@/lib/currentUser";
+
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
 
 export type GroupSyncType = "Item" | "Ledger" | "Tool";
@@ -19,7 +21,7 @@ export interface ItemGroupComparison {
 // carrying the target client's CompanyUserID in X-Target-Company (Program.cs injects an admin identity
 // for any request that has it). Without this header the endpoints return 401.
 const bulkHeaders = (targetCompany: string, extra?: Record<string, string>): Record<string, string> =>
-  ({ "X-Target-Company": targetCompany ?? "", ...(extra || {}) });
+  ({ "X-Target-Company": targetCompany ?? "", ...userIdHeader(), ...(extra || {}) });
 
 export const groupSyncApi = {
   /** Source-vs-client comparison for a master's groups (Item / Ledger / Tool). */

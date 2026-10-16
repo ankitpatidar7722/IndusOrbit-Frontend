@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useModalAlert } from "indas-ui";
+import { useModalAlert, useDevice } from "indas-ui";
 import { FileText, Save, RefreshCw, CheckSquare, Square, Search, AlertCircle, CheckCircle2, Database, Filter, ChevronDown, Zap, Info, X } from "lucide-react";
 import type { BulkClientContext } from "@/components/bulk/BulkModuleShell";
 import ContentBox3D from "./ContentBox3D";
@@ -97,6 +97,7 @@ type Confirm = { title: string; message: string; confirmLabel: string; onConfirm
 
 export default function ContentAuthorityModule({ client }: { client: BulkClientContext }) {
   const { showSuccess, showError, AlertComponent } = useModalAlert();
+  const { isMobile } = useDevice();
   const [rows, setRows] = useState<Row[]>([]);
   const [original, setOriginal] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -326,12 +327,14 @@ export default function ContentAuthorityModule({ client }: { client: BulkClientC
           </button>
         </div>
 
-        {/* Table header */}
-        <div className={`grid ${GRID} bg-[color-mix(in_srgb,rgb(var(--color-primary))_16%,white)] dark:bg-[color-mix(in_srgb,rgb(var(--color-primary))_16%,rgb(var(--bg-surface)))] border-b border-gray-100 dark:border-gray-700 px-4 py-2.5`}>
-          {["#", "Content Name", "Content Display Name", "Open View", "Close View", "DB Status", "Select"].map((h) => (
-            <div key={h} className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))]">{h === "Select" ? "" : h}</div>
-          ))}
-        </div>
+        {/* Table header (desktop only — phones use the card layout below) */}
+        {!isMobile && (
+          <div className={`grid ${GRID} bg-[color-mix(in_srgb,rgb(var(--color-primary))_16%,white)] dark:bg-[color-mix(in_srgb,rgb(var(--color-primary))_16%,rgb(var(--bg-surface)))] border-b border-gray-100 dark:border-gray-700 px-4 py-2.5`}>
+            {["#", "Content Name", "Content Display Name", "Open View", "Close View", "DB Status", "Select"].map((h) => (
+              <div key={h} className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--fg-muted))]">{h === "Select" ? "" : h}</div>
+            ))}
+          </div>
+        )}
 
         {/* Body */}
         <div className="divide-y divide-gray-100 dark:divide-gray-700/50 overflow-y-auto" style={{ maxHeight: "calc(100vh - 360px)", minHeight: 300 }}>
@@ -339,7 +342,34 @@ export default function ContentAuthorityModule({ client }: { client: BulkClientC
             <div className="py-20 flex flex-col items-center gap-3 text-gray-400"><RefreshCw className="w-10 h-10 animate-spin opacity-40" /><p className="text-sm">Loading...</p></div>
           ) : displayRows.length === 0 ? (
             <div className="py-20 flex flex-col items-center gap-3 text-gray-400"><Search className="w-10 h-10 opacity-20" /><p className="text-sm">No content found matching your search.</p></div>
-          ) : displayRows.map((row, idx) => (
+          ) : displayRows.map((row, idx) => isMobile ? (
+            /* Phone: one tidy card per content (the 7-column grid is unreadable at phone width) */
+            <div key={row.contentName} className="p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <button onClick={() => toggleRow(row.contentName)} aria-label="Toggle select"
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${row.isSelected ? "border-blue-600 bg-blue-600 shadow-sm" : "border-gray-300 dark:border-gray-600"}`}>
+                    {row.isSelected && <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} fill="none"><path d="M20 6L9 17l-5-5" /></svg>}
+                  </button>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold leading-tight ${row.isSelected ? "text-blue-700 dark:text-blue-400" : "text-gray-800 dark:text-gray-200"}`}>{row.contentName}</p>
+                    {row.contentCaption && <p className="truncate text-xs text-gray-500 dark:text-gray-400">{row.contentCaption}</p>}
+                  </div>
+                </div>
+                <div className="shrink-0"><StatusBadge synced={row.isSelected} exists={row.existsInClientDb} /></div>
+              </div>
+              <div className="mt-2.5 grid grid-cols-2 gap-3">
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Open View</p>
+                  <ImageCell src={row.contentOpenHref} alt={`${row.contentName} - Open View`} onPreview={openPreview} />
+                </div>
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Close View</p>
+                  <ImageCell src={row.contentClosedHref} alt={`${row.contentName} - Close View`} onPreview={openPreview} />
+                </div>
+              </div>
+            </div>
+          ) : (
             <div key={row.contentName} className={`grid ${GRID} items-center px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
               <span className="text-xs font-mono text-gray-400">{idx + 1}</span>
               <span className={`text-sm font-medium pr-4 ${row.isSelected ? "text-blue-700 dark:text-blue-400" : "text-gray-800 dark:text-gray-200"}`}>{row.contentName}</span>

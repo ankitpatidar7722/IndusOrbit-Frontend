@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { userIdHeader } from '@/lib/currentUser';
 
 // Indus360-hosted BulkImport modules hit the folded-in backend under /bulk/api and target the CLIENT
 // chosen in the Product+Client picker via the X-Target-Company header (the backend resolves that
@@ -34,6 +35,12 @@ api.interceptors.request.use((config) => {
     if (_targetCompany) {
         config.headers['X-Target-Company'] = _targetCompany;
     }
+    // Carry the logged-in Indus360 user (+ originating device) so the AUDIT TRAIL records the real
+    // user instead of "System" — bulk calls previously sent only X-Target-Company, so every bulk
+    // import write was logged with no user. Does NOT affect auth (the backend still injects the admin
+    // identity from X-Target-Company); the UserID header is read only by the audit filter.
+    const uh = userIdHeader();
+    for (const k in uh) config.headers[k] = uh[k];
     // Show loader for every API call
     if (_showLoader) _showLoader();
     return config;
@@ -1033,10 +1040,11 @@ export const validateItems = async (items: ItemMasterDto[], itemGroupId: number)
     return response.data.validationResult;
 };
 
-export const importItems = async (items: ItemMasterDto[], itemGroupId: number): Promise<ImportResultDto> => {
+export const importItems = async (items: ItemMasterDto[], itemGroupId: number, application?: string): Promise<ImportResultDto> => {
     const response = await api.post('/item/import', {
         items,
-        itemGroupId
+        itemGroupId,
+        application   // MultiUnit → backend also seeds per-ProductionUnit ItemMasterStock
     });
     return response.data;
 };
@@ -1158,10 +1166,11 @@ export const validateTools = async (tools: ToolMasterDto[], toolGroupId: number)
     return response.data.validationResult;
 };
 
-export const importTools = async (tools: ToolMasterDto[], toolGroupId: number): Promise<ImportResultDto> => {
+export const importTools = async (tools: ToolMasterDto[], toolGroupId: number, application?: string): Promise<ImportResultDto> => {
     const response = await api.post('/tool/import', {
         tools,
-        toolGroupId
+        toolGroupId,
+        application   // MultiUnit → backend also seeds per-ProductionUnit ToolMasterStock
     });
     return response.data;
 };
