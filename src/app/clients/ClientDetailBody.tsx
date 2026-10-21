@@ -63,11 +63,18 @@ const fmtHistoryDate = (v?: string | null) => {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
 };
 
-/** Fill the template's <span class="af">[[key]]</span> placeholders with escaped values. */
-function fillTemplate(html: string, fields: [string, string][]): string {
+/** Fill the template's <span class="af">[[key]]</span> placeholders. Values are HTML-escaped unless
+ *  the field is flagged `raw` (3rd tuple element) — used for already-escaped multi-line HTML. */
+function fillTemplate(html: string, fields: [string, string, boolean?][]): string {
   let out = html;
-  for (const [k, v] of fields) out = out.split(`<span class="af">[[${k}]]</span>`).join(esc(v));
+  for (const [k, v, raw] of fields) out = out.split(`<span class="af">[[${k}]]</span>`).join(raw ? v : esc(v));
   return out;
+}
+
+/** Escape a possibly multi-value field, putting each comma/semicolon/newline-separated item on its own
+ *  line (<br>). Single values render unchanged. Returns raw HTML (each item already escaped). */
+function escLines(v?: string | null): string {
+  return (v ?? "").toString().split(/\s*[,;\n]\s*/).map((s) => s.trim()).filter(Boolean).map(esc).join("<br>");
 }
 
 /** Reflect live form state (checkbox/radio ticks, input values, textarea, select) into
@@ -114,307 +121,6 @@ function cleanDocHtml(w: Window): string {
   // Drop the embedded name→mobile lookup map (only needed live, for the §8 Support Contact sync).
   root.querySelectorAll("[data-mobiles]").forEach((s) => s.removeAttribute("data-mobiles"));
   return "<!doctype html>\n" + root.outerHTML;
-}
-
-/** Wrap a full HTML document so Microsoft Word opens it as an EDITABLE .doc. Word reads HTML content
- *  served as application/msword; we add the Office namespaces on <html> and an @page A4 rule (with the
- *  doc's own <style> preserved) so it paginates like the PDF. The result is fully editable + re-saveable
- *  as .docx from Word — no extra library or server round-trip. Signature/seal images are base64 data
- *  URIs (already embedded), so they travel inside the file. */
-function htmlToWordDoc(fullHtml: string): string {
-  let html = fullHtml.replace(/^<!doctype[^>]*>/i, "").trim();
-  const pageCss = '<meta charset="utf-8"><style>@page{size:A4;margin:1.6cm 1.4cm}body{-webkit-print-color-adjust:exact}</style>';
-  if (/<head[^>]*>/i.test(html)) html = html.replace(/<head([^>]*)>/i, `<head$1>${pageCss}`);
-  else if (/<html[^>]*>/i.test(html)) html = html.replace(/<html([^>]*)>/i, `<html$1><head>${pageCss}</head>`);
-  else html = `<head>${pageCss}</head>${html}`;
-  // Office namespaces on <html> (added only if not already present) — enables Word's HTML import.
-  html = html.replace(/<html(?![^>]*xmlns:o=)([^>]*)>/i,
-    '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"$1>');
-  if (!/<html/i.test(html)) html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>${pageCss}</head><body>${html}</body></html>`;
-  return "﻿" + html;  // BOM so Word reliably detects UTF-8
-}
-
-/** Trigger a browser download of already-final Word HTML as <base>.doc. */
-function wordBlobDownload(wordHtml: string, base: string) {
-  const blob = new Blob([wordHtml], { type: "application/msword;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `${base}.doc`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-/** Download `fullHtml` as a Word-editable .doc (wraps + downloads; no style flattening). */
-function saveHtmlAsWord(fullHtml: string, base: string) {
-  wordBlobDownload(htmlToWordDoc(fullHtml), base);
-}
-
-// ── High-fidelity Word export ────────────────────────────────────────────────────────────────────
-// Word's HTML engine ignores CSS classes, CSS variables, gradients and flexbox, so a class-styled
-// document loses its colours, table fills, section bars and (SVG/relative) logo. To fix that we take
-// the LIVE rendered document, inline each element's COMPUTED styles (concrete colours/borders/fonts),
-// add bgcolor on table cells, and rasterise every <img> (incl. the logo) to a base64 PNG — producing
-// HTML that Word renders like the on-screen document while staying fully editable.
-
-/** Computed properties inlined for Word (kept lean — visual styling that Word otherwise drops). */
-const WORD_STYLE_PROPS = [
-  "color", "background-color", "font-family", "font-size", "font-weight", "font-style",
-  "text-align", "text-decoration-line", "text-transform", "vertical-align", "line-height",
-  "letter-spacing", "white-space",
-  "padding-top", "padding-right", "padding-bottom", "padding-left",
-  "border-top-width", "border-top-style", "border-top-color",
-  "border-right-width", "border-right-style", "border-right-color",
-  "border-bottom-width", "border-bottom-style", "border-bottom-color",
-  "border-left-width", "border-left-style", "border-left-color",
-];
-const TRANSPARENT = new Set(["rgba(0, 0, 0, 0)", "transparent", ""]);
-function firstColorFrom(s: string): string | null { const m = /rgba?\([^)]*\)/i.exec(s); return m ? m[0] : null; }
-function rgbToHex(rgb: string): string {
-  const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(rgb);
-  if (!m) return rgb;
-  const h = (n: string) => Number(n).toString(16).padStart(2, "0");
-  return `#${h(m[1])}${h(m[2])}${h(m[3])}`;
-}
-function inlineComputed(live: Element, clone: Element, view: Window) {
-  const cs = view.getComputedStyle(live);
-  let bg = cs.getPropertyValue("background-color");
-  const bgImg = cs.getPropertyValue("background-image");
-  // Word ignores gradients → approximate by pulling the gradient's first colour so section bars show.
-  if (TRANSPARENT.has(bg) && bgImg && bgImg.includes("gradient")) { const c = firstColorFrom(bgImg); if (c) bg = c; }
-  const parts: string[] = [];
-  for (const p of WORD_STYLE_PROPS) {
-    const v = p === "background-color" ? bg : cs.getPropertyValue(p);
-    if (!v) continue;
-    if (p === "background-color" && TRANSPARENT.has(v)) continue;
-    if (p.endsWith("-width") && v === "0px") continue;
-    parts.push(`${p}:${v}`);
-  }
-  const tag = clone.tagName.toLowerCase();
-  if (tag === "table") parts.push("border-collapse:collapse");
-  const existing = clone.getAttribute("style");
-  clone.setAttribute("style", (existing ? existing + ";" : "") + parts.join(";"));
-  // Table cell/row fills: Word honours the bgcolor attribute more reliably than CSS background.
-  if ((tag === "td" || tag === "th" || tag === "tr") && !TRANSPARENT.has(bg)) clone.setAttribute("bgcolor", rgbToHex(bg));
-}
-/** Resolve once all images in a document have loaded (or a timeout elapses). */
-function waitForImages(doc: Document, timeoutMs: number): Promise<void> {
-  const imgs = Array.from(doc.images || []);
-  const pending = imgs.filter((i) => !i.complete);
-  if (!pending.length) return Promise.resolve();
-  return new Promise((resolve) => {
-    let left = pending.length, done = false;
-    const finish = () => { if (!done) { done = true; resolve(); } };
-    pending.forEach((i) => { const on = () => { if (--left <= 0) finish(); }; i.addEventListener("load", on); i.addEventListener("error", on); });
-    setTimeout(finish, timeoutMs);
-  });
-}
-/** Load an SVG data-URL into an <img> and return a base64 PNG at 2× for crispness. */
-function svgDataUrlToPng(dataUrl: string, w: number, h: number, doc: Document): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const c = doc.createElement("canvas");
-        c.width = Math.max(1, w * 2); c.height = Math.max(1, h * 2);
-        const cx = c.getContext("2d");
-        if (!cx) return reject(new Error("no ctx"));
-        cx.drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL("image/png"));
-      } catch (e) { reject(e); }
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
-
-/** Build high-fidelity Word HTML from a LIVE rendered document (inline computed styles + rasterise
- *  every <img> AND inline <svg> — Word can't render SVG, so its icons become broken × otherwise). */
-async function flattenDocForWord(liveDoc: Document): Promise<string> {
-  const view = liveDoc.defaultView;
-  reflectFormState(liveDoc);
-  const liveRoot = liveDoc.documentElement;
-  const clone = liveRoot.cloneNode(true) as HTMLElement;
-
-  if (view) {
-    const liveEls = liveRoot.querySelectorAll("*");
-    const cloneEls = clone.querySelectorAll("*");
-    for (let i = 0; i < liveEls.length && i < cloneEls.length; i++) {
-      const tag = liveEls[i].tagName.toLowerCase();
-      if (tag === "script" || tag === "style" || tag === "link" || tag === "meta" || tag === "head") continue;
-      try { inlineComputed(liveEls[i], cloneEls[i], view); } catch { /* skip element */ }
-    }
-  }
-  // Rasterise <img> (fixes a relative-URL / SVG logo Word can't load) to base64 PNG.
-  const liveImgs = liveDoc.querySelectorAll("img");
-  const cloneImgs = clone.querySelectorAll("img");
-  for (let i = 0; i < liveImgs.length && i < cloneImgs.length; i++) {
-    const li = liveImgs[i] as HTMLImageElement, ci = cloneImgs[i] as HTMLImageElement;
-    try {
-      const nw = li.naturalWidth || li.width, nh = li.naturalHeight || li.height;
-      if (!nw || !nh) continue;
-      const canvas = liveDoc.createElement("canvas");
-      canvas.width = nw; canvas.height = nh;
-      const cx = canvas.getContext("2d");
-      if (!cx) continue;
-      cx.drawImage(li, 0, 0, nw, nh);
-      ci.setAttribute("src", canvas.toDataURL("image/png"));
-      const shownW = Math.round(li.getBoundingClientRect().width) || li.width || nw;
-      if (shownW) ci.setAttribute("width", String(shownW));
-    } catch { /* cross-origin tainted → keep original src */ }
-  }
-  // Rasterise inline <svg> icons (checkboxes / status marks) → PNG, else Word shows a broken ×.
-  const liveSvgs = Array.from(liveDoc.querySelectorAll("svg"));
-  const cloneSvgs = Array.from(clone.querySelectorAll("svg"));
-  for (let i = 0; i < liveSvgs.length && i < cloneSvgs.length; i++) {
-    const ls = liveSvgs[i], cs = cloneSvgs[i];
-    try {
-      const rect = ls.getBoundingClientRect();
-      const w = Math.max(1, Math.round(rect.width || 16)), h = Math.max(1, Math.round(rect.height || 16));
-      const s = ls.cloneNode(true) as SVGElement;
-      s.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      s.setAttribute("width", String(w)); s.setAttribute("height", String(h));
-      const svgStr = new XMLSerializer().serializeToString(s);
-      const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)));
-      const png = await svgDataUrlToPng(dataUrl, w, h, liveDoc);
-      const img = liveDoc.createElement("img");
-      img.setAttribute("src", png); img.setAttribute("width", String(w)); img.setAttribute("height", String(h));
-      img.setAttribute("style", `width:${w}px;height:${h}px;vertical-align:middle`);
-      cs.replaceWith(img);
-    } catch { /* leave the svg as-is */ }
-  }
-  // Strip UI-only bits + bake date inputs (same rules as cleanDocHtml).
-  clone.querySelectorAll(".indus-toolbar, .toolbar, .indus-addrow, .indus-delcol, .indus-delcell, .indus-msctl, script").forEach((e) => e.remove());
-  clone.querySelectorAll('input[type="date"]').forEach((el) => {
-    const inp = el as HTMLInputElement;
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(inp.getAttribute("value") || "");
-    const span = liveDoc.createElement("span");
-    span.textContent = m ? `${m[3]}-${m[2]}-${m[1]}` : "";
-    inp.replaceWith(span);
-  });
-  clone.querySelectorAll("[contenteditable]").forEach((s) => s.removeAttribute("contenteditable"));
-  clone.querySelectorAll("[data-mobiles]").forEach((s) => s.removeAttribute("data-mobiles"));
-  return htmlToWordDoc("<!doctype html>\n" + clone.outerHTML);
-}
-// ── Exact-look (image-based) Word export ─────────────────────────────────────────────────────────
-// For a pixel-perfect Word file we don't fight Word's HTML engine at all: the server's headless browser
-// screenshots the document EXACTLY as it renders (logo, colours, layout, widths — everything), then we
-// slice that PNG into A4-proportioned pages and drop each into the .doc as a full-page image. The result
-// looks identical to the on-screen document; the trade-off (chosen by the user) is the text isn't editable.
-
-/** Render `html` off-screen and measure the document's content width + full height in CSS px. */
-function measureDocSize(html: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve) => {
-    const iframe = document.createElement("iframe");
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:1000px;height:1400px;border:0;visibility:hidden";
-    document.body.appendChild(iframe);
-    const done = (w: number, h: number) => { setTimeout(() => iframe.remove(), 100); resolve({ width: w, height: h }); };
-    const idoc = iframe.contentDocument;
-    if (!idoc) return done(800, 1123);
-    idoc.open(); idoc.write(html); idoc.close();
-    waitForImages(idoc, 4000).then(() => setTimeout(() => {
-      try {
-        const sheet = idoc.querySelector(".sheet") as HTMLElement | null;
-        const w = Math.round((sheet?.getBoundingClientRect().width || idoc.body.scrollWidth || 800));
-        iframe.style.width = w + "px";
-        void idoc.body.offsetHeight; // force reflow at the content width
-        const h = Math.round(Math.max(idoc.documentElement.scrollHeight, idoc.body.scrollHeight));
-        done(w, h);
-      } catch { done(800, 1123); }
-    }, 60));
-  });
-}
-
-/** Slice a full-page PNG into A4-proportioned page images (data URLs), auto-cropping the trailing
- *  uniform-background rows first (the server screenshots a fixed window height ≥ the content, so there
- *  is blank space below the document that we trim before paginating). */
-function pngBlobToWordPages(blob: Blob): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const W = img.naturalWidth, H0 = img.naturalHeight;
-        const src = document.createElement("canvas");
-        src.width = W; src.height = H0;
-        const sx = src.getContext("2d");
-        if (!sx) { URL.revokeObjectURL(url); return resolve([]); }
-        sx.drawImage(img, 0, 0);
-        // Trim trailing background rows. The document's blank tail is the page background, so read the
-        // bottom-right corner as the background colour and drop every all-background row from the bottom.
-        let H = H0;
-        try {
-          const data = sx.getImageData(0, 0, W, H0).data;
-          const px = (x: number, y: number) => { const i = (y * W + x) * 4; return [data[i], data[i + 1], data[i + 2]]; };
-          const [br, bgc, bb] = px(W - 1, H0 - 1);
-          const rowIsBg = (y: number) => {
-            for (let x = 0; x < W; x += 8) { const [r, g, b] = px(x, y); if (Math.abs(r - br) > 8 || Math.abs(g - bgc) > 8 || Math.abs(b - bb) > 8) return false; }
-            return true;
-          };
-          let cb = H0 - 1;
-          while (cb > 0 && rowIsBg(cb)) cb--;
-          H = Math.min(H0, cb + 14); // keep a little bottom padding
-        } catch { /* getImageData blocked → keep full height */ }
-        const pageH = Math.max(1, Math.round(W * 297 / 210)); // A4 portrait ratio
-        const pages: string[] = [];
-        for (let y = 0; y < H; y += pageH) {
-          const h = Math.min(pageH, H - y);
-          const c = document.createElement("canvas");
-          c.width = W; c.height = h;
-          const cx = c.getContext("2d");
-          if (!cx) break;
-          cx.drawImage(src, 0, y, W, h, 0, 0, W, h);
-          pages.push(c.toDataURL("image/png"));
-        }
-        URL.revokeObjectURL(url);
-        resolve(pages);
-      } catch (e) { URL.revokeObjectURL(url); reject(e); }
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
-
-/** Build a Word .doc that shows each page image full-width on its own A4 page. */
-function imagesToWordDoc(dataUrls: string[]): string {
-  const body = dataUrls.map((d, i) =>
-    `<div style="page-break-after:${i < dataUrls.length - 1 ? "always" : "auto"};text-align:center"><img src="${d}" style="width:100%;display:block"/></div>`
-  ).join("");
-  const head = '<meta charset="utf-8"><style>@page{size:A4;margin:0}body{margin:0}img{width:100%}</style>';
-  return '﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>'
-    + head + "</head><body>" + body + "</body></html>";
-}
-
-/** Exact-look Word export: server-screenshot → slice to A4 pages → embed as images. Returns false when
- *  the server has no renderer (caller falls back to the editable flatten). */
-async function downloadWordExact(html: string, base: string): Promise<boolean> {
-  const { width, height } = await measureDocSize(html);
-  // Chrome's --screenshot captures exactly the window size (not the full page), so render TALLER than
-  // the measured content (cross-browser slack) to never clip; the extra blank tail is cropped in slicing.
-  const renderH = Math.min(30000, Math.round(height * 1.25) + 400);
-  const png = await clientDocsApi.renderPngFromHtml(html, width, renderH);
-  if (!png) return false;
-  const pages = await pngBlobToWordPages(png);
-  if (!pages.length) return false;
-  wordBlobDownload(imagesToWordDoc(pages), base);
-  return true;
-}
-
-/** Render saved doc HTML off-screen, flatten it for Word, and download as <base>.doc. */
-async function downloadHtmlAsWordHiFi(html: string, base: string): Promise<void> {
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:900px;height:1200px;border:0;visibility:hidden";
-  document.body.appendChild(iframe);
-  try {
-    const idoc = iframe.contentDocument;
-    if (!idoc) { saveHtmlAsWord(html, base); return; }  // fallback: unflattened
-    idoc.open(); idoc.write(html); idoc.close();
-    await waitForImages(idoc, 4000);
-    wordBlobDownload(await flattenDocForWord(idoc), base);
-  } finally {
-    setTimeout(() => iframe.remove(), 100);
-  }
 }
 
 /** Patch the Sign-Off document Version wherever it appears (running header + §1 "Document Version"
@@ -469,7 +175,10 @@ function showDocBanner(w: Window, message: string, bg: string) {
 
 /** Inject the in-window action bar (Save in edit mode + Print + Close) and set the sheet's
  *  editability. Removes the template's own toolbar so there's exactly one. */
-function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLButtonElement) => void, lockTemplate = false) {
+function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLButtonElement) => void, lockTemplate = false, fileBase = "Document") {
+  // Drives the PDF file name: browser "Save as PDF" uses the document <title>; the download fallback
+  // uses the same base. Set here (after the doc HTML is written) so it wins over the template's title.
+  try { w.document.title = fileBase; } catch { /* window closed */ }
   const doc = w.document;
   doc.querySelectorAll(".indus-toolbar, .toolbar").forEach((e) => e.remove());
   doc.querySelectorAll(".sheet").forEach((s) => {
@@ -522,8 +231,11 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
       const blob = await clientDocsApi.renderPdfFromHtml(cleanDocHtml(w));
       if (blob) {
         const url = URL.createObjectURL(blob);
-        if (pv) { pv.location.href = url; }
-        else { const a = document.createElement("a"); a.href = url; a.download = "SignOff.pdf"; document.body.appendChild(a); a.click(); a.remove(); }
+        // SAVE the clean PDF as "<Kick-Off|Sign-Off> - <Client>.pdf" (the request — a blob-URL preview
+        // can't carry a filename, so we download it explicitly) …
+        const a = document.createElement("a"); a.href = url; a.download = `${fileBase}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+        // … and still show it in the (synchronously-opened) preview tab so it can be viewed / printed.
+        if (pv) { try { pv.location.href = url; } catch { /* */ } }
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } else {
         if (pv) { try { pv.close(); } catch { /* */ } }
@@ -535,7 +247,6 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     } finally { try { printBtn.textContent = orig; printBtn.disabled = false; } catch { /* */ } }
   };
   bar.appendChild(printBtn);
-  // "Save as Word" button intentionally not shown in the viewer toolbar (per request).
   bar.appendChild(mk("✕  Close", "#5b6b73", () => w.close()));
   doc.body.insertBefore(bar, doc.body.firstChild);
 
@@ -584,9 +295,13 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     // "+ Add Row" (top-right of the table) + a per-row Delete (✕) button. Both are UI-only helpers:
     // hidden in print and stripped from the saved/serialized HTML (see cleanDocHtml). Data operation
     // → everyone. Used by Sign-Off's §6 Pending Items Register and Kick-Off's Agreed Customizations.
-    const wireRowEditing = (tbl: HTMLTableElement, newRowInner: string) => {
+    const wireRowEditing = (tbl: HTMLTableElement, newRowInner: string, opts?: { numbered?: boolean }) => {
       const dataRows = () => [...tbl.rows].filter((r) => !r.classList.contains("h"));
-      const renumber = () => dataRows().forEach((r, i) => { const c = r.cells[0]; if (c) c.textContent = String(i + 1); });
+      // Only auto-renumber tables whose first column is a serial number (No. / S.N.). Tables whose
+      // first column holds real data (e.g. Module-Wise Training → Module name) pass numbered:false.
+      const renumber = opts?.numbered === false
+        ? () => {}
+        : () => dataRows().forEach((r, i) => { const c = r.cells[0]; if (c) c.textContent = String(i + 1); });
       const addDelCell = (tr: HTMLTableRowElement) => {
         const td = tr.insertCell(-1);
         td.className = "indus-delcell";
@@ -639,6 +354,20 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
     if (ct) wireRowEditing(ct,
       `<td class="c"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td>`);
 
+    // Kick-Off §2 Module-Wise Training Owners (Module / Department / In Scope ✓ / Responsible User / Contact No. / Target Days)
+    // First column is the Module NAME (not a serial) → numbered:false so existing module names aren't overwritten.
+    let mt = doc.getElementById("moduleTrainingTable") as HTMLTableElement | null;
+    if (!mt) {
+      // Fallback for docs saved before the id existed: the first table after the heading.
+      const h = [...doc.querySelectorAll("h3")].find((e) => /module-?wise training/i.test(e.textContent || ""));
+      let n = h?.nextElementSibling ?? null;
+      while (n && n.tagName !== "TABLE") n = n.nextElementSibling;
+      mt = (n as HTMLTableElement | null) ?? null;
+    }
+    if (mt) wireRowEditing(mt,
+      `<td class="fill"></td><td class="fill"></td><td class="c"><input type="checkbox"></td><td class="fill"></td><td class="fill"></td><td class="c fill"></td>`,
+      { numbered: false });
+
     // §8 Support Email — multi-select dropdown (options built in fetchFilledTemplate from the
     // active Support-role users). Only present on a fresh fill; stripped from saved/printed HTML,
     // leaving the comma-separated selection as plain text (.ms-display). Wire the toggle + sync here.
@@ -690,7 +419,7 @@ function injectDocToolbar(w: Window, mode: "edit" | "view", onSave?: (btn: HTMLB
 /** Kick-Off placeholders. Auto-filled from the SAME live data source as Sign-Off (control DB +
  *  client DB + app DB via /api/signoff-data) when available, falling back to the client's own
  *  fields so the document still opens meaningfully. documentCode uses the KO- prefix (not CLS-). */
-const kickoffFields = (c: CustomerDetail, d?: SignoffData | null, version = "1.0"): [string, string][] => {
+const kickoffFields = (c: CustomerDetail, d?: SignoffData | null, version = "1.0"): [string, string, boolean?][] => {
   const g = (v?: string | null) => (v ?? "").toString();
   const code = (c.companyUniqueCode ?? "").trim();
   return [
@@ -702,9 +431,14 @@ const kickoffFields = (c: CustomerDetail, d?: SignoffData | null, version = "1.0
     ["address", g(d?.address) || (c.address ?? "")],
     ["city", g(d?.city) || (c.city ?? "")],
     ["gstin", c.gstin ?? ""],
+    // §1 Project Information — single row, comma-separated as entered.
     ["email", c.email ?? ""],
     ["contactPerson", g(d?.contactPerson)],
     ["mobile", c.mobile ?? ""],
+    // §2 SPOC table — each comma-separated value on its own line (raw <br> HTML).
+    ["emailLines", escLines(c.email), true],
+    ["contactPersonLines", escLines(d?.contactPerson), true],
+    ["mobileLines", escLines(c.mobile), true],
     ["implEngineer", g(d?.implementationEngineer)],
     ["implEngineerMobile", g(d?.implementationEngineerMobile)],
   ];
@@ -928,8 +662,10 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
     if (!f.companyName?.trim()) { setFormErr("Client Name is required."); return; }
     if (!f.companyUserID?.trim()) { setFormErr("Company Login Name is required."); return; }
     if (/\s/.test(f.companyUserID)) { setFormErr("Login Name must not contain spaces."); return; }
-    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) { setFormErr("Enter a valid email."); return; }
-    if (f.mobile && !/^\d+$/.test(String(f.mobile))) { setFormErr("Mobile must be numeric."); return; }
+    // Email / Mobile accept MULTIPLE comma-separated values (each must be individually valid) — the
+    // Kick-Off doc then lists each on its own line.
+    if (f.email && f.email.split(",").map((e) => e.trim()).filter(Boolean).some((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) { setFormErr("Enter a valid email (comma-separate multiple)."); return; }
+    if (f.mobile && String(f.mobile).split(",").map((m) => m.trim()).filter(Boolean).some((m) => !/^\d+$/.test(m))) { setFormErr("Mobile must be numeric (comma-separate multiple)."); return; }
     setSaving(true); setFormErr(null);
     try {
       const res = await customersApi.update({ ...f, erpSubscriptionPeriod: erpPeriod || null, cloudSubscriptionPeriod: cloudPeriod || null });
@@ -1169,7 +905,11 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       setTimeout(() => {
         try {
           if (liveVersion) patchDocVersion(w.document, liveVersion);
-          injectDocToolbar(w, mode, mode === "edit" ? (btn) => saveFromWindow(w, docType, btn) : undefined, docType === "SignOff" && !canEditSignoffTemplate);
+          // PDF / tab name = "<Kick-Off|Sign-Off> - <Client Name>" (filename-safe).
+          const docLabel = docType === "SignOff" ? "Sign-Off" : "Kick-Off";
+          const clientNm = (c?.companyName || docClientCode || "Client").toString().replace(/[\\/:*?"<>|]+/g, " ").trim();
+          const fileBase = `${docLabel} - ${clientNm}`;
+          injectDocToolbar(w, mode, mode === "edit" ? (btn) => saveFromWindow(w, docType, btn) : undefined, docType === "SignOff" && !canEditSignoffTemplate, fileBase);
           w.focus();
         } catch { /* window closed */ }
       }, 0);
@@ -1188,23 +928,6 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (e) { setFlash("Download failed: " + e); }
-  };
-
-  /** Download the saved doc as an EDITABLE Word file (.doc) — opens in MS Word so the user can
-   *  edit and re-save (as .docx). Rendered off-screen first so computed styles + the logo carry over. */
-  const downloadWordDoc = async (docType: ClientDocType) => {
-    try {
-      const r = await clientDocsApi.get(docClientCode, docType);
-      if (!r?.success || !r.data) { setFlash("No saved document to download."); return; }
-      const stamp = String(r.data.updatedAt || r.data.savedAt || "").slice(0, 10);
-      const base = `${docType}_${docClientCode}${stamp ? "_" + stamp : ""}`;
-      setFlash("Preparing Word file…");
-      // Exact look first (server screenshot → images). If the server has no renderer, fall back to the
-      // editable HTML-flatten so a Word file still downloads.
-      const ok = await downloadWordExact(r.data.htmlContent, base);
-      if (!ok) await downloadHtmlAsWordHiFi(r.data.htmlContent, base);
-      setFlash(null);
-    } catch (e) { setFlash("Word download failed: " + e); }
   };
 
   /** Download as PDF. Prefers the SERVER-rendered PDF (headless print with
@@ -1322,7 +1045,6 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
                   <div onClick={() => setDlMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
                   <div style={{ position: "absolute", top: "calc(100% + 4px)", left: "50%", transform: "translateX(-50%)", zIndex: 41, background: T.surface, border: `1px solid ${T.bd}`, borderRadius: 9, boxShadow: "0 10px 30px rgba(0,0,0,.16)", overflow: "hidden", minWidth: 184 }}>
                     <button onClick={() => { setDlMenu(null); downloadPdf(docType); }} style={dlItemCss}><FileDown size={15} style={{ color: "#c0392b" }} /> Download as PDF</button>
-                    <button onClick={() => { setDlMenu(null); downloadWordDoc(docType); }} style={{ ...dlItemCss, borderTop: `1px solid ${T.bd}` }}><FileText size={15} style={{ color: "#2b579a" }} /> Download as Word</button>
                     <button onClick={() => { setDlMenu(null); downloadSavedDoc(docType); }} style={{ ...dlItemCss, borderTop: `1px solid ${T.bd}` }}><FileCode size={15} style={{ color: T.primary }} /> Download as HTML</button>
                   </div>
                 </>
