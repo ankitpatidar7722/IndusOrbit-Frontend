@@ -56,12 +56,32 @@ export const dynamicFieldMasterApi = {
     return res.json();
   },
 
-  /** Copy the ticked fields from Source into the client DB (soft-delete the unticked ones). */
+  /** ADD / REMOVE only — copy the ticked fields from Source into the client (soft-delete the unticked);
+   *  existing fields' draw order is NOT changed (new fields append at the end). */
   sync: async (type: FieldMasterType, groupId: number, syncData: FieldComparison[], targetCompany: string): Promise<void> => {
     const res = await fetch(`${BASE}/bulk/api/module/SyncFieldsForClient`, {
       method: "POST",
       headers: bulkHeaders(targetCompany, { "Content-Type": "application/json" }),
       body: JSON.stringify({ Type: type, GroupId: groupId, SyncData: syncData }),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  },
+
+  /** The CLIENT's own fields for a group (destination DB), ordered by FieldDrawSequence — for the Change
+   *  Sequence screen (includes fields the client has that the Source does not). */
+  clientFields: async (type: FieldMasterType, groupId: number, targetCompany: string): Promise<FieldComparison[]> => {
+    const res = await fetch(`${BASE}/bulk/api/module/ClientFieldsForClient?type=${encodeURIComponent(type)}&groupId=${groupId}`,
+      { cache: "no-store", headers: bulkHeaders(targetCompany) });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    return res.json();
+  },
+
+  /** REORDER only — persist the given field order as each field's FieldDrawSequence in the client. */
+  saveSequence: async (type: FieldMasterType, groupId: number, orderedFields: FieldComparison[], targetCompany: string): Promise<void> => {
+    const res = await fetch(`${BASE}/bulk/api/module/SaveFieldSequenceForClient`, {
+      method: "POST",
+      headers: bulkHeaders(targetCompany, { "Content-Type": "application/json" }),
+      body: JSON.stringify({ Type: type, GroupId: groupId, SyncData: orderedFields }),
     });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   },

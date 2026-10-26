@@ -3,7 +3,7 @@
 import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Row } from '@tanstack/react-table'
 import { CellRenderer } from '../cells/CellRenderer'
 
@@ -97,7 +97,7 @@ export function DraggableRow<TData>({
           {...listeners}
         >
           <div className="w-full h-full flex items-center justify-center">
-            <GripVertical className="h-4 w-4 text-gray-400" />
+            <Menu className="h-4 w-4 text-gray-500" />
           </div>
         </td>
       )}
