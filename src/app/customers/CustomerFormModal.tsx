@@ -8,7 +8,7 @@ import { customersApi, type CustomerDetail, type SubscriptionSave } from "@/lib/
 import MessageFormatPopup from "./MessageFormatPopup";
 import DateField from "@/components/DateField";
 
-const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact"];
+const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact", "EstimoFlexo"];
 const STATUS_OPTIONS = ["Active", "Expired"];
 const toDateInput = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : "");
 

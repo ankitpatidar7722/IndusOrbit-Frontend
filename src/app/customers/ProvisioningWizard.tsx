@@ -17,7 +17,7 @@ import { api } from "@/lib/api";
 import CrmClientPickerModal from "./CrmClientPickerModal";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
 
-const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact"];
+const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact", "EstimoFlexo"];
 const BACKUP_TYPES = ["Offset", "Flexo", "Rotogravure"];
 
 // CRM's "Indus Product" is free text (e.g. "Indas Print ERP - Estimo", "Indus Print - Web",
@@ -30,6 +30,7 @@ function guessApplication(indasProduct?: string | null): string {
   if (p.includes("multiunit") || p.includes("multi unit")) return "multiunit";
   if (p.includes("coreasy")) return "Coreasy";
   if (p.includes("estimoreact") || p.includes("estimo react")) return "EstimoReact";
+  if (p.includes("estimoflexo") || p.includes("estimo flexo")) return "EstimoFlexo";
   if (p.includes("estimo") && !p.includes("desktop")) return "estimoprime";
   return "";
 }
@@ -488,6 +489,8 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {T("Pincode", company.pincode, (v) => setCompany((p) => ({ ...p, pincode: v })), { type: "numeric" })}
           {T("Mobile No", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })), { type: "tel" })}
           {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })), { type: "email" })}
+          {T("Website", company.website, (v) => setCompany((p) => ({ ...p, website: v })))}
+          {T("State TIN No", company.stateTinNo, (v) => setCompany((p) => ({ ...p, stateTinNo: v })))}
           {T("PAN", company.pan, (v) => setCompany((p) => ({ ...p, pan: v })))}
           {T("Prod. Unit Name", company.productionUnitName, (v) => setCompany((p) => ({ ...p, productionUnitName: v })))}
         </div>
@@ -532,11 +535,11 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         const creds: [string, string][] = [
           ["Company Name", (sub.companyName as string) || setup?.clientName || "—"],
           ["URL", loginUrl],
-          // EstimoReact logs in with the Company Code; the other apps use the Company Login Name.
-          isReact
-            ? ["Company Code", (sub.companyCode as string) || "—"]
-            : ["Company Login Name", done.companyUserID || "—"],
-          ["Password", done.password || "—"],
+          // EstimoReact logs in with the Company Code only (no company-level password); the other apps
+          // use the Company Login Name + its password.
+          ...(isReact
+            ? [["Company Code", (sub.companyCode as string) || "—"] as [string, string]]
+            : [["Company Login Name", done.companyUserID || "—"], ["Password", done.password || "—"]] as [string, string][]),
           ["User Name", done.userName || "—"],
           ["Password", done.userPassword || "—"],
         ];
