@@ -39,30 +39,35 @@ export interface FieldComparison {
 const bulkHeaders = (targetCompany: string, extra?: Record<string, string>): Record<string, string> =>
   ({ "X-Target-Company": targetCompany ?? "", ...userIdHeader(), ...(extra || {}) });
 
+// sourceCompany (optional) = another CLIENT's CompanyUserID to read the fields FROM; "" = the Indus
+// template (default). Destination stays the X-Target-Company client.
+const srcQuery = (sourceCompany?: string) => (sourceCompany ? `&sourceCompany=${encodeURIComponent(sourceCompany)}` : "");
+
 export const dynamicFieldMasterApi = {
-  /** Sub Module dropdown values — the chosen master's groups (from the Source catalog). */
-  subModules: async (type: FieldMasterType, targetCompany: string): Promise<FieldSubModule[]> => {
-    const res = await fetch(`${BASE}/bulk/api/module/FieldSubModules?type=${encodeURIComponent(type)}`,
+  /** Sub Module dropdown values — the chosen master's groups (from the template, or the source client). */
+  subModules: async (type: FieldMasterType, targetCompany: string, sourceCompany?: string): Promise<FieldSubModule[]> => {
+    const res = await fetch(`${BASE}/bulk/api/module/FieldSubModules?type=${encodeURIComponent(type)}${srcQuery(sourceCompany)}`,
       { cache: "no-store", headers: bulkHeaders(targetCompany) });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
     return res.json();
   },
 
-  /** The selected group's fields (Source), each flagged by whether it also exists in the client DB. */
-  comparison: async (type: FieldMasterType, groupId: number, targetCompany: string): Promise<FieldComparison[]> => {
-    const res = await fetch(`${BASE}/bulk/api/module/FieldComparisonForClient?type=${encodeURIComponent(type)}&groupId=${groupId}`,
+  /** The selected group's fields (from the template, or the source client), each flagged by whether it
+   *  also exists in the destination client DB. */
+  comparison: async (type: FieldMasterType, groupId: number, targetCompany: string, sourceCompany?: string): Promise<FieldComparison[]> => {
+    const res = await fetch(`${BASE}/bulk/api/module/FieldComparisonForClient?type=${encodeURIComponent(type)}&groupId=${groupId}${srcQuery(sourceCompany)}`,
       { cache: "no-store", headers: bulkHeaders(targetCompany) });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
     return res.json();
   },
 
-  /** ADD / REMOVE only — copy the ticked fields from Source into the client (soft-delete the unticked);
-   *  existing fields' draw order is NOT changed (new fields append at the end). */
-  sync: async (type: FieldMasterType, groupId: number, syncData: FieldComparison[], targetCompany: string): Promise<void> => {
+  /** ADD / REMOVE only — copy the ticked fields from the Source (template or source client) into the
+   *  destination client (soft-delete the unticked); existing fields' draw order is NOT changed. */
+  sync: async (type: FieldMasterType, groupId: number, syncData: FieldComparison[], targetCompany: string, sourceCompany?: string): Promise<void> => {
     const res = await fetch(`${BASE}/bulk/api/module/SyncFieldsForClient`, {
       method: "POST",
       headers: bulkHeaders(targetCompany, { "Content-Type": "application/json" }),
-      body: JSON.stringify({ Type: type, GroupId: groupId, SyncData: syncData }),
+      body: JSON.stringify({ Type: type, GroupId: groupId, SyncData: syncData, SourceCompany: sourceCompany || null }),
     });
     if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   },

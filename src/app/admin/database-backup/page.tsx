@@ -1,11 +1,11 @@
 "use client";
 import KDropdown from "@/components/KDropdown";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Page, Button } from "indas-ui";
-import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Page, Button, Input, Tabs } from "indas-ui";
+import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateCcw, Server, User, KeyRound, PlugZap, History, X } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { customersApi, type CustomerCard } from "@/lib/customers";
-import { databaseBackupApi } from "@/lib/databaseBackup";
+import { databaseBackupApi, type ServerDatabase, type SavedServer } from "@/lib/databaseBackup";
 import { useInProgressNavGuard } from "@/hooks/useInProgressNavGuard";
 import LeaveGuardDialog from "@/components/LeaveGuardDialog";
 
@@ -24,12 +24,37 @@ const DEFAULT_PRODUCT = "estimoprime";
 const dbNameOf = (c: CustomerCard): string => (c.databaseName ?? "").trim();
 
 type Phase = "idle" | "running" | "done" | "error";
+type Mode = "client" | "server";
+
+const MODE_TABS = [
+  { id: "client", label: "By Client" },
+  { id: "server", label: "By Server" },
+];
 
 export default function DatabaseBackupPage() {
   const [clients, setClients] = useState<CustomerCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<string>(DEFAULT_PRODUCT);
   const [clientId, setClientId] = useState<string>("");
+
+  // "By Server" mode: typed credentials (kept only in page state, never stored) -> that server's databases.
+  const [mode, setMode] = useState<Mode>("client");
+  const [server, setServer] = useState("");
+  const [serverUser, setServerUser] = useState("");
+  const [serverPassword, setServerPassword] = useState("");
+  const [serverDbs, setServerDbs] = useState<ServerDatabase[] | null>(null);
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbError, setDbError] = useState("");
+  const [dbName, setDbName] = useState("");
+  // Server history (per user, newest first) + "Remember password" (stored encrypted on the server;
+  // the password itself never comes back to the browser — usingSaved tells the API to use it).
+  const [savedServers, setSavedServers] = useState<SavedServer[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [usingSaved, setUsingSaved] = useState(false);
+
+  const refreshSaved = () => databaseBackupApi.savedServers().then(setSavedServers).catch(() => {});
+  useEffect(() => { refreshSaved(); }, []);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [percent, setPercent] = useState(0);       // displayed % (eased toward the backend target)
@@ -90,6 +115,80 @@ export default function DatabaseBackupPage() {
     return `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}${db ? ` (${db})` : ""}`;
   }, [clients, clientId]);
 
+  const serverCreds = () => ({
+    server: server.trim(),
+    userId: serverUser.trim(),
+    password: serverPassword,
+    remember,
+    useSaved: usingSaved && !serverPassword,
+  });
+  const canConnect = !!server.trim() && !!serverUser.trim() && (!!serverPassword || usingSaved);
+
+  const suggestions = useMemo(() => {
+    const q = server.trim().toLowerCase();
+    return savedServers.filter((s) => !q || s.server.toLowerCase().includes(q));
+  }, [savedServers, server]);
+
+  // Picking a saved server fills its User ID; a saved password is used without showing it.
+  const pickSaved = (s: SavedServer) => {
+    setServer(s.server);
+    setServerUser(s.userId ?? "");
+    setServerPassword("");
+    setUsingSaved(s.hasPassword);
+    setRemember(s.hasPassword);
+    setShowSuggest(false);
+    setServerDbs(null);
+    setDbName("");
+    setDbError("");
+    reset();
+  };
+
+  const forgetSaved = async (s: SavedServer) => {
+    try {
+      await databaseBackupApi.forgetServer(s.server);
+      setSavedServers((list) => list.filter((x) => x.server !== s.server));
+      if (s.server === server.trim()) { setUsingSaved(false); setRemember(false); }
+    } catch { /* keep the list as is */ }
+  };
+
+  // Any credential edit invalidates the loaded list (it belonged to the previous server/login).
+  const editCred = (setter: (v: string) => void) => (v: string) => {
+    setter(v);
+    setUsingSaved(false);
+    setServerDbs(null);
+    setDbName("");
+    setDbError("");
+    reset();
+  };
+
+  const loadServerDatabases = async () => {
+    if (!canConnect || dbLoading) return;
+    setDbLoading(true);
+    setDbError("");
+    setServerDbs(null);
+    setDbName("");
+    reset();
+    try {
+      setServerDbs(await databaseBackupApi.serverDatabases(serverCreds()));
+      refreshSaved();
+    } catch (e) {
+      setDbError(e instanceof Error ? e.message : "Could not load databases from this server.");
+    } finally {
+      setDbLoading(false);
+    }
+  };
+
+  const dbOptions = useMemo(
+    () => (serverDbs ?? []).map((d) => ({
+      value: d.name,
+      label: `${d.name}${d.sizeMB ? ` (${d.sizeMB >= 1024 ? `${(d.sizeMB / 1024).toFixed(1)} GB` : `${d.sizeMB} MB`})` : ""}`,
+    })),
+    [serverDbs]
+  );
+
+  const selected = mode === "client" ? clientId : dbName;
+  const headingLabel = mode === "client" ? selectedLabel : `${dbName} (${server.trim()})`;
+
   const stopTimers = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     if (easeRef.current) { clearInterval(easeRef.current); easeRef.current = null; }
@@ -106,7 +205,7 @@ export default function DatabaseBackupPage() {
   };
 
   const startBackup = async () => {
-    if (!clientId || phase === "running") return;
+    if (!selected || phase === "running") return;
     setPhase("running");
     setPercent(0);
     targetRef.current = 3;
@@ -123,7 +222,9 @@ export default function DatabaseBackupPage() {
 
     let operationId = "";
     try {
-      const res = await databaseBackupApi.start(clientId);
+      const res = mode === "client"
+        ? await databaseBackupApi.start(clientId)
+        : await databaseBackupApi.startServer(serverCreds(), dbName);
       operationId = res.operationId;
     } catch (e) {
       stopTimers();
@@ -198,7 +299,83 @@ export default function DatabaseBackupPage() {
         <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>Database Backup</h1>
       </div>
 
+      {/* Mode switch */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+        <div style={busy ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
+          <Tabs tabs={MODE_TABS} activeTab={mode} onTabChange={(id: string) => { setMode(id as Mode); reset(); }} variant="rounded" size="sm" />
+        </div>
+      </div>
+
+      {mode === "server" && (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ width: 240, maxWidth: "100%", position: "relative" }}>
+            <label style={fieldLabel}><Server size={15} /> Server Name</label>
+            <Input value={server} onChange={(e) => { editCred(setServer)(e.target.value); setShowSuggest(true); }}
+              onFocus={() => setShowSuggest(true)} onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+              placeholder="e.g. 13.200.122.70,1433" autoComplete="off" disabled={busy} />
+            {showSuggest && suggestions.length > 0 && (
+              <div style={suggestBox}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "rgb(var(--fg-muted))", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                  <History size={12} /> Recent servers
+                </div>
+                {suggestions.map((s) => (
+                  <div key={s.server} style={suggestRow}
+                    onMouseDown={(e) => { e.preventDefault(); pickSaved(s); }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgb(var(--bg-muted, 241 245 249))"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-default))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.server}</div>
+                      <div style={{ fontSize: 11, color: "rgb(var(--fg-muted))" }}>
+                        {s.userId || "—"}{s.hasPassword ? " · password saved" : ""}
+                      </div>
+                    </div>
+                    <button type="button" title="Remove from recent servers"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); forgetSaved(s); }}
+                      style={{ border: "none", background: "transparent", cursor: "pointer", color: "rgb(var(--fg-muted))", padding: 4, display: "inline-flex" }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ width: 170, maxWidth: "100%" }}>
+            <label style={fieldLabel}><User size={15} /> User ID</label>
+            <Input value={serverUser} onChange={(e) => editCred(setServerUser)(e.target.value)} placeholder="e.g. sa" autoComplete="off" disabled={busy} />
+          </div>
+          <div style={{ width: 170, maxWidth: "100%" }}>
+            <label style={fieldLabel}><KeyRound size={15} /> Password</label>
+            <Input type="password" value={serverPassword} onChange={(e) => editCred(setServerPassword)(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") loadServerDatabases(); }} autoComplete="new-password"
+              placeholder={usingSaved ? "Saved password" : ""} disabled={busy} />
+            <label style={{ position: "absolute", marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#334155", cursor: "pointer", userSelect: "none" }}>
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={busy}
+                style={{ accentColor: "rgb(var(--color-primary))", width: 14, height: 14, cursor: "pointer" }} />
+              Remember password
+            </label>
+          </div>
+          <Button onClick={loadServerDatabases} size="md" icon={PlugZap} disabled={!canConnect || dbLoading || busy}>
+            {dbLoading ? "Connecting…" : "Show Databases"}
+          </Button>
+          {serverDbs && (
+            <div style={{ width: 340, maxWidth: "100%" }}>
+              <label style={fieldLabel}><Database size={15} /> Database ({serverDbs.length})</label>
+              <KDropdown
+                value={dbName}
+                onValueChange={(v) => { setDbName(String(v)); reset(); }}
+                options={dbOptions}
+                placeholder={dbOptions.length ? "— Select a database —" : "No databases found"}
+                searchable
+                size="md"
+                disabled={busy}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Product + Client pickers */}
+      {mode === "client" && (
       <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
@@ -234,17 +411,27 @@ export default function DatabaseBackupPage() {
         </div>
       </div>
 
-      {loading ? (
+      )}
+
+      {mode === "client" && loading ? (
         <BrandedLoader size="md" text="Loading clients…" />
-      ) : !clientId ? (
+      ) : mode === "server" && dbError ? (
+        <div style={{ maxWidth: 620, margin: "10px auto", display: "flex", alignItems: "center", gap: 10, color: "#dc2626", fontSize: 14, fontWeight: 600, justifyContent: "center" }}>
+          <AlertCircle size={18} /> {dbError}
+        </div>
+      ) : !selected ? (
         <div style={{ padding: "40px 0", textAlign: "center", color: "rgb(var(--fg-muted))", fontSize: 14 }}>
-          Select a product and client above to download a database backup.
+          {mode === "client"
+            ? "Select a product and client above to download a database backup."
+            : serverDbs
+              ? "Select a database above to download its backup."
+              : "Enter the server name, User ID and Password, then click Show Databases."}
         </div>
       ) : (
         <div style={{ maxWidth: 620, margin: "0 auto", background: "rgb(var(--bg-surface))", border: "1px solid rgb(var(--border-default))", borderRadius: 16, padding: 26, boxShadow: "0 4px 20px -12px rgba(0,0,0,.25)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "rgb(var(--fg-default))", marginBottom: 4 }}>{selectedLabel}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "rgb(var(--fg-default))", marginBottom: 4 }}>{headingLabel}</div>
           <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", marginBottom: 20 }}>
-            A fresh compressed backup of this client&apos;s database will be prepared and downloaded to your machine as a .zip file.
+            A fresh compressed backup of this {mode === "client" ? "client’s " : ""}database will be prepared and downloaded to your machine as a .zip file.
           </div>
 
           {/* Idle → the action button */}
@@ -311,3 +498,16 @@ export default function DatabaseBackupPage() {
     </Page>
   );
 }
+
+const suggestBox: CSSProperties = {
+  position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 50, maxHeight: 280, overflowY: "auto",
+  background: "rgb(var(--bg-surface, 255 255 255))", border: "1px solid rgb(var(--border-default, 226 232 240))",
+  borderRadius: 10, boxShadow: "0 10px 28px -10px rgba(0,0,0,.28)", padding: "4px 0",
+};
+const suggestRow: CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "7px 10px", cursor: "pointer",
+};
+
+const fieldLabel: CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6,
+};
