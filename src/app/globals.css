@@ -280,8 +280,11 @@ button:not(:disabled):not([aria-disabled="true"]),
   .app-frame { max-width: 100vw; overflow-x: hidden; }
 
   /* Every modal/dialog fits the phone: pinned just BELOW the header and just ABOVE the bottom nav,
-     8px side margins, and scrolls internally if taller. No overlap with the header or bottom nav. */
-  [role="dialog"] {
+     8px side margins, and scrolls internally if taller. No overlap with the header or bottom nav.
+     NOT the Modules bottom sheet: it is a dialog too, but it must sit on the bottom edge and slide up
+     (this rule pinned it under the header and its transform:none killed the slide).
+     :where() keeps the specificity at (0,1,0), so the phone full-page form rule still wins. */
+  [role="dialog"]:not(:where(.phone-modules-sheet)) {
     position: fixed !important;
     top: 62px !important;
     bottom: auto !important;
