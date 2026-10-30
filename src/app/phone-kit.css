@@ -1,0 +1,313 @@
+/* ==========================================================================
+   PHONE APP KIT (ported from IndusFlexoERP) — floating glass bottom bar, Modules
+   sheet, phone Home (components/phone/*, components/BottomNav.tsx).
+   Glass = neutral grey frosted tint + fine grain + light top edge. Bar/sheet/glass
+   rules live under max-width:1023px (the bar is hidden ≥ lg), the Home only renders
+   below 768px (app/page.tsx) → desktop is untouched. Imported by globals.css.
+   ========================================================================== */
+.m-app-icon {
+  position: relative;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  --a1: oklch(0.72 0.03 260); --a2: oklch(0.54 0.035 262);
+  background-image: linear-gradient(160deg, var(--a1), var(--a2));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.38), inset 0 -1px 0 rgb(0 0 0 / 0.08), 0 3px 8px -3px rgb(15 23 42 / 0.35);
+}
+/* OKLCH palette: equal visual weight per tile, lighter top + a small analogous hue shift to the bottom. */
+.m-app-icon[data-tone="blue"]   { --a1: oklch(0.74 0.15 240); --a2: oklch(0.57 0.21 262); }
+.m-app-icon[data-tone="teal"]   { --a1: oklch(0.82 0.13 180); --a2: oklch(0.63 0.13 200); }
+.m-app-icon[data-tone="orange"] { --a1: oklch(0.82 0.15 70);  --a2: oklch(0.67 0.20 42); }
+.m-app-icon[data-tone="violet"] { --a1: oklch(0.73 0.17 310); --a2: oklch(0.55 0.23 292); }
+.m-app-icon[data-tone="green"]  { --a1: oklch(0.83 0.18 145); --a2: oklch(0.64 0.17 158); }
+.m-app-icon[data-tone="amber"]  { --a1: oklch(0.88 0.16 95);  --a2: oklch(0.75 0.17 68); }
+.m-app-icon[data-tone="red"]    { --a1: oklch(0.73 0.18 12);  --a2: oklch(0.60 0.22 25); }
+.m-app-icon[data-tone="indigo"] { --a1: oklch(0.70 0.15 275); --a2: oklch(0.52 0.21 268); }
+.dark .m-app-icon {
+  filter: saturate(0.9) brightness(0.94);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 3px 8px -3px rgb(0 0 0 / 0.6);
+}
+
+/* Skeleton sweep on the grey glass. */
+.m-skel {
+  background-image: linear-gradient(90deg, rgb(var(--fg-default) / 0.07) 25%, rgb(var(--fg-default) / 0.13) 50%, rgb(var(--fg-default) / 0.07) 75%);
+  background-size: 200% 100%;
+  animation: m-skel-sweep 1.4s ease-in-out infinite;
+}
+@keyframes m-skel-sweep { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes today-spin { to { transform: rotate(360deg); } }
+.today-spin { animation: today-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .m-skel, .today-spin { animation: none; } }
+
+@media (max-width: 1023px) {
+  /* --- Glass materials --- */
+  .m-glass-bar {
+    background: linear-gradient(180deg, rgb(232 233 238 / 0.66), rgb(214 216 223 / 0.58));
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    border: 2px solid rgb(15 23 42);
+    box-shadow:
+      0 14px 34px -14px rgb(15 23 42 / 0.34),
+      0 3px 8px -3px rgb(15 23 42 / 0.12),
+      inset 0 1px 0 rgb(255 255 255 / 0.75),
+      inset 0 -1px 0 rgb(15 23 42 / 0.06);
+  }
+  .m-glass-bar::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0) 55%);
+  }
+  /* Frosted grain — a tiny tiled noise so the glass has texture instead of a flat tint. */
+  .m-glass-bar::after, .m-glass-card::after, .m-glass-sheet::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    opacity: 0.07; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .dark .m-glass-bar {
+    background: linear-gradient(180deg, rgb(64 66 74 / 0.62), rgb(44 46 52 / 0.56));
+    border-color: rgb(255 255 255 / 0.12);
+    box-shadow: 0 16px 36px -12px rgb(0 0 0 / 0.75), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  }
+  .dark .m-glass-bar::before { background: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 55%); }
+
+  .m-glass-card {
+    position: relative;
+    background: linear-gradient(180deg, rgb(236 237 242 / 0.62), rgb(222 224 230 / 0.54));
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgb(255 255 255 / 0.6);
+    box-shadow: 0 10px 28px -16px rgb(15 23 42 / 0.30), inset 0 1px 0 rgb(255 255 255 / 0.7);
+  }
+  .dark .m-glass-card {
+    background: linear-gradient(180deg, rgb(58 60 68 / 0.55), rgb(42 44 50 / 0.5));
+    border-color: rgb(255 255 255 / 0.1);
+    box-shadow: 0 10px 28px -16px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+
+  .m-glass-sheet {
+    background: linear-gradient(180deg, rgb(238 239 243 / 0.92), rgb(226 228 234 / 0.94));
+    -webkit-backdrop-filter: blur(30px) saturate(170%);
+    backdrop-filter: blur(30px) saturate(170%);
+    border-top: 1px solid rgb(255 255 255 / 0.7);
+    box-shadow: 0 -12px 40px -12px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.85);
+  }
+  .dark .m-glass-sheet {
+    background: linear-gradient(180deg, rgb(52 54 61 / 0.92), rgb(38 40 46 / 0.94));
+    border-top-color: rgb(255 255 255 / 0.12);
+    box-shadow: 0 -12px 40px -12px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.1);
+  }
+  .m-glass-well { background: rgb(255 255 255 / 0.55); border: 1px solid rgb(255 255 255 / 0.7); }
+  .dark .m-glass-well { background: rgb(255 255 255 / 0.07); border-color: rgb(255 255 255 / 0.1); }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .m-glass-bar, .m-glass-card { background: rgb(226 228 234); }
+    .dark .m-glass-bar, .dark .m-glass-card { background: rgb(48 50 56); }
+    .m-glass-sheet { background: rgb(232 233 238); }
+    .dark .m-glass-sheet { background: rgb(44 46 52); }
+  }
+
+  /* Selected bottom-bar tab: solid theme-colour pill (light top edge + soft glow). Dark: a tonal container. */
+  .m-nav-pill {
+    background-image: linear-gradient(150deg, rgb(var(--color-primary-muted)), rgb(var(--color-primary)) 55%, rgb(var(--color-primary-hover)));
+    box-shadow: 0 6px 14px -5px rgb(var(--color-primary) / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+  .dark { --m-nav-pill-dark: color-mix(in srgb, rgb(var(--color-primary)) 55%, rgb(78 80 90)); }
+  .dark .m-nav-pill {
+    background-image: none;
+    background-color: var(--m-nav-pill-dark);
+    box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.14);
+  }
+
+  /* --- Modules sheet --- */
+  .phone-sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / 0.38); }
+  .dark .phone-sheet-backdrop { background: rgb(0 0 0 / 0.55); }
+  .phone-modules-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+    display: flex; flex-direction: column;
+    /* the bar (z 62) floats over the sheet's bottom; the body's bottom padding clears it */
+    height: calc(min(78dvh, 720px) + 86px + env(safe-area-inset-bottom, 0px));
+    max-width: 640px; margin: 0 auto;
+    border-radius: 24px 24px 0 0;
+    color: rgb(var(--fg-default));
+  }
+  .phone-modules-sheet > * { position: relative; z-index: 1; }
+  .phone-sheet-title {
+    flex: 1; min-width: 0; margin: 0;
+    font-size: 19px; line-height: 24px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .phone-icon-btn {
+    display: grid; place-content: center; flex-shrink: 0;
+    width: 40px; height: 40px; border: none; border-radius: 999px;
+    background: transparent; color: rgb(var(--fg-default) / 0.7); cursor: pointer;
+  }
+  .phone-icon-btn:active { background: rgb(var(--fg-default) / 0.06); }
+  .phone-search {
+    display: flex; align-items: center; gap: 10px;
+    height: 48px; padding: 0 14px; border-radius: 16px;
+    color: rgb(var(--fg-default));
+  }
+  .phone-search input {
+    flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+    font-size: 16px;              /* 16px: iOS does not zoom the page on focus */
+    color: rgb(var(--fg-default));
+  }
+  .phone-search input::placeholder { color: rgb(var(--fg-default) / 0.5); }
+  .phone-search-clear {
+    display: grid; place-content: center; width: 28px; height: 28px; border: none; border-radius: 999px;
+    background: rgb(var(--fg-default) / 0.1); color: rgb(var(--fg-default) / 0.7); cursor: pointer;
+  }
+  .phone-sheet-body {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 2px 12px calc(98px + env(safe-area-inset-bottom, 0px));
+  }
+  .phone-sheet-empty { margin: 0; padding: 40px 12px; text-align: center; font-size: 14px; color: rgb(var(--fg-default) / 0.6); }
+  .phone-sheet-caption {
+    margin: 0; padding: 0 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: rgb(var(--fg-default) / 0.55);
+  }
+  .phone-app-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; row-gap: 6px; }
+  .phone-app-tile {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px;
+    min-height: 92px; padding: 10px 2px 8px; border: none; border-radius: 16px;
+    background: transparent; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .phone-app-tile:active { background: rgb(var(--fg-default) / 0.05); }
+  .phone-app-tile[data-here] { background: rgb(255 255 255 / 0.6); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8); }
+  .dark .phone-app-tile[data-here] { background: rgb(255 255 255 / 0.08); box-shadow: none; }
+  .phone-app-label {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    width: 100%; padding: 0 2px; font-size: 12px; line-height: 15px; font-weight: 500;
+    color: rgb(var(--fg-default));
+  }
+  .phone-app-tile[data-here] .phone-app-label { font-weight: 600; color: rgb(var(--color-primary)); }
+  .dark .phone-app-tile[data-here] .phone-app-label { color: rgb(var(--fg-default)); }
+  .phone-here-dot {
+    position: absolute; right: -3px; top: -3px; width: 12px; height: 12px; border-radius: 999px;
+    border: 2px solid #fff; background: rgb(var(--color-primary));
+  }
+  .dark .phone-here-dot { border-color: rgb(46 48 54); background: rgb(var(--fg-default)); }
+  .phone-leaf-row {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px;
+    padding: 8px; border: none; border-radius: 12px; background: transparent; text-align: left; cursor: pointer;
+  }
+  .phone-leaf-row:active { background: rgb(var(--fg-default) / 0.05); }
+  .phone-leaf-row[data-active] { background: rgb(var(--color-primary) / 0.08); }
+  .phone-leaf-title {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 15px; line-height: 20px; font-weight: 500; color: rgb(var(--fg-default));
+  }
+  .phone-leaf-sub {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 12.5px; line-height: 17px; color: rgb(var(--fg-default) / 0.6);
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .phone-app-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* --- Phone Home (rendered on "/" only below 768px — app/page.tsx) --- */
+.phone-home { position: relative; isolation: isolate; min-height: 100%; overflow-x: clip; color: rgb(var(--fg-default)); }
+.phone-home-backdrop {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    radial-gradient(70% 40% at 10% 0%, rgb(255 255 255 / 0.55), transparent 70%),
+    radial-gradient(60% 45% at 100% 30%, rgb(var(--fg-default) / 0.07), transparent 70%),
+    radial-gradient(70% 45% at 0% 85%, rgb(var(--fg-default) / 0.06), transparent 70%),
+    linear-gradient(180deg, rgb(var(--fg-default) / 0.04), rgb(var(--fg-default) / 0.08));
+}
+.dark .phone-home-backdrop {
+  background-image:
+    radial-gradient(70% 40% at 10% 0%, rgb(255 255 255 / 0.035), transparent 70%),
+    radial-gradient(60% 45% at 100% 30%, rgb(var(--fg-default) / 0.035), transparent 70%),
+    linear-gradient(180deg, rgb(var(--fg-default) / 0.015), rgb(var(--fg-default) / 0.035));
+}
+.phone-home-inner { display: flex; flex-direction: column; gap: 20px; padding: 18px 16px 20px; }
+.phone-greet-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: -0.005em;
+  color: rgb(var(--fg-default) / 0.62);
+}
+.phone-greet-name {
+  display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 30px; line-height: 36px; font-weight: 800; letter-spacing: -0.035em;
+  color: rgb(var(--fg-default));
+}
+.phone-status-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.phone-status-tile {
+  display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
+  height: 84px; padding: 12px; border-radius: 18px; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
+}
+.phone-status-tile > * { position: relative; z-index: 1; }
+.phone-status-tile:active { transform: scale(0.96); }
+.phone-status-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12.5px; line-height: 16px; font-weight: 600; color: rgb(var(--fg-default) / 0.62);
+}
+.phone-section-title {
+  margin: 0; padding: 0 4px 10px;
+  font-size: 19px; line-height: 24px; font-weight: 700; letter-spacing: -0.01em; color: rgb(var(--fg-default));
+}
+.phone-quick-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; row-gap: 18px;
+  padding: 18px 8px; border-radius: 20px;
+}
+.phone-quick-item {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0;
+  text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
+}
+.phone-quick-item:active { transform: scale(0.94); }
+.phone-quick-label {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  width: 100%; padding: 0 2px; text-align: center;
+  font-size: 12px; line-height: 15px; font-weight: 500; color: rgb(var(--fg-default));
+}
+.phone-dash-row {
+  display: flex; gap: 10px; margin: 0 -16px; padding: 0 16px 6px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.phone-dash-row::-webkit-scrollbar { display: none; }
+.phone-dash-card {
+  display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0;
+  width: 136px; height: 112px; padding: 14px; border-radius: 20px; scroll-snap-align: start;
+  text-decoration: none; transition: transform 0.12s;
+}
+.phone-dash-card > * { position: relative; z-index: 1; }
+.phone-dash-card:active { transform: scale(0.97); }
+.phone-dash-title {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14.5px; line-height: 19px; font-weight: 600; color: rgb(var(--fg-default));
+}
+.phone-dash-sub { display: block; font-size: 12px; line-height: 16px; color: rgb(var(--fg-default) / 0.62); }
+
+/* --- Today widget (calendar tile + flip clock + weather) --- */
+.today-card { display: flex; align-items: center; flex-shrink: 0; gap: 9px; padding: 9px; border-radius: 20px; }
+.today-card > * { position: relative; z-index: 1; }
+.today-ink { color: rgb(var(--fg-default)); }
+.today-ink2 { color: rgb(var(--fg-default) / 0.62); }
+.today-trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-cal {
+  flex-shrink: 0; width: 46px; overflow: hidden; text-align: center; border-radius: 12px; perspective: 300px;
+  background: #fff; box-shadow: 0 6px 12px -8px rgb(15 23 42 / 0.5), inset 0 0 0 1px rgb(15 23 42 / 0.06);
+}
+.dark .today-cal { background: rgb(58 60 68); }
+.today-cal-month {
+  height: 16px; font-size: 10.5px; line-height: 16px; font-weight: 600; color: #fff;
+  background-image: linear-gradient(180deg, rgb(var(--color-error) / 0.85), rgb(var(--color-error)));
+}
+.today-cal-day {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  font-size: 23px; line-height: 1; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  transform-origin: 50% 0%; color: rgb(var(--fg-default));
+}
+.today-cal-weekday { padding-bottom: 5px; font-size: 9.5px; line-height: 11px; font-weight: 600; color: rgb(var(--fg-default) / 0.62); }
+.today-flip {
+  position: relative; display: inline-block; overflow: hidden; width: 17px; height: 25px; border-radius: 5px; perspective: 300px;
+  color: #fff; background-image: linear-gradient(180deg, rgb(58 60 68), rgb(36 38 44));
+  box-shadow: 0 6px 12px -8px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.14);
+}
+.today-flip-digit {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  font-size: 16px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; backface-visibility: hidden;
+}
+.today-flip-fold { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgb(0 0 0 / 0.45); }
