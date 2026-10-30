@@ -338,6 +338,75 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   .phone-topbar-avatar img { width: 100%; height: 100%; object-fit: cover; }
 }
 
+/* --- Phone permission cards (components/phone/PermissionCards — User Master → Modules on a phone). --- */
+.pmc { display: flex; flex-direction: column; gap: 12px; color: rgb(var(--fg-default)); }
+.pmc-search {
+  display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px 0 14px;
+  border-radius: 14px; border: 1px solid rgb(var(--fg-default) / 0.16); background: rgb(var(--bg-surface));
+}
+.pmc-search:focus-within { border-color: rgb(var(--color-primary)); }
+.pmc-search input { flex: 1; min-width: 0; height: auto !important; min-height: 0 !important; padding: 0 !important; border: none !important; outline: none; background: transparent; font-size: 16px !important; color: rgb(var(--fg-default)); box-shadow: none !important; }
+.pmc-filters { display: flex; align-items: center; gap: 8px; }
+.pmc-chips { display: flex; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.pmc-chips::-webkit-scrollbar { display: none; }
+.pmc-chip {
+  flex: 0 0 auto; height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgb(var(--fg-default) / 0.16); background: rgb(var(--bg-surface));
+  font-size: 14px; font-weight: 600; color: rgb(var(--fg-default));
+}
+.pmc-chip[data-on] { border-color: transparent; background: rgb(var(--color-primary)); color: rgb(var(--color-primary-foreground)); }
+.pmc-total { flex-shrink: 0; font-size: 14px; color: rgb(var(--fg-default) / 0.62); font-variant-numeric: tabular-nums; }
+.pmc-total b { color: rgb(var(--color-primary)); }
+.pmc-empty { padding: 28px 8px; text-align: center; font-size: 14px; color: rgb(var(--fg-default) / 0.6); }
+.pmc-card {
+  overflow: hidden; border-radius: 16px; background: rgb(var(--bg-surface));
+  border: 0.5px solid rgb(var(--fg-default) / 0.16);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 10px -2px rgb(15 23 42 / 0.08);
+}
+.pmc-head {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px;
+  border: none; background: transparent; text-align: left; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent;
+}
+.pmc-head:active { background: rgb(var(--fg-default) / 0.05); }
+.pmc-head-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 22px; font-weight: 600; }
+.pmc-head-sub { display: block; margin-top: 2px; font-size: 12.5px; line-height: 17px; color: rgb(var(--fg-default) / 0.62); }
+.pmc-dot { flex: none; width: 10px; height: 10px; border-radius: 999px; background: rgb(var(--color-primary)); }
+.pmc-dot[data-state="none"] { background: rgb(var(--fg-default) / 0.2); }
+.pmc-dot[data-state="all"] { background: rgb(var(--color-success)); }
+.pmc-chevron { flex: none; color: rgb(var(--fg-default) / 0.62); transition: transform 0.18s; }
+.pmc-chevron[data-open] { transform: rotate(180deg); }
+.pmc-body { border-top: 1px solid rgb(var(--fg-default) / 0.1); }
+.pmc-every {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 8px 0 16px;
+  background: rgb(var(--fg-default) / 0.045); font-size: 14px; font-weight: 500; color: rgb(var(--fg-default) / 0.62);
+}
+.pmc-every button { min-height: 40px; padding: 0 8px; border: none; border-radius: 999px; background: transparent; font-size: 14px; font-weight: 600; color: rgb(var(--color-primary)); cursor: pointer; }
+.pmc-row { padding: 6px 16px 14px; }
+.pmc-row + .pmc-row { border-top: 1px solid rgb(var(--fg-default) / 0.1); }
+.pmc-row-head { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 6px; }
+.pmc-row-name { flex: 1; min-width: 0; font-size: 15px; line-height: 20px; font-weight: 600; }
+.pmc-count {
+  flex: none; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: rgb(var(--color-primary)); background: rgb(var(--color-primary) / 0.1);
+}
+.pmc-count[data-state="none"] { color: rgb(var(--fg-default) / 0.62); background: rgb(var(--fg-default) / 0.06); }
+.pmc-count[data-state="all"] { color: rgb(var(--color-success)); background: rgb(var(--color-success) / 0.12); }
+.pmc-flags { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pmc-flag {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgb(var(--fg-default) / 0.2); background: rgb(var(--bg-surface)); color: rgb(var(--fg-default));
+  font-size: 14px; font-weight: 500; text-align: left; -webkit-tap-highlight-color: transparent;
+}
+.pmc-flag:disabled { opacity: 0.5; }
+.pmc-flag[data-on] { border-color: rgb(var(--color-primary) / 0.45); background: rgb(var(--color-primary) / 0.08); color: rgb(var(--color-primary)); }
+.dark .pmc-flag[data-on] { color: rgb(var(--fg-default)); }
+.pmc-box {
+  display: grid; place-content: center; flex: none; width: 20px; height: 20px; border-radius: 6px;
+  border: 2px solid rgb(var(--fg-default) / 0.32); color: rgb(var(--color-primary-foreground));
+}
+.pmc-flag[data-on] .pmc-box { border-color: transparent; background: rgb(var(--color-primary)); }
+.pmc-flag-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* --- Phone profile card (components/phone/ProfileCard, IndusFlexoERP style) over a dimmed screen. --- */
 .pc-backdrop { position: fixed; inset: 0; z-index: 80; background: rgb(0 0 0 / 0.38); animation: pc-fade 0.16s ease-out; }
 .dark .pc-backdrop { background: rgb(0 0 0 / 0.55); }

@@ -9,6 +9,7 @@ import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Ital
 import { PERMISSION_CATALOG, clearUserPermissionsCache } from "@/lib/featurePermissions";
 import { insertImageFile } from "@/lib/imageEmbed";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { PermissionCards } from "@/components/phone/PermissionCards";
 // Full-featured grid migrated from the legacy Parkson project (owned source).
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import {
@@ -99,48 +100,26 @@ const ModuleMatrix = forwardRef<ModuleMatrixHandle, { userId: number; blankPerms
 
   if (loading) return <div style={{ padding: 34, textAlign: "center", opacity: 0.6 }}>Loading modules…</div>;
 
-  // ── Mobile: a 760px-wide checkbox matrix is unusable on a phone. Render each module as a card
-  //    with a row "All" toggle + the 7 permissions as wrapped, labelled chips (2 per row). ──
+  // ── Phone: a 760px-wide checkbox matrix is unusable — IndusFlexoERP's PermissionCards instead: one
+  //    collapsible card per module head, each module's flags as tick boxes (3 a row) + an All switch,
+  //    search and All / Granted / Not granted filters. Same rows, same save (the modal footer). ──
   if (isMobile) {
+    const indexOf = (r: ModuleAuthRow) => rows.indexOf(r);
     return (
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap", rowGap: 8 }}>
-          <Badge variant="info">{grantedCount}/{rows.length} modules granted</Badge>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer" }}>
-            <input type="checkbox" style={cbx} checked={allOn} onChange={(e) => setAll(e.target.checked)} /> Select everything
-          </label>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "56vh", overflowY: "auto", paddingRight: 2 }}>
-          {rows.map((r, i) => (
-            <div key={r.moduleID} style={{ border: "1px solid #e6ebf2", borderRadius: 11, padding: 12, background: "rgb(var(--bg-surface))" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  {r.moduleHeadName && <div style={{ fontSize: 10.5, fontWeight: 700, color: "rgb(var(--fg-subtle))", letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 2 }}>{r.moduleHeadName}</div>}
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{r.moduleDisplayName || r.moduleName}</div>
-                </div>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: rowAllOn(r) ? "rgb(var(--color-primary))" : "rgb(var(--fg-muted))", cursor: "pointer", flexShrink: 0 }}>
-                  <input type="checkbox" style={cbx} checked={rowAllOn(r)} onChange={(e) => setRowAll(i, e.target.checked)} /> All
-                </label>
-              </div>
-              {/* flex-wrap (not grid) so the [role=dialog] "1fr 1fr" stacking catch-all can't collapse
-                  this to one column — we want 2 perm chips per row here. */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                {PERMS.map((p) => {
-                  const on = r[p.key];
-                  return (
-                    <label key={p.key} style={{ flex: "1 1 42%", minWidth: 0, display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 9px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 600,
-                      border: `1px solid ${on ? "rgb(var(--color-primary))" : "#dce3ec"}`,
-                      background: on ? "color-mix(in srgb, rgb(var(--color-primary)) 10%, transparent)" : "transparent",
-                      color: on ? "rgb(var(--color-primary))" : "rgb(var(--fg-muted))" }}>
-                      <input type="checkbox" style={cbx} checked={on} onChange={(e) => setCell(i, p.key, e.target.checked)} /> {p.label}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))", marginTop: 8 }}>Tip: “Can View” controls whether the module appears in the user’s sidebar.</div>
+        <PermissionCards<ModuleAuthRow>
+          rows={rows}
+          getId={(r) => String(r.moduleID)}
+          getGroup={(r) => r.moduleHeadName || undefined}
+          getLabel={(r) => r.moduleDisplayName || r.moduleName}
+          flags={PERMS.map((p) => ({
+            key: p.key,
+            label: p.label.replace(/^Can /, ""),
+            value: (r: ModuleAuthRow) => !!r[p.key],
+            onChange: (r: ModuleAuthRow, next: boolean) => setCell(indexOf(r), p.key, next),
+          }))}
+        />
+        <div style={{ fontSize: 12.5, color: "rgb(var(--fg-subtle))", marginTop: 12 }}>Tip: “View” controls whether the module appears in the user’s menu.</div>
       </div>
     );
   }
