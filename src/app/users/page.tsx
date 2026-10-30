@@ -420,16 +420,18 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                     .map((g) => ({ ...g, perms: g.perms.filter((p) => !q || p.label.toLowerCase().includes(q) || g.category.toLowerCase().includes(q)) }))
                     .filter((g) => g.perms.length > 0);
                   if (!groups.length) return <div className="pmc-empty">No permission matches that search.</div>;
+                  // Layout is inline (not only the pf-* classes) so the rows hold their shape even when the dev
+                  // server serves a stale CSS chunk.
                   return groups.map((g) => (
                     <section key={g.category}>
-                      <div className="pf-group-head">
+                      <div className="pf-group-head" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", margin: "16px 2px 8px", fontSize: 16, fontWeight: 700, color: "rgb(var(--fg-default))" }}>
                         <span>{g.category}</span>
-                        <span className="pf-group-count">{g.perms.filter((p) => permKeys.includes(p.key)).length} on</span>
+                        <span className="pf-group-count" style={{ fontSize: 13, fontWeight: 600, color: "rgb(var(--color-primary))" }}>{g.perms.filter((p) => permKeys.includes(p.key)).length} on</span>
                       </div>
-                      <div className="pf-card">
-                        {g.perms.map((p) => (
-                          <div key={p.key} className="pf-row">
-                            <span className="pf-row-label">{p.label}</span>
+                      <div className="pf-card" style={{ overflow: "hidden", borderRadius: 16, background: "rgb(var(--bg-surface))", border: "0.5px solid rgb(var(--fg-default) / 0.16)", boxShadow: "0 1px 2px rgb(15 23 42 / 0.06)" }}>
+                        {g.perms.map((p, i) => (
+                          <div key={p.key} className="pf-row" style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 56, padding: "8px 12px 8px 16px", borderTop: i ? "1px solid rgb(var(--fg-default) / 0.08)" : undefined }}>
+                            <span className="pf-row-label" style={{ flex: 1, minWidth: 0, fontSize: 15, lineHeight: "20px", fontWeight: 500, color: "rgb(var(--fg-default))" }}>{p.label}</span>
                             <input type="checkbox" role="switch" className="st-switch" aria-label={p.label}
                               checked={permKeys.includes(p.key)} onChange={() => togglePerm(p.key)} />
                           </div>
