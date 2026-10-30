@@ -505,15 +505,8 @@ button:not(:disabled):not([aria-disabled="true"]),
   .mp-filters > label > * { flex: 1; width: 100% !important; min-width: 0 !important; }
 }
 
-/* ---- Create Client wizard (custom overlay, NOT role=dialog) — bound to the header→nav band on
-   phones and stack its 3-col field grids to one column. ---- */
-@media (max-width: 640px) {
-  .provision-overlay { padding: 62px 8px 70px !important; place-items: stretch !important; }
-  .provision-panel { width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 12px !important; }
-  .provision-panel [style*="1fr 1fr"],
-  .provision-panel [style*="repeat(2"],
-  .provision-panel [style*="repeat(3"] { grid-template-columns: 1fr !important; }
-}
+/* ---- Create Client wizard (custom overlay, NOT role=dialog): phone layout lives in phone-kit.css
+   (search "Create Client wizard"). ---- */
 
 /* ---- Client detail (ClientDetailBody) SectionCard grids: cols=3/4/5/6 on desktop cram badly on a
    phone (labels wrap char-by-char). Force 2 comfortable columns on mobile (values are short: dates,

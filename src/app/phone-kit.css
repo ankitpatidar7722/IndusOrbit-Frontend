@@ -250,6 +250,57 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   }
 }
 
+/* --- Create Client wizard (ProvisioningWizard — a custom portal overlay, NOT role=dialog) on a phone:
+   the same full-page form as every other phone form — over the app header + bottom bar, a compact
+   header (title · step, ✕) with the 5 steps on ONE sideways-scrolling row, 48px / 16px fields, and a
+   footer of a small Back / Cancel + one wide primary action. --- */
+@media (max-width: 768px) {
+  /* Its own z-index (90) already covers the header (30) and bottom bar (62) — not raised, so the
+     wizard's dropdown / date popovers keep opening above it. */
+  .provision-overlay { padding: 0 !important; place-items: stretch !important; }
+  .provision-panel {
+    width: 100% !important; height: 100dvh !important; max-height: none !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  .pw-head {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px 16px !important;
+    gap: 8px 10px !important; flex-wrap: wrap !important;
+  }
+  .pw-head-icon { display: none !important; }
+  .pw-head-title { min-width: 0 !important; order: 1; }
+  .pw-head-title > div:first-child { font-size: 17px !important; }
+  .pw-close { order: 2; width: 40px !important; height: 40px !important; border-radius: 999px !important; }
+  .pw-steps {
+    order: 3; width: 100%; flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -12px 0 -16px; padding: 2px 12px 2px 16px; scroll-snap-type: x proximity;
+  }
+  .pw-steps::-webkit-scrollbar { display: none; }
+  .pw-steps > button { flex: 0 0 auto; padding: 7px 12px !important; font-size: 13px !important; scroll-snap-align: start; }
+  .pw-body { padding: 16px 16px 20px !important; }
+  .pw-intro { padding: 10px 12px !important; gap: 10px !important; margin-bottom: 16px !important; }
+  /* Stack every multi-column field grid to one column. */
+  .provision-panel [style*="1fr 1fr"],
+  .provision-panel [style*="repeat(2"],
+  .provision-panel [style*="repeat(3"],
+  .provision-panel [style*="repeat(4"] { grid-template-columns: 1fr !important; }
+  /* Fields: 48px, 16px text (no iOS focus zoom), 12px corners; labels readable. */
+  .pw-body label { font-size: 14px !important; font-weight: 600 !important; color: rgb(var(--fg-default)) !important; margin-bottom: 6px !important; }
+  .pw-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .pw-body select,
+  .pw-body button[role="combobox"] { min-height: 48px !important; font-size: 16px !important; border-radius: 12px !important; }
+  .pw-body textarea { font-size: 16px !important; border-radius: 12px !important; }
+  /* Footer: Back / Cancel compact on the left, the step's action fills the rest. */
+  .pw-foot {
+    gap: 10px !important; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    background: rgb(var(--bg-surface)) !important;
+  }
+  .pw-back { flex: 0 0 auto; height: 52px; padding: 0 16px !important; border-radius: 14px !important; font-size: 15px !important; }
+  .pw-next {
+    flex: 1 1 0; min-width: 0; height: 52px; justify-content: center;
+    padding: 0 14px !important; border-radius: 14px !important; font-size: 16px !important; line-height: 20px;
+  }
+}
+
 /* Skeleton sweep on the grey glass. */
 .m-skel {
   background-image: linear-gradient(90deg, rgb(var(--fg-default) / 0.07) 25%, rgb(var(--fg-default) / 0.13) 50%, rgb(var(--fg-default) / 0.07) 75%);

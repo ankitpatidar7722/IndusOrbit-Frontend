@@ -6,6 +6,7 @@ import { Input } from "indas-ui";
 import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2, Loader2, ArrowRight, ArrowRightLeft } from "lucide-react";
 import { useInProgressNavGuard } from "@/hooks/useInProgressNavGuard";
 import LeaveGuardDialog from "@/components/LeaveGuardDialog";
+import { useBackGuard } from "@/lib/back-stack";
 import { customersApi } from "@/lib/customers";
 import {
   provisioningApi, generateDatabaseName,
@@ -303,6 +304,10 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
     </div>
   );
 
+  // Android / browser Back: a step back (step 1 → close), like the footer's Back / Cancel. Ignored while
+  // a save / database creation runs — the back stack then keeps the wizard open (re-armed).
+  useBackGuard(isOpen, () => { if (!workingNow) (step > 1 ? go(step - 1) : onClose()); });
+
   if (!isOpen || typeof document === "undefined") return null;
   const meta = STEP_META[step];
   return createPortal(
@@ -311,13 +316,14 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         <style>{`@keyframes pm-spin{to{transform:rotate(360deg)}} .pm-spin{animation:pm-spin 1s linear infinite}`}</style>
 
         {/* premium gradient header + step pills */}
-        <div style={{ background: "linear-gradient(100deg,color-mix(in srgb, rgb(var(--color-primary)) 75%, black),rgb(var(--color-primary)) 52%,color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", padding: "15px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,.16)", display: "grid", placeItems: "center", flexShrink: 0 }}><Database size={20} /></div>
-          <div style={{ flex: 1, minWidth: 170 }}>
+        {/* pw-* classes: the phone layout (phone-kit.css) — compact header, steps on one scrolling row. */}
+        <div className="pw-head" style={{ background: "linear-gradient(100deg,color-mix(in srgb, rgb(var(--color-primary)) 75%, black),rgb(var(--color-primary)) 52%,color-mix(in srgb, rgb(var(--color-primary)) 60%, white))", color: "#fff", padding: "15px 20px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div className="pw-head-icon" style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,.16)", display: "grid", placeItems: "center", flexShrink: 0 }}><Database size={20} /></div>
+          <div className="pw-head-title" style={{ flex: 1, minWidth: 170 }}>
             <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.2 }}>Complete Company Setup</div>
             <div style={{ fontSize: 12, opacity: 0.82, marginTop: 1 }}>{step <= 5 ? `Step ${step} of 5 · ${meta?.title ?? ""}` : "Setup complete"}</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div className="pw-steps" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             {STEPS.map((s) => {
               const active = step === s.n, doneStep = step > s.n;
               return (
@@ -332,7 +338,7 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
               );
             })}
           </div>
-          <button onClick={() => { if (!workingNow) onClose(); }} disabled={workingNow} title={workingNow ? "Please wait…" : "Close"}
+          <button className="pw-close" aria-label="Close" onClick={() => { if (!workingNow) onClose(); }} disabled={workingNow} title={workingNow ? "Please wait…" : "Close"}
             style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "rgba(255,255,255,.16)", color: "#fff", cursor: workingNow ? "not-allowed" : "pointer", opacity: workingNow ? 0.45 : 1, display: "grid", placeItems: "center", flexShrink: 0 }}><X size={17} /></button>
         </div>
 
@@ -345,9 +351,9 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         )}
 
         {/* scrollable body */}
-        <div style={{ padding: "18px 22px 20px", overflowY: "auto", flex: 1 }}>
+        <div className="pw-body" style={{ padding: "18px 22px 20px", overflowY: "auto", flex: 1 }}>
           {step <= 5 && meta && (
-            <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 15px", background: "linear-gradient(180deg,#f4f8fd,#eef4fb)", border: "1px solid #dfeaf6", borderRadius: 13, marginBottom: 18 }}>
+            <div className="pw-intro" style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 15px", background: "linear-gradient(180deg,#f4f8fd,#eef4fb)", border: "1px solid #dfeaf6", borderRadius: 13, marginBottom: 18 }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: "#e2edfa", color: "rgb(var(--color-primary))", display: "grid", placeItems: "center", flexShrink: 0 }}><meta.icon size={19} /></div>
               <div>
                 <div style={{ fontSize: 14.5, fontWeight: 800, color: "rgb(var(--fg-default))" }}>{meta.title}</div>
@@ -579,12 +585,12 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
 
         {/* footer */}
         {step <= 5 && (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 22px", borderTop: "1px solid #eef1f6", background: "rgb(var(--bg-subtle))", flexShrink: 0 }}>
-            <button onClick={() => { if (!workingNow) (step > 1 ? go(step - 1) : onClose()); }} disabled={workingNow}
+          <div className="pw-foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 22px", borderTop: "1px solid #eef1f6", background: "rgb(var(--bg-subtle))", flexShrink: 0 }}>
+            <button className="pw-back" onClick={() => { if (!workingNow) (step > 1 ? go(step - 1) : onClose()); }} disabled={workingNow}
               style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-muted))", border: "1px solid #d7deea", borderRadius: 10, padding: "9px 18px", fontSize: 14, fontWeight: 600, cursor: workingNow ? "not-allowed" : "pointer", opacity: workingNow ? 0.55 : 1 }}>
               {step > 1 ? <ChevronLeft size={16} /> : <X size={15} />} {step > 1 ? "Back" : "Cancel"}
             </button>
-            <button disabled={workingNow} onClick={() => {
+            <button className="pw-next" disabled={workingNow} onClick={() => {
                 if (step === 1 && dbCreated) { go(2); return; }   // DB already made → just continue (no re-create)
                 [step1, step2, step3, step4, step5][step - 1]();
               }}
