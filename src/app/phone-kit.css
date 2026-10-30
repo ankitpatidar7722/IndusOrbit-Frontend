@@ -351,6 +351,10 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   .phone-topbar-menu button.danger { color: rgb(var(--color-error)); }
 }
 
+/* Safety net: a phone screen never scrolls sideways — a too-wide child must not shift the whole page
+   left (the Settings → Notifications bug). Wide grids/tables keep their own inner scroll. */
+@media (max-width: 768px) { .app-frame main { overflow-x: hidden; } }
+
 /* --- Phone Settings (app/settings/SettingsPhone.tsx, IndusFlexoERP style): account card, search,
    grouped rows with a round tinted icon + summary + chevron, Gestures switches. --- */
 .st-home { max-width: 720px; margin: 0 auto; padding: 4px 0 24px; color: rgb(var(--fg-default)); }

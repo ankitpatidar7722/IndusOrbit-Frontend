@@ -43,7 +43,9 @@ function Row({ icon, title, subtitle, children, tint, stackOnMobile }: { icon: R
         <div style={{ ...iconBox, ...(tint ? { background: `${tint}14`, color: tint } : {}) }}>{icon}</div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: "rgb(var(--fg-default))" }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subtitle}</div>}
+          {/* Phone: the subtitle wraps — a one-line nowrap subtitle set the row's min width and pushed
+              the switch (and the whole page) past the screen edge. */}
+          {subtitle && <div style={{ fontSize: 12, color: "rgb(var(--fg-muted))", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>{subtitle}</div>}
         </div>
       </div>
       <div style={{ flexShrink: 0, ...(stack ? { width: "100%" } : {}) }}>{children}</div>
@@ -366,7 +368,7 @@ export default function SettingsPage() {
 
         {/* content — flex column (not grid) so a wide child (e.g. the 3-col theme presets) can't
             overflow via grid's min-width:auto; children stay bounded to the column width on mobile. */}
-        <div style={{ flex: 1, minWidth: isMobile ? 0 : 320, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ flex: 1, minWidth: isMobile ? 0 : 320, ...(isMobile ? { width: "100%", maxWidth: "100%" } : {}), display: "flex", flexDirection: "column", gap: 16 }}>
           {tab === "profile" && (
             <>
               {/* Profile Information */}
@@ -433,7 +435,7 @@ export default function SettingsPage() {
 
               {/* Email + Password */}
               <Card style={cardStyle}>
-                <CardContent style={{ padding: 22, display: "grid", gap: 20 }}>
+                <CardContent style={{ padding: 22, display: "flex", flexDirection: "column", gap: 20 }}>
                   {/* Email Settings */}
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -448,7 +450,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     {showEmail && (
-                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
+                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "flex", flexDirection: "column", gap: 14 }}>
                         <div style={{ display: "flex", gap: 8 }}>
                           {[["MicrosoftGraph", "Microsoft Graph", Cloud], ["SMTP", "SMTP", Server]].map(([pv, lbl, Ic]) => {
                             const P = Ic as unknown as React.ComponentType<{ size?: number }>; const on = provider === pv;
@@ -487,7 +489,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     {showAi && (
-                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
+                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "flex", flexDirection: "column", gap: 14 }}>
                         <div><label style={label}>Gemini API Key</label><EyeInput value={geminiKey} onChange={setGeminiKey} placeholder={geminiHasKey ? "Enter a new key to replace the current one" : "Paste your Gemini API key"} /></div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ fontSize: 12, color: NAVY, fontWeight: 700 }}>Get a free key ↗</a>
@@ -514,7 +516,7 @@ export default function SettingsPage() {
                       {!showPwd && <button onClick={() => setShowPwd(true)} style={ghostBtn}><KeyRound size={15} /> Reset</button>}
                     </div>
                     {showPwd && (
-                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "grid", gap: 14 }}>
+                      <div style={{ marginTop: 14, padding: 16, background: "rgb(var(--bg-subtle))", borderRadius: 10, border: "1px solid #e6eaf0", display: "flex", flexDirection: "column", gap: 14 }}>
                         <div><label style={label}>Current password</label><EyeInput value={pwd.cur} onChange={(v) => setPwd((p) => ({ ...p, cur: v }))} /></div>
                         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                           <div><label style={label}>New password</label><EyeInput value={pwd.nw} onChange={(v) => setPwd((p) => ({ ...p, nw: v }))} /></div>
@@ -537,7 +539,8 @@ export default function SettingsPage() {
               <CardContent style={{ padding: 22 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15.5, fontWeight: 700, color: "rgb(var(--fg-default))", marginBottom: 4 }}><Bell size={17} /> Notification Preferences</div>
                 <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))", marginBottom: 18 }}>Choose how you want to be notified.</div>
-                <div style={{ display: "grid", gap: 12 }}>
+                {/* flex column, not grid: a grid item's min-width:auto let a long row widen the card. */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
                   <Row icon={<MessageSquare size={18} />} title="Message Notifications" subtitle="Get notified when someone sends you a chat message">
                     <Switch checked={notifSettings.NotifyMessages} onCheckedChange={(v: boolean) => saveNotifSettings({ ...notifSettings, NotifyMessages: v })} />
                   </Row>
