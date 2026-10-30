@@ -18,6 +18,8 @@ import GuideModal from "@/components/GuideModal";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { MessageSquare } from "lucide-react";
 import { bottomNavCandidates, DEFAULT_ITEMS, MAX_BOTTOM_NAV, iconForItem, loadBottomNav, saveBottomNav, type BottomNavStored } from "@/lib/bottomNav";
+import { useBackGuard } from "@/lib/back-stack";
+import { SettingsPhoneHome, SettingsPhoneSectionHeader, GestureSettings, type SettingsSectionId } from "./SettingsPhone";
 
 /* ─── palette ─── */
 const NAVY = "rgb(var(--color-primary))";
@@ -86,7 +88,12 @@ export default function SettingsPage() {
   const themeCtx = useContext(ThemeContext);
   const { isMobile } = useDevice();
 
-  const [tab, setTab] = useState<"profile" | "notifications" | "preferences" | "bottomnav">("profile");
+  const [tab, setTab] = useState<SettingsSectionId>("profile");
+  // Phone: Settings opens on its home list (account card + grouped rows); a row opens one section.
+  const [phoneHome, setPhoneHome] = useState(true);
+  const openSection = (id: SettingsSectionId) => { setTab(id); setPhoneHome(false); };
+  // Android / browser Back from a section returns to the Settings home instead of leaving Settings.
+  useBackGuard(!!isMobile && !phoneHome, () => setPhoneHome(true));
   // Which setup guide the Help popup is showing (null = closed).
   const [guide, setGuide] = useState<{ src: string; title: string } | null>(null);
   // Bottom Navbar (mobile): the user's chosen shortcut items (max 4). Persisted per-user in localStorage.
@@ -306,17 +313,42 @@ export default function SettingsPage() {
 
   const fontScale = themeCtx?.theme.fontScale ?? 100;
 
+  // Modals the page owns — rendered in both the phone home and the section / desktop layout.
+  const pageModals = (
+    <>
+      <AlertComponent />
+      <GuideModal src={guide?.src ?? null} title={guide?.title} onClose={() => setGuide(null)} />
+      <ImageCropModal open={!!cropSrc} imageSrc={cropSrc} onCancel={() => setCropSrc(null)} onCropped={onPhotoCropped} />
+    </>
+  );
+
+  // Phone: the Settings home list (IndusFlexoERP style) until a section is opened.
+  if (isMobile && phoneHome) {
+    return (
+      <>
+        <SettingsPhoneHome onOpen={openSection} onLogout={doLogout}
+          userName={detail?.fullName || su.name} userEmail={detail?.email || su.email}
+          photoUrl={photo ?? (userId ? photoUrl(userId) : null)} />
+        {pageModals}
+      </>
+    );
+  }
+
   return (
-    <div style={{ padding: "8px 0 40px" }}>
-      {/* header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-        <button onClick={() => router.back()} style={{ ...ghostBtn, padding: "8px 12px" }}><ArrowLeft size={16} /> Back</button>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0 }}>Settings</h1>
-      </div>
+    <div style={{ padding: isMobile ? "0 0 40px" : "8px 0 40px" }}>
+      {/* header — phone: the section's ‹ title + one-line description instead (the top bar names the screen) */}
+      {isMobile ? (
+        <SettingsPhoneSectionHeader id={tab} onBack={() => setPhoneHome(true)} />
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+          <button onClick={() => router.back()} style={{ ...ghostBtn, padding: "8px 12px" }}><ArrowLeft size={16} /> Back</button>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0 }}>Settings</h1>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
-        {/* left rail */}
-        <div style={{ ...cardStyle, width: isMobile ? "100%" : 300, flexShrink: 0, padding: 14 }}>
+        {/* left rail — desktop only (a phone opens sections from the Settings home list) */}
+        {!isMobile && <div style={{ ...cardStyle, width: 300, flexShrink: 0, padding: 14 }}>
           {tabs.map((t) => {
             const Icon = t.icon; const active = tab === t.id;
             return (
@@ -330,7 +362,7 @@ export default function SettingsPage() {
           <button onClick={doLogout} style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "12px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, textAlign: "left", background: "transparent", color: "#c0392b" }}>
             <LogOut size={17} /> Logout
           </button>
-        </div>
+        </div>}
 
         {/* content — flex column (not grid) so a wide child (e.g. the 3-col theme presets) can't
             overflow via grid's min-width:auto; children stay bounded to the column width on mobile. */}
@@ -614,6 +646,8 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {tab === "gestures" && <GestureSettings />}
+
           {tab === "bottomnav" && (
             <Card style={cardStyle}>
               <CardContent style={{ padding: 20 }}>
@@ -622,7 +656,7 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ fontSize: 13, color: "rgb(var(--fg-muted))", marginBottom: 16 }}>
                   Choose up to {MAX_BOTTOM_NAV} shortcuts for the mobile bottom bar (tap to add / remove).
-                  A <b>Menu</b> button (opens the full sidebar) is always shown. <b>{navItems.length}/{MAX_BOTTOM_NAV}</b> selected.
+                  A <b>Modules</b> button (opens every module) is always shown. <b>{navItems.length}/{MAX_BOTTOM_NAV}</b> selected.
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                   {(navCandidates.length ? navCandidates : navItems).map((it) => {
@@ -655,9 +689,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-      <AlertComponent />
-      <GuideModal src={guide?.src ?? null} title={guide?.title} onClose={() => setGuide(null)} />
-      <ImageCropModal open={!!cropSrc} imageSrc={cropSrc} onCancel={() => setCropSrc(null)} onCropped={onPhotoCropped} />
+      {pageModals}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin .8s linear infinite}`}</style>
     </div>
   );

@@ -7,6 +7,7 @@ import { Check, LayoutGrid, MoreHorizontal, MoreVertical } from 'lucide-react'
 
 import { Skeleton } from 'indas-ui'
 import { useBackGuard } from '@/lib/back-stack'
+import { buzz, getGesture } from '@/lib/gesturePrefs'
 import { useLanguage } from 'indas-ui'
 
 export type CardSize = 'compact' | 'normal' | 'expanded'
@@ -295,12 +296,13 @@ export function CardView<TData>({
   const hold = useRef<{ timer: number; x: number; y: number; fired: boolean }>(null)
   const cancelHold = () => { if (hold.current) window.clearTimeout(hold.current.timer) }
   const startHold = (e: React.PointerEvent, item: TData) => {
-    if (!onRowSelect || e.button !== 0) return
+    // Settings → Gestures → "Press and hold to select" can switch the hold off.
+    if (!onRowSelect || e.button !== 0 || !getGesture('longPress')) return
     cancelHold()
     const h = { timer: 0, x: e.clientX, y: e.clientY, fired: false }
     h.timer = window.setTimeout(() => {
       h.fired = true
-      try { navigator.vibrate?.(18) } catch { /* no vibration */ }
+      buzz(18)
       handleCheckboxChange(item, !isSelected(item))
     }, 450)
     hold.current = h

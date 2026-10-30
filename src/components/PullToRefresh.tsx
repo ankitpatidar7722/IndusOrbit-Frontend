@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import { getGesture } from "@/lib/gesturePrefs";
 
 /**
  * Native-app "pull down to refresh" for touch devices. Mounted once, globally (inside the app shell).
@@ -54,6 +55,8 @@ export default function PullToRefresh() {
 
     const onStart = (e: TouchEvent) => {
       if (refreshing || e.touches.length !== 1) return;
+      // Settings → Gestures → "Pull down to refresh" switched off.
+      if (!getGesture("pullToRefresh")) { scroller = null; return; }
       // Don't hijack pulls inside an open modal/dialog.
       if (document.querySelector('[role="dialog"]')) { scroller = null; return; }
       startY = e.touches[0].clientY;

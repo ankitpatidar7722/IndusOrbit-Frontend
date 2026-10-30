@@ -4,6 +4,7 @@ import { useState, memo, useCallback, useRef, useEffect, type ReactNode, type To
 import { Reply, Smile, Pencil, Trash2, Copy, Check, CheckCheck, MoreHorizontal, Forward, Pin, Star, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from 'indas-ui'
+import { buzz, getGesture } from '@/lib/gesturePrefs'
 import { parseReactions, parseAttachments } from '@/lib/messaging'
 import type { ChatMessage, ChatReaction, ChatAttachment } from '@/lib/messaging'
 import { getAvatarColor, getInitials, formatClockTime } from './conversation-list'
@@ -115,9 +116,10 @@ export const MessageBubble = memo(function MessageBubble({
   const onSwipeStart = useCallback((e: ReactTouchEvent) => {
     const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, active: false }
     cancelHold()
+    if (!getGesture('longPress')) return   // Settings → Gestures → "Press and hold" off
     holdTimer.current = setTimeout(() => {
       holdTimer.current = null
-      try { navigator.vibrate?.(15) } catch { /* no haptics */ }
+      buzz(15)
       setShowMenu(true); setShowReactionPicker(false)
     }, 500)
   }, [cancelHold])
@@ -125,16 +127,17 @@ export const MessageBubble = memo(function MessageBubble({
     const p = e.touches[0]
     const dx = p.clientX - swipe.current.x, dy = p.clientY - swipe.current.y
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelHold()   // a scroll or swipe is not a hold
+    if (!getGesture('swipeReply')) return                       // Settings → Gestures → "Swipe to reply" off
     if (!swipe.current.active) {
       // only start a swipe once the gesture is clearly horizontal — else let the list scroll vertically
       if (Math.abs(dx) < 10 || Math.abs(dy) > Math.abs(dx)) return
       swipe.current.active = true
     }
     setSwipeX(dx > 0 ? Math.min(dx, SWIPE_MAX) : 0)
-  }, [])
+  }, [cancelHold])
   const onSwipeEnd = useCallback(() => {
     cancelHold()
-    if (swipe.current.active && swipeX >= SWIPE_TRIGGER) { onReply(message); try { navigator.vibrate?.(12) } catch { /* no haptics */ } }
+    if (swipe.current.active && swipeX >= SWIPE_TRIGGER) { onReply(message); buzz(12) }
     swipe.current.active = false
     setSwipeX(0)
   }, [swipeX, onReply, message, cancelHold])
