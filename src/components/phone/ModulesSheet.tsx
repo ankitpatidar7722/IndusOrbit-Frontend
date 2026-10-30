@@ -18,7 +18,7 @@ import { fetchPhoneGroups, type PhoneGroup, type PhoneLeaf } from "@/lib/phoneMo
  * Same DB menu as the sidebar (lib/phoneModules), so permissions are identical. Flick down / backdrop / Esc closes.
  * Phone + tablet only (the bottom bar that opens it is hidden â‰¥ lg).
  */
-export default function ModulesSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function ModulesSheet({ open, onClose, focusSearch = false }: { open: boolean; onClose: () => void; focusSearch?: boolean }) {
   const reduceMotion = useReducedMotion();
   const userId = (useSession().data?.user as { UserID?: number } | undefined)?.UserID;
   const [groups, setGroups] = useState<PhoneGroup[] | null>(null);
@@ -64,14 +64,14 @@ export default function ModulesSheet({ open, onClose }: { open: boolean; onClose
           onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) onClose(); }}
         >
           {/* Mounted per open â†’ every open starts from the group grid with an empty search. */}
-          <SheetContent groups={groups} onClose={onClose} reduceMotion={!!reduceMotion} />
+          <SheetContent groups={groups} onClose={onClose} reduceMotion={!!reduceMotion} focusSearch={focusSearch} />
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-function SheetContent({ groups, onClose, reduceMotion }: { groups: PhoneGroup[] | null; onClose: () => void; reduceMotion: boolean }) {
+function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: PhoneGroup[] | null; onClose: () => void; reduceMotion: boolean; focusSearch: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -122,7 +122,10 @@ function SheetContent({ groups, onClose, reduceMotion }: { groups: PhoneGroup[] 
         <label className="phone-search m-glass-well">
           <Search size={18} style={{ flexShrink: 0, opacity: 0.55 }} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search modules and screens"
-            aria-label="Search modules" enterKeyHint="search" autoComplete="off" />
+            aria-label="Search modules" enterKeyHint="search" autoComplete="off"
+            // Opened from the top bar's Search → type straight away (never on a plain Modules open:
+            // the keyboard would cover the grid the user came to see).
+            autoFocus={focusSearch} />
           {query && (
             <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="phone-search-clear">
               <X size={16} />

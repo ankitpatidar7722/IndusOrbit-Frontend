@@ -22,6 +22,7 @@ import FontLoader from "@/components/FontLoader";
 import { BackStackProvider } from "@/lib/back-stack";
 import DialogBackGuard from "@/components/phone/DialogBackGuard";
 import OfflineBanner from "@/components/phone/OfflineBanner";
+import PhoneTopBar from "@/components/phone/PhoneTopBar";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
 import { ModuleAuthProvider } from "@/contexts/ModuleAuthContext";
 import { suppressBenignIndasUiWarnings } from "@/lib/suppressBenignWarnings";
@@ -77,6 +78,8 @@ function Shell({ children }: { children: React.ReactNode }) {
           {/* 100dvh, not 100vh: on phones 100vh is taller than the visible area while the URL bar shows. */}
           <div className="app-frame" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
             <TopHeader />
+            {/* Below lg the navy header is hidden and this light app bar (screen · Search · Bell · Profile) shows. */}
+            <PhoneTopBar />
             <div style={{ flex: 1, minHeight: 0 }}>
               {/* .app-shell: below lg the sidebar (rail + drawer) is hidden via CSS — phones navigate with the
                   bottom bar + Modules sheet instead. */}

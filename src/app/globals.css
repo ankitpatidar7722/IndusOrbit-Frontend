@@ -344,11 +344,8 @@ button:not(:disabled):not([aria-disabled="true"]),
   }
   .app-frame { background: rgb(var(--bg-app)); }
   .bottom-nav[data-keyboard] { display: none; }   /* keyboard up → no tab bar (BottomNav useKeyboardOpen) */
-  /* viewport-fit=cover: the header grows by the notch / status-bar inset (0 in a normal browser tab). */
-  .app-topbar {
-    padding-top: env(safe-area-inset-top, 0px) !important;
-    height: calc(58px + env(safe-area-inset-top, 0px)) !important;
-  }
+  /* Phones / tablets: the navy desktop header gives way to the light app bar (components/phone/PhoneTopBar). */
+  .app-topbar { display: none !important; }
   /* No sidebar on phones/tablets: AppShell's children are [overlays…, rail, drawer, main column] — keep only
      the main column. Navigation is the bottom bar + Modules sheet. */
   .app-shell > :not(:last-child) { display: none !important; }

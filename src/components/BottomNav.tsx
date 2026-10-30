@@ -10,6 +10,7 @@ import { loadBottomNav, iconForItem, BOTTOM_NAV_EVENT, type BottomNavStored } fr
 import { NavIcon, type NavIconName } from "@/components/phone/NavIcons";
 import ModulesSheet from "@/components/phone/ModulesSheet";
 import { useKeyboardOpen } from "@/components/phone/useKeyboardOpen";
+import { OPEN_MODULE_SEARCH_EVENT } from "@/components/phone/PhoneTopBar";
 
 /**
  * Native-app bottom navigation — mobile/tablet only (hidden ≥ lg via .bottom-nav CSS).
@@ -30,6 +31,14 @@ export default function BottomNav() {
   const chatUnread = state.totalUnreadCount;
   const userId = (useSession().data?.user as { UserID?: number } | undefined)?.UserID;
   const [modulesOpen, setModulesOpen] = useState(false);
+  const [searchFirst, setSearchFirst] = useState(false);   // opened from the top bar's Search
+
+  // Top bar Search → the Modules sheet with its search field focused (finds any module / screen).
+  useEffect(() => {
+    const open = () => { setSearchFirst(true); setModulesOpen(true); };
+    window.addEventListener(OPEN_MODULE_SEARCH_EVENT, open);
+    return () => window.removeEventListener(OPEN_MODULE_SEARCH_EVENT, open);
+  }, []);
 
   const [items, setItems] = useState<BottomNavStored[]>([]);
   useEffect(() => {
@@ -78,7 +87,7 @@ export default function BottomNav() {
 
           {/* Modules — opens the Modules sheet (the full DB menu as an app drawer). */}
           <motion.button type="button" className="bottom-nav-item" data-active={modulesOpen}
-            aria-expanded={modulesOpen} aria-label="Open modules" onClick={() => setModulesOpen((o) => !o)} whileTap={{ scale: 0.92 }}>
+            aria-expanded={modulesOpen} aria-label="Open modules" onClick={() => { setSearchFirst(false); setModulesOpen((o) => !o); }} whileTap={{ scale: 0.92 }}>
             <span className="bottom-nav-icon">
               {modulesOpen && <ActivePill reduceMotion={reduceMotion} />}
               <TabGlyph active={modulesOpen} reduceMotion={reduceMotion}>
@@ -89,7 +98,7 @@ export default function BottomNav() {
           </motion.button>
         </div>
       </nav>
-      <ModulesSheet open={modulesOpen} onClose={() => setModulesOpen(false)} />
+      <ModulesSheet open={modulesOpen} focusSearch={searchFirst} onClose={() => setModulesOpen(false)} />
     </>
   );
 }
