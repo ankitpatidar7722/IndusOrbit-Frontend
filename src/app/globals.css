@@ -4,6 +4,8 @@
 /* Phone app kit (glass bottom bar, Modules sheet, phone Home, forms, settings, bulk import) — ported from IndusFlexoERP.
    (Turbopack dev sometimes keeps serving an old copy of this import — edit globals.css or restart dev.) */
 @import "./phone-kit.css";
+/* Dark-mode safety layer: remaps hardcoded light colours (inline hex, bg-white, text-gray-*) under .dark. */
+@import "./dark-fixes.css";
 
 /* Tailwind v4 defaults the `dark:` variant to the OS `prefers-color-scheme` media query.
    This app toggles dark mode IN-APP via indas-ui's ThemeContext, which adds a `.dark` class
@@ -16,6 +18,16 @@
 @source "../../node_modules/indas-ui/dist";
 
 html, body { height: 100%; }
+
+/* Dark mode base: body had NO text/bg colour, so any text without an explicit colour (indas-ui
+   Dropdown's selected value, plain labels, table text) inherited browser-black → invisible on the
+   dark surfaces. Take both from the theme tokens so they flip with .dark, and tell the browser the
+   scheme so native inputs, date pickers and scrollbars go dark too. */
+body { color: rgb(var(--fg-default)); background: rgb(var(--bg-app)); }
+.dark { color-scheme: dark; }
+.dark input::placeholder, .dark textarea::placeholder { color: rgb(var(--fg-subtle)); }
+.dark input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-"]):not([style*="background"]),
+.dark textarea:not([class*="bg-"]):not([style*="background"]) { background-color: rgb(var(--bg-surface)); color: rgb(var(--fg-default)); }
 
 /* ── Settings → Preferences: make Font Family + Font Size actually apply ──
    indas-ui's ThemeProvider sets --font-family-base and --font-scale as CSS
