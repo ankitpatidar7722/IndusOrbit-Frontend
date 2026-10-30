@@ -9,7 +9,13 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5080";
  * with the EXACT keys indas-ui's API client reads
  * (UserID / CompanyID / ProductionUnitID / FYear / companyUsername / companyPassword)
  * — otherwise its DynamicSidebar fetch throws "please login again".
+ *
+ * SECURITY: the session is readable by any script on the page (/api/auth/session), so the REAL
+ * company API credentials never go into it. indas-ui only needs the two keys to be non-empty (it
+ * builds a Basic header from them that the Indus360 API does not check), so they carry fixed
+ * placeholders instead of the login response's companyUsername / companyPassword.
  */
+const INDAS_UI_CREDENTIAL_PLACEHOLDER = { companyUsername: "indus360", companyPassword: "not-used" };
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   // Route sign-in AND auth errors to our own /login page (the built-in
@@ -48,8 +54,6 @@ export const authOptions: NextAuthOptions = {
           ProductionUnitID: u.productionUnitID,
           FYear: u.fYear,
           Role: u.role,
-          companyUsername: u.companyUsername,
-          companyPassword: u.companyPassword,
         } as unknown as import("next-auth").User;
       },
     }),
@@ -64,8 +68,6 @@ export const authOptions: NextAuthOptions = {
           ProductionUnitID: u.ProductionUnitID,
           FYear: u.FYear,
           Role: u.Role,
-          companyUsername: u.companyUsername,
-          companyPassword: u.companyPassword,
         });
       }
       return token;
@@ -78,8 +80,7 @@ export const authOptions: NextAuthOptions = {
         ProductionUnitID: t.ProductionUnitID,
         FYear: t.FYear,
         Role: t.Role,
-        companyUsername: t.companyUsername,
-        companyPassword: t.companyPassword,
+        ...INDAS_UI_CREDENTIAL_PLACEHOLDER,
       });
       return session;
     },

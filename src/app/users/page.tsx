@@ -8,6 +8,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
 import { PERMISSION_CATALOG } from "@/lib/featurePermissions";
 import { insertImageFile } from "@/lib/imageEmbed";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 // Full-featured grid migrated from the legacy Parkson project (owned source).
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import {
@@ -251,7 +252,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   // (edits are synced back to f.emailSignature on input, so switching tabs is lossless)
   useEffect(() => {
     if (tab === "emails" && sigRef.current && sigRef.current.innerHTML !== (f.emailSignature ?? "")) {
-      sigRef.current.innerHTML = f.emailSignature ?? "";
+      sigRef.current.innerHTML = sanitizeHtml(f.emailSignature);   // another user's stored signature = stored HTML
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);

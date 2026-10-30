@@ -22,7 +22,8 @@ export default function ModulesSheet({ open, onClose }: { open: boolean; onClose
   const userId = (useSession().data?.user as { UserID?: number } | undefined)?.UserID;
   const [groups, setGroups] = useState<PhoneGroup[] | null>(null);
 
-  useEffect(() => { if (userId) fetchPhoneGroups(userId).then(setGroups); }, [userId]);
+  // Load the menu only once the sheet is actually opened (it is mounted on every page, desktop included).
+  useEffect(() => { if (open && userId) fetchPhoneGroups(userId).then(setGroups); }, [open, userId]);
 
   // Lock the page behind the sheet; Esc closes (tablets with a keyboard).
   useEffect(() => {

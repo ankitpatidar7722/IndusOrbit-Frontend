@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { StandardModal, useModalAlert } from "indas-ui";
 import { Paperclip, X, Mail, FileText } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import RichTextToolbar from "@/components/email/RichTextToolbar";
 import {
   emailApi, fileToBase64,
@@ -425,6 +426,6 @@ function appendSigNode(editor: HTMLElement | null, sigHtml: string) {
   wrap.style.marginTop = "16px";
   wrap.style.color = "#6b7686";
   wrap.style.fontSize = "13px";
-  wrap.innerHTML = `<div style="color:#aeb6c2;margin-bottom:2px">--</div>${sigHtml}`;
+  wrap.innerHTML = `<div style="color:#aeb6c2;margin-bottom:2px">--</div>${sanitizeHtml(sigHtml)}`;
   editor.appendChild(wrap);
 }

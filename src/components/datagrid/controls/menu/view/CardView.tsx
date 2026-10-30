@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ColumnDef } from '@tanstack/react-table'
-import { Check, LayoutGrid } from 'lucide-react'
+import { Check, LayoutGrid, MoreHorizontal, MoreVertical } from 'lucide-react'
 
 import { Skeleton } from 'indas-ui'
 import { useLanguage } from 'indas-ui'
@@ -243,6 +243,15 @@ export function CardView<TData>({
     return usable.slice(0, cfg.fields)
   }, [columns, cfg.fields, cardColumns])
 
+  // Card actions: a createActionsColumn cell is a single ⋮ dropdown on a phone → stays inline in the corner.
+  // Anything wider (custom action cells, Send To / Send-to-Tracker) goes into the card's action sheet.
+  const inlineActions = !!actionsColumn && !!(actionsColumn.meta as any)?.phoneSingleMenu
+  const sheetActionCols = useMemo(
+    () => [...actionAreaColumns, ...(actionsColumn && !inlineActions ? [actionsColumn] : [])],
+    [actionAreaColumns, actionsColumn, inlineActions]
+  )
+  const [sheetItem, setSheetItem] = useState<{ item: TData; title: string } | null>(null)
+
   // The card's status pill: the first column whose id/key says "status" — among the chosen card columns
   // when `cardColumns` is given, else among all data columns (so e.g. /clients' ERP Status still shows).
   const statusColumn = useMemo(() => {
@@ -339,7 +348,8 @@ export function CardView<TData>({
               const overline = overCol && overCol !== statusColumn ? cellText(item, overCol) : ''
               const title = titleCol ? cellText(item, titleCol) : ''
               const statusNode = statusColumn ? renderCell(item, statusColumn) : null
-              const hasActions = !!actionsColumn || actionAreaColumns.length > 0
+              const hasActions = inlineActions || sheetActionCols.length > 0
+              const actionSlots = (inlineActions ? 1 : 0) + (sheetActionCols.length > 0 ? 1 : 0)
               const picking = !!onRowSelect && selectedRows.length > 0
 
               return (
@@ -369,10 +379,15 @@ export function CardView<TData>({
                       Send To / Send-to-Tracker icon columns so they're reachable on a card. */}
                   {hasActions && (
                     <div className="rc-actions" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-                      {actionAreaColumns.map((col) => (
-                        <span key={col.id as string}>{renderCell(item, col)}</span>
-                      ))}
-                      {actionsColumn && renderCell(item, actionsColumn)}
+                      {/* Several buttons (Send To, Verify / Reject, Reassign / Close …) don't fit the card's
+                          corner — they open together in an action sheet instead of covering the title. */}
+                      {sheetActionCols.length > 0 && (
+                        <button type="button" className="rc-more" aria-label="More actions"
+                          onClick={() => setSheetItem({ item, title })}>
+                          {inlineActions ? <MoreHorizontal size={20} strokeWidth={2.2} /> : <MoreVertical size={20} strokeWidth={2.2} />}
+                        </button>
+                      )}
+                      {inlineActions && renderCell(item, actionsColumn!)}
                     </div>
                   )}
 
@@ -389,11 +404,11 @@ export function CardView<TData>({
                           {statusNode && (
                             <span className="rc-status" onClick={(e) => e.stopPropagation()}>{statusNode}</span>
                           )}
-                          {hasActions && <span className="rc-actions-space" aria-hidden />}
+                          {hasActions && <span className="rc-actions-space" style={{ width: actionSlots * 36 }} aria-hidden />}
                         </div>
                       )}
                       <div className={`rc-title${cardSize === 'expanded' ? ' rc-title-lg' : ''}`}>
-                        {hasActions && !overline && !statusNode && <span className="rc-title-float" aria-hidden />}
+                        {hasActions && !overline && !statusNode && <span className="rc-title-float" style={{ width: actionSlots * 36 }} aria-hidden />}
                         {title || '—'}
                       </div>
 
@@ -422,6 +437,24 @@ export function CardView<TData>({
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Card action sheet: the row's action cells, enlarged for a thumb. Any tap on an action closes it
+          (the action itself — open a modal, send, verify — then runs as on desktop). */}
+      {sheetItem && (
+        <div className="rc-sheet-backdrop" onClick={() => setSheetItem(null)}>
+          <div className="rc-sheet" role="menu" aria-label="Actions" onClick={(e) => e.stopPropagation()}>
+            <div className="rc-sheet-handle" aria-hidden />
+            <div className="rc-sheet-title">{sheetItem.title || t('Actions')}</div>
+            <div className="rc-sheet-actions"
+              onClickCapture={(e) => { if ((e.target as HTMLElement).closest('button')) setTimeout(() => setSheetItem(null), 0) }}>
+              {sheetActionCols.map((col) => (
+                <div key={(col.id as string) || 'actions'} className="rc-sheet-group">{renderCell(sheetItem.item, col)}</div>
+              ))}
+            </div>
+            <button type="button" className="rc-sheet-cancel" onClick={() => setSheetItem(null)}>{t('Cancel')}</button>
+          </div>
+        </div>
+      )}
 
       {/* Keyboard hints — desktop only */}
       <div className="hidden md:flex items-center justify-center gap-4 py-2 text-[0.65rem] text-[rgb(var(--fg-muted))]">

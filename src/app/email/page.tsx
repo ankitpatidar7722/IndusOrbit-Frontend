@@ -39,12 +39,14 @@ function avatarBg(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h =
 const initial = (a: { name?: string | null; email: string }) => (a.name?.[0] || a.email?.[0] || "?").toUpperCase();
 const quote = (m: MailMessage) => `\n\n\n---------- Original message ----------\nFrom: ${m.from.name || ""} <${m.from.email}>\nDate: ${new Date(m.receivedAt).toLocaleString()}\nSubject: ${m.subject}\n\n${m.bodyText || m.snippet || ""}`;
 
-/** HTML → readable plain text (for AI summarization of HTML emails). */
+/** HTML → readable plain text (for AI summarization of HTML emails).
+ *  Parsed with DOMParser: its document is INERT (no scripts, no image loads, no event handlers), unlike a
+ *  div owned by the live page — an inbound `<img src=x onerror=…>` would otherwise run in the app. */
 const stripHtml = (html: string): string => {
-  if (typeof document === "undefined") return html.replace(/<[^>]+>/g, " ");
-  const d = document.createElement("div");
-  d.innerHTML = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
-  return (d.textContent || "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (typeof DOMParser === "undefined") return html.replace(/<[^>]+>/g, " ");
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script,style").forEach((el) => el.remove());
+  return (doc.body?.textContent || "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 };
 
 const PER_PAGE = 50;

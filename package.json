@@ -26,6 +26,7 @@
     "date-fns": "^4.4.0",
     "devextreme": "~24.2",
     "devextreme-react": "~24.2",
+    "dompurify": "^3.4.17",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
     "exceljs": "^4.4.0",

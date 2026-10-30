@@ -4,6 +4,7 @@ import { userIdHeader } from "@/lib/currentUser";
 // placeholders plus {{#if}} / {{#unless}} / {{#each}} blocks. Adapted to the
 // Indus 360 client / subscription / support context.
 import type { EmailTemplate, EmailTemplateAttachment, EmailAttachmentBase64 } from "./email";
+import { sanitizeHtml } from "./sanitizeHtml";
 
 export const SYSTEM_EMAIL_TEMPLATES: EmailTemplate[] = [
   {
@@ -167,7 +168,8 @@ function escapeRe(s: string) {
  */
 export function bodyToHtml(body: string | null | undefined): string {
   const s = body ?? "";
-  return /<[a-z][\s\S]*>/i.test(s) ? s : s.replace(/\n/g, "<br/>");
+  // Sanitized: the result goes straight into editors via innerHTML (stored templates = stored HTML).
+  return sanitizeHtml(/<[a-z][\s\S]*>/i.test(s) ? s : s.replace(/\n/g, "<br/>"));
 }
 
 // ─────────────────────────── DB-backed templates ───────────────────────────

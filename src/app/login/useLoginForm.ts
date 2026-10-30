@@ -4,11 +4,10 @@ import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { employeeLogin, saveEmployee, getEmployee } from "@/lib/employee";
 
-// Remember-me stores the username + a base64-OBFUSCATED (not encrypted) password in localStorage
-// so a returning user's credentials are pre-filled. Meant for a trusted personal machine.
+// Remember-me stores ONLY the username in localStorage. The password is never stored by the app (it
+// used to be kept base64-encoded, readable by any script or anyone at the device) — the browser's own
+// password manager fills it (the inputs carry autocomplete="username" / "current-password").
 const REMEMBER_KEY = "indus360.remember.creds";
-const encPwd = (s: string) => { try { return btoa(unescape(encodeURIComponent(s))); } catch { return ""; } };
-const decPwd = (s: string) => { try { return decodeURIComponent(escape(atob(s))); } catch { return ""; } };
 
 export interface LoginForm {
   email: string; setEmail: Dispatch<SetStateAction<string>>;
@@ -46,17 +45,18 @@ export function useLoginForm(): LoginForm {
     return () => clearInterval(t);
   }, []);
 
-  // Pre-fill remembered credentials (username + password) if "Remember me" was used.
+  // Pre-fill the remembered username if "Remember me" was used. A password saved by an older version
+  // is wiped here (rewritten without it).
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(REMEMBER_KEY);
       if (!raw) return;
       const { u, p } = JSON.parse(raw) as { u?: string; p?: string };
+      if (p !== undefined) localStorage.setItem(REMEMBER_KEY, JSON.stringify({ u }));
       if (u) setEmail(u);
-      if (p) setPassword(decPwd(p));
       setRemember(true);
-    } catch { /* ignore malformed / legacy value */ }
+    } catch { localStorage.removeItem(REMEMBER_KEY); }
   }, []);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function useLoginForm(): LoginForm {
     // Forget saved creds immediately if Remember me is off; save only after a successful login.
     if (!remember) localStorage.removeItem(REMEMBER_KEY);
     const rememberCreds = () => {
-      if (remember) localStorage.setItem(REMEMBER_KEY, JSON.stringify({ u: em, p: encPwd(password) }));
+      if (remember) localStorage.setItem(REMEMBER_KEY, JSON.stringify({ u: em }));
     };
 
     // 1) Employee bridge — mapped employees get a full app session.

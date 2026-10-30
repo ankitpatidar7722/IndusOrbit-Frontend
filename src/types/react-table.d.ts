@@ -23,6 +23,9 @@ declare module "@tanstack/react-table" {
     title?: string;
     /** Internal marker: this is the actions (view/edit/delete) column. */
     isActionColumn?: boolean;
+    /** Internal marker (createActionsColumn): on a phone the cell is a single ⋮ menu, so the mobile record
+     *  card shows it inline in its corner instead of in the card's action sheet. */
+    phoneSingleMenu?: boolean;
     /** Internal marker: this is the row-selection checkbox column. */
     isSelectColumn?: boolean;
     /** Internal marker: this is the expand/collapse toggle column. */
