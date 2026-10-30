@@ -1,7 +1,7 @@
 /* indas-ui design tokens first (defines --bg-*, --color-*, --bd-* variables) */
 @import "../../node_modules/indas-ui/src/styles/tokens.css";
 @import "tailwindcss";
-/* Phone app kit (glass bottom bar, Modules sheet, phone Home, forms, settings) — ported from IndusFlexoERP.
+/* Phone app kit (glass bottom bar, Modules sheet, phone Home, forms, settings, bulk import) — ported from IndusFlexoERP.
    (Turbopack dev sometimes keeps serving an old copy of this import — edit globals.css or restart dev.) */
 @import "./phone-kit.css";
 

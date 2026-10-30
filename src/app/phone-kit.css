@@ -440,6 +440,23 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   }
 }
 
+/* --- Bulk Import on a phone: the shell's Product / Client pickers stack (label above, full width), and
+   Content Authority's toolbar becomes a tidy grid instead of odd-sized buttons wrapping anywhere. --- */
+@media (max-width: 768px) {
+  .bms-pickers { flex-direction: column !important; align-items: stretch !important; gap: 14px !important; }
+  .bms-field { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; width: 100%; }
+  .bms-label { font-size: 15px !important; font-weight: 600 !important; color: rgb(var(--fg-default)) !important; }
+  .bms-control { width: 100% !important; max-width: none !important; }
+  .bms-control button[role="combobox"] { min-height: 48px !important; font-size: 16px !important; border-radius: 12px !important; }
+
+  .ca-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; width: 100%; }
+  .ca-actions > button { justify-content: center; min-height: 46px; border-radius: 14px !important; font-size: 15px !important; }
+  .ca-actions > .ca-split { grid-column: 1 / -1; }
+  .ca-split > div { width: 100%; min-height: 46px; border-radius: 14px !important; }
+  .ca-split > div > button:first-child { flex: 1; justify-content: center; font-size: 15px !important; }
+  .ca-split > div > button:last-child { padding: 0 14px !important; }
+}
+
 /* --- Phone Home: "Edit" beside a section title + the Quick actions picker sheet. --- */
 .phone-section-action {
   margin: 0 0 8px; padding: 6px 10px; border: none; border-radius: 999px; background: rgb(var(--color-primary) / 0.1);

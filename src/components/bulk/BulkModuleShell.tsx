@@ -142,27 +142,29 @@ export default function BulkModuleShell({
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
+          {/* Heading hidden on phones — the top bar names the screen. */}
+          <div className="hide-on-phone" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
               <Icon size={24} />
             </span>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>{title}</h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
+          {/* bms-*: on a phone the two pickers stack, label above, full width (phone-kit.css). */}
+          <div className="bms-pickers" style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 20, flexWrap: "wrap", justifyContent: "center" }}>
+            <div className="bms-field" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="bms-label" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
                 <Package size={16} /> Indus Product
               </span>
-              <div style={{ width: 220 }}>
+              <div className="bms-control" style={{ width: 220 }}>
                 <KDropdown value={product} onValueChange={(v) => { setProduct(String(v)); setClientId(""); setCompact(false); }} options={productOptions} placeholder={loading ? "Loading…" : "— Select product —"} searchable size="md" />
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
+            <div className="bms-field" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="bms-label" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
                 <Users2 size={16} /> Client Name
               </span>
-              <div style={{ width: 360, maxWidth: "100%" }}>
+              <div className="bms-control" style={{ width: 360, maxWidth: "100%" }}>
                 <KDropdown value={clientId} onValueChange={(v) => { setClientId(String(v)); setCompact(false); }} options={clientOptions} disabled={!product || loading} placeholder={!product ? "Select a product first" : loading ? "Loading clients…" : clientOptions.length ? "— Select a client —" : "No clients for this product"} searchable size="md" />
               </div>
             </div>
