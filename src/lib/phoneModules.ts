@@ -43,6 +43,16 @@ export function toneFor(groupName: string): AppIconTone {
   return "grey";
 }
 
+/** Screens inside a group get DIFFERENT colours (a whole grid in the group's one colour read as a
+ *  single blob): the palette in turn, starting after the group's own colour so neighbours never match.
+ *  A destructive screen ("… Delete") is always red. */
+const LEAF_PALETTE: AppIconTone[] = ["blue", "teal", "orange", "violet", "green", "amber", "indigo", "red"];
+function leafTone(label: string, groupTone: AppIconTone, index: number): AppIconTone {
+  if (/delete|remove/i.test(label)) return "red";
+  const start = Math.max(0, LEAF_PALETTE.indexOf(groupTone));
+  return LEAF_PALETTE[(start + index) % LEAF_PALETTE.length];
+}
+
 /** Group (header module) icon — by name, so a new group still gets a sensible glyph. */
 export function groupIconFor(groupName: string): LucideIcon {
   const n = groupName.toLowerCase();
@@ -97,7 +107,7 @@ async function load(userId: number): Promise<PhoneGroup[]> {
       label: (m.ModuleDisplayName as string) || route,
       group: groupName,
       icon: ICONS[(m.ModuleIcon as string) || ""] ?? g.icon,
-      tone: g.tone,
+      tone: leafTone((m.ModuleDisplayName as string) || route, g.tone, g.leaves.length),
     });
   }
   return groups;
