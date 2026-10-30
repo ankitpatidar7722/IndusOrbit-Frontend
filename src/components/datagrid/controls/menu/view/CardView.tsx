@@ -3,10 +3,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ColumnDef } from '@tanstack/react-table'
-import { LayoutGrid } from 'lucide-react'
+import { Check, LayoutGrid } from 'lucide-react'
 
-import { Badge } from 'indas-ui'
-import { SelectionCheckbox } from '@/components/datagrid/cells/SelectionCell'
 import { Skeleton } from 'indas-ui'
 import { useLanguage } from 'indas-ui'
 
@@ -20,6 +18,7 @@ interface CardViewProps<TData> {
   onRowSelect?: (item: TData, selected: boolean) => void
   isLoading?: boolean
   cardSize?: CardSize
+  /** Kept for API compatibility — the record card's pick circle is always round. */
   circularCheckboxes?: boolean
   /** Restrict the card to these columns (by accessorKey/id), in this order. First two become the
    *  card title + subtitle; the rest render as label:value rows. Omit → auto (first N columns). */
@@ -78,6 +77,37 @@ function CardSkeleton({ size = 'normal' }: { size?: CardSize }) {
   )
 }
 
+/** A column's raw value for a row (accessorFn first, else accessorKey). */
+function rawValue<TData>(item: TData, column: ColumnDef<TData>): unknown {
+  const fn = (column as any).accessorFn
+  if (typeof fn === 'function') { try { return fn(item, 0) } catch { return undefined } }
+  const key = (column as any).accessorKey as string | undefined
+  return key ? (item as any)?.[key] : undefined
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T|\s|$)/
+
+/** The value as card text: '' when empty / a placeholder dash (so the row is skipped), dates as "28 Oct 2026". */
+function cellText<TData>(item: TData, column: ColumnDef<TData>): string {
+  const v = rawValue(item, column)
+  if (v == null) return ''
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (typeof v === 'number') return Number.isFinite(v) ? v.toLocaleString('en-IN') : ''
+  if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (typeof v !== 'string') return ''
+  const s = v.trim()
+  if (!s || s === '—' || s === '-' || s === '–') return ''
+  if (ISO_DATE.test(s)) {
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+  return s
+}
+
+/** An id-only column with its own cell (a toggle, an icon button) — no data value, so render its cell. */
+const isInteractiveCell = <TData,>(column: ColumnDef<TData>) =>
+  typeof (column as any).cell === 'function' && !(column as any).accessorKey && typeof (column as any).accessorFn !== 'function'
+
 export function CardView<TData>({
   data,
   columns,
@@ -86,7 +116,6 @@ export function CardView<TData>({
   onRowSelect,
   isLoading = false,
   cardSize = 'normal',
-  circularCheckboxes = false,
   cardColumns,
 }: CardViewProps<TData>) {
   const { t } = useLanguage()
@@ -179,23 +208,6 @@ export function CardView<TData>({
     }
   }, [focusedIndex])
 
-  const getDisplayValue = useCallback((item: TData, columnKey: string) => {
-    const value = (item as any)[columnKey]
-    if (typeof value === 'boolean') {
-      return value ? (
-        <Badge variant="default" className="h-4.5 text-[0.6rem] px-1.5 py-0 bg-[rgb(var(--color-success))]/10 text-[rgb(var(--color-success))] border-0 font-medium">
-          {t('Yes')}
-        </Badge>
-      ) : (
-        <Badge variant="secondary" className="h-4.5 text-[0.6rem] px-1.5 py-0 bg-[rgb(var(--bg-subtle))] text-[rgb(var(--fg-muted))] border-0 font-medium">
-          {t('No')}
-        </Badge>
-      )
-    }
-    if (typeof value === 'number') return value.toLocaleString()
-    return value?.toString() || '—'
-  }, [t])
-
   const getFieldLabel = useCallback((column: ColumnDef<TData>) => {
     const metaTitle = (column.meta as any)?.title
     if (typeof metaTitle === 'string') return t(metaTitle)
@@ -230,6 +242,53 @@ export function CardView<TData>({
     }
     return usable.slice(0, cfg.fields)
   }, [columns, cfg.fields, cardColumns])
+
+  // The card's status pill: the first column whose id/key says "status" — among the chosen card columns
+  // when `cardColumns` is given, else among all data columns (so e.g. /clients' ERP Status still shows).
+  const statusColumn = useMemo(() => {
+    const isStatus = (c: ColumnDef<TData>) => /status/i.test(`${c.id ?? ''} ${(c as any).accessorKey ?? ''}`)
+    const pool = cardColumns && cardColumns.length
+      ? displayColumns
+      : columns.filter(c => c.id !== 'select' && c.id !== 'actions' && !(c.id && ACTION_AREA_IDS.includes(c.id as string)))
+    return pool.find((c, i) => isStatus(c) && !(pool === displayColumns && i === 0)) ?? null
+  }, [columns, displayColumns, cardColumns])
+
+  // Call a column's own cell renderer outside the table. The fake row MUST implement getValue(colId):
+  // DataGrid's enhancedColumns wraps bare date columns with a cell that calls row.getValue().
+  const renderCell = (item: TData, column: ColumnDef<TData>) => {
+    const raw = rawValue(item, column)
+    return (column as any).cell?.({
+      row: { original: item, getValue: (colId: string) => (item as any)?.[colId] },
+      getValue: () => raw,
+      renderValue: () => raw,
+    }) ?? null
+  }
+
+  // Long-press (~450ms) a card → start picking (select it); the click that ends the hold is swallowed.
+  // A touch long-press often sends no click at all, so the "fired" flag is reset by the NEXT press
+  // (startHold replaces it) — a stale flag can never eat the user's next real tap.
+  const hold = useRef<{ timer: number; x: number; y: number; fired: boolean }>(null)
+  const cancelHold = () => { if (hold.current) window.clearTimeout(hold.current.timer) }
+  const startHold = (e: React.PointerEvent, item: TData) => {
+    if (!onRowSelect || e.button !== 0) return
+    cancelHold()
+    const h = { timer: 0, x: e.clientX, y: e.clientY, fired: false }
+    h.timer = window.setTimeout(() => {
+      h.fired = true
+      try { navigator.vibrate?.(18) } catch { /* no vibration */ }
+      handleCheckboxChange(item, !isSelected(item))
+    }, 450)
+    hold.current = h
+  }
+  const moveHold = (e: React.PointerEvent) => {
+    const h = hold.current
+    if (h && !h.fired && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 10) cancelHold()
+  }
+  const swallowClick = () => {
+    const h = hold.current
+    hold.current = null
+    return !!h?.fired
+  }
 
 
   if (isLoading) {
@@ -266,6 +325,23 @@ export function CardView<TData>({
               const isFocused = focusedIndex === index
               const itemSelected = isSelected(item)
 
+              // RECORD CARD (ported from IndusFlexoERP's ListCard variant="record"), read top to bottom:
+              //   overline  2nd card column (e.g. the customer)          [status pill]   ⋮ actions
+              //   TITLE     1st card column, bold in the brand colour, wraps in full
+              //   ─────────────────────────────────────────────── hairline
+              //   Label: value  ·  Label: value  …  (the other columns; empty / "—" values skipped)
+              // The status pill = the first column whose id/key says "status" (its own cell renderer).
+              // Selection: no checkbox until picking starts — long-press a card (or tap its check once any
+              // card is picked); a tap otherwise opens the record.
+              const titleCol = displayColumns[0]
+              const overCol = displayColumns[1]
+              const restCols = displayColumns.slice(2).filter((c) => c !== statusColumn)
+              const overline = overCol && overCol !== statusColumn ? cellText(item, overCol) : ''
+              const title = titleCol ? cellText(item, titleCol) : ''
+              const statusNode = statusColumn ? renderCell(item, statusColumn) : null
+              const hasActions = !!actionsColumn || actionAreaColumns.length > 0
+              const picking = !!onRowSelect && selectedRows.length > 0
+
               return (
                 <motion.div
                   key={(item as any).id || index}
@@ -274,110 +350,70 @@ export function CardView<TData>({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.12, delay: Math.min(index * 0.015, 0.15) }}
-                  className="group/card outline-none"
+                  className={`rc-card${itemSelected ? ' rc-selected' : ''}${isFocused ? ' rc-focused' : ''}`}
                   tabIndex={-1}
-                  onClick={() => { setFocusedIndex(index); handleCardClick(item); }}
-                  onDoubleClick={() => handleCardClick(item)}
+                  onPointerDown={(e) => startHold(e, item)}
+                  onPointerMove={moveHold}
+                  onPointerUp={cancelHold}
+                  onPointerCancel={cancelHold}
+                  onPointerLeave={cancelHold}
+                  onContextMenu={(e) => { if (onRowSelect) e.preventDefault() }}
+                  onClick={() => {
+                    if (swallowClick()) return
+                    setFocusedIndex(index)
+                    if (picking) handleCheckboxChange(item, !itemSelected)
+                    else handleCardClick(item)
+                  }}
                 >
-                  <div className={`
-                    relative rounded-lg border bg-[rgb(var(--bg-surface))] overflow-hidden h-full
-                    transition-all duration-150
-                    ${itemSelected
-                      ? 'border-[rgb(var(--color-primary))] shadow-sm'
-                      : 'border-[rgb(var(--bd-default))] hover:border-[rgb(var(--color-primary))]/40 hover:shadow-sm'
-                    }
-                    ${isFocused ? 'ring-2 ring-[rgb(var(--color-primary))]/30 ring-offset-1' : ''}
-                  `}>
-                    {/* Left accent bar */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-[2px] transition-colors duration-150 ${
-                      itemSelected ? 'bg-[rgb(var(--color-primary))]' : 'bg-transparent group-hover/card:bg-[rgb(var(--color-primary))]/30'
-                    }`} />
+                  {/* Actions in the top-right corner (always visible — touch has no hover). Includes the
+                      Send To / Send-to-Tracker icon columns so they're reachable on a card. */}
+                  {hasActions && (
+                    <div className="rc-actions" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                      {actionAreaColumns.map((col) => (
+                        <span key={col.id as string}>{renderCell(item, col)}</span>
+                      ))}
+                      {actionsColumn && renderCell(item, actionsColumn)}
+                    </div>
+                  )}
 
-                    {/* Card Content */}
-                    <div className="pl-3 pr-2.5 py-2.5">
-                      {/* Header: checkbox + title/subtitle + actions */}
-                      <div className="flex items-center gap-2">
-                        {/* Checkbox */}
-                        {onRowSelect && (
-                          <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <SelectionCheckbox
-                              checked={itemSelected}
-                              onChange={(checked) => handleCheckboxChange(item, checked)}
-                              circular={circularCheckboxes}
-                              mode="checkbox"
-                            />
-                          </div>
-                        )}
-
-                        {/* Title + subtitle */}
-                        <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-                          <p className={`${cfg.titleText} font-semibold text-[rgb(var(--fg-default))] truncate leading-tight min-w-0`}>
-                            {displayColumns.length > 0 && getDisplayValue(item, (displayColumns[0] as any).accessorKey as string)}
-                          </p>
-                          {displayColumns.length > 1 && (
-                            <p className={`${cfg.subtitleText} dg-card-subtitle font-medium truncate min-w-0`}>
-                              {getDisplayValue(item, (displayColumns[1] as any).accessorKey as string)}
-                            </p>
+                  <div className="rc-body">
+                    {picking && (
+                      <span className="rc-check" data-on={itemSelected || undefined} aria-hidden>
+                        {itemSelected && <Check size={14} strokeWidth={3} />}
+                      </span>
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      {(overline || statusNode) && (
+                        <div className="rc-overline-row">
+                          <span className="rc-overline">{overline}</span>
+                          {statusNode && (
+                            <span className="rc-status" onClick={(e) => e.stopPropagation()}>{statusNode}</span>
                           )}
-                        </div>
-
-                        {/* Actions — always visible (mobile has no hover, so the opacity-on-hover
-                            trick would leave the View/Edit buttons untappable on touch). Includes the
-                            Send To / Send-to-Tracker icon columns so they're reachable on a card. */}
-                        <div
-                          className="flex-shrink-0 flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {actionAreaColumns.map((col) => (
-                            <span key={col.id as string}>
-                              {(col as any).cell?.({ row: { original: item, getValue: (colId: string) => (item as any)?.[colId] }, getValue: () => null, renderValue: () => null })}
-                            </span>
-                          ))}
-                          {actionsColumn && (actionsColumn as any).cell?.({
-                            row: { original: item, getValue: (colId: string) => (item as any)?.[colId] },
-                            getValue: () => null,
-                            renderValue: () => null,
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Field rows — clean label:value pairs */}
-                      {displayColumns.length > 2 && (
-                        <div className="mt-2 pt-2 border-t border-[rgb(var(--bd-default))]/40 space-y-1">
-                          {displayColumns.slice(2).map((column) => {
-                            const fieldKey = ((column as any).accessorKey as string) || (column.id as string)
-                            const hasCell = typeof (column as any).cell === "function"
-                            const raw = fieldKey ? (item as any)[fieldKey] : undefined
-                            // Columns with a custom cell (toggles, status pills, badges) always render —
-                            // their value may be falsy (an "off" switch) yet still needs to show, and the
-                            // cell carries the real formatting. Plain columns skip when empty so cards
-                            // aren't full of "—" rows.
-                            if (!hasCell && (raw == null || (typeof raw !== "boolean" && String(raw).trim() === ""))) return null
-                            const fieldLabel = getFieldLabel(column)
-                            const cellNode = hasCell
-                              ? (column as any).cell({ row: { original: item, getValue: (colId: string) => (item as any)?.[colId] }, getValue: () => raw, renderValue: () => raw })
-                              : null
-
-                            return (
-                              <div key={fieldKey} className="flex items-center justify-between gap-2"
-                                {...(hasCell ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}>
-                                <span className="text-[0.65rem] text-[rgb(var(--fg-muted))] truncate flex-shrink-0 max-w-[45%]">
-                                  {fieldLabel}
-                                </span>
-                                {hasCell ? (
-                                  <span className={`${cfg.valueText} font-medium text-[rgb(var(--fg-default))] min-w-0 flex items-center justify-end`}>
-                                    {cellNode}
-                                  </span>
-                                ) : (
-                                  <span className={`${cfg.valueText} font-medium text-[rgb(var(--fg-default))] text-right truncate`}>
-                                    {getDisplayValue(item, fieldKey)}
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          })}
+                          {hasActions && <span className="rc-actions-space" aria-hidden />}
                         </div>
                       )}
+                      <div className={`rc-title${cardSize === 'expanded' ? ' rc-title-lg' : ''}`}>
+                        {hasActions && !overline && !statusNode && <span className="rc-title-float" aria-hidden />}
+                        {title || '—'}
+                      </div>
+
+                      {restCols.length > 0 && (() => {
+                        const facts = restCols.map((column) => {
+                          const fieldKey = ((column as any).accessorKey as string) || (column.id as string)
+                          const text = cellText(item, column)
+                          const interactive = !text && isInteractiveCell(column)
+                          if (!text && !interactive) return null
+                          return (
+                            <span key={fieldKey} className="rc-fact" {...(interactive ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}>
+                              <span className="rc-fact-label">{getFieldLabel(column)}:</span>{' '}
+                              {interactive
+                                ? <span className="rc-fact-value">{renderCell(item, column)}</span>
+                                : <span className="rc-fact-value">{text}</span>}
+                            </span>
+                          )
+                        }).filter(Boolean)
+                        return facts.length > 0 ? <div className="rc-facts">{facts}</div> : null
+                      })()}
                     </div>
                   </div>
                 </motion.div>

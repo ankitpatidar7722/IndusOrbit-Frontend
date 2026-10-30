@@ -130,6 +130,8 @@ export default function ClientsPage() {
         enableRowSelection
         rowSelectionMode="single"
         rightFrozenColumns={["erpStatus", "cloudStatus"]}
+        // Phone card: client name (title) · code (overline) · ERP status pill · app / login / mobile / email
+        cardColumns={["companyName", "companyUniqueCode", "erpStatus", "application", "companyUserID", "mobile", "email"]}
         enableColumnResizing
         enableColumnReordering
         enableColumnFreezing

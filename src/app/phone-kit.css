@@ -29,6 +29,65 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 3px 8px -3px rgb(0 0 0 / 0.6);
 }
 
+/* --- DataGrid record card (CardView — the mobile view of every grid; ported from IndusFlexoERP's
+   ListCard variant="record"): whisper hairline + layered shadow, overline + status, brand-colour title,
+   hairline, then `Label: value` facts. --- */
+.rc-card {
+  position: relative;
+  height: 100%;
+  border-radius: 16px;
+  background: rgb(var(--bg-surface));
+  border: 0.5px solid rgb(var(--fg-default) / 0.16);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 10px -2px rgb(15 23 42 / 0.08), 0 12px 24px -10px rgb(15 23 42 / 0.12);
+  outline: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  transition: transform 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.rc-card:active { transform: scale(0.985); }
+.rc-card.rc-selected {
+  border: 1px solid rgb(var(--color-primary));
+  background: color-mix(in srgb, rgb(var(--color-primary)) 3.5%, rgb(var(--bg-surface)));
+  box-shadow: 0 0 0 0.5px rgb(var(--color-primary)), 0 4px 10px -2px rgb(15 23 42 / 0.08);
+}
+.rc-card.rc-focused { box-shadow: 0 0 0 2px rgb(var(--color-primary) / 0.3); }
+.dark .rc-card { box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.6); }
+.rc-body { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px 10px; }
+.rc-check {
+  display: grid; place-content: center; flex-shrink: 0; margin-top: 1px;
+  width: 22px; height: 22px; border-radius: 999px;
+  border: 2px solid rgb(var(--fg-default) / 0.32); background: rgb(var(--bg-surface));
+}
+.rc-check[data-on] { border: none; background: rgb(var(--color-primary)); color: rgb(var(--color-primary-foreground)); }
+.rc-overline-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 2px; }
+.rc-overline {
+  flex: 1; min-width: 0; padding-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; line-height: 18px; font-weight: 500; color: rgb(var(--fg-default));
+}
+.rc-status { display: flex; flex-shrink: 0; align-items: center; gap: 6px; max-width: 55%; }
+.rc-actions-space { width: 34px; flex-shrink: 0; }
+.rc-title {
+  font-size: 14.5px; line-height: 20px; font-weight: 600; overflow-wrap: anywhere;
+  color: rgb(var(--color-primary));
+}
+.rc-title-lg { font-size: 16px; line-height: 22px; }
+.dark .rc-title { color: rgb(var(--fg-default)); }
+.rc-title-float { float: right; width: 34px; height: 20px; margin-left: 8px; }
+.rc-actions {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  display: flex; align-items: center; gap: 2px;
+}
+.rc-facts {
+  display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; row-gap: 4px;
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid rgb(var(--fg-default) / 0.13);
+}
+.rc-fact {
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12.5px; line-height: 18px; color: rgb(var(--fg-default) / 0.62);
+}
+.rc-fact-value { font-weight: 600; color: rgb(var(--fg-default)); font-variant-numeric: tabular-nums; }
+
 /* Skeleton sweep on the grey glass. */
 .m-skel {
   background-image: linear-gradient(90deg, rgb(var(--fg-default) / 0.07) 25%, rgb(var(--fg-default) / 0.13) 50%, rgb(var(--fg-default) / 0.07) 75%);
