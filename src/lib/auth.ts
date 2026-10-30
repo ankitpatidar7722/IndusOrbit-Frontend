@@ -68,6 +68,7 @@ export const authOptions: NextAuthOptions = {
           ProductionUnitID: u.ProductionUnitID,
           FYear: u.FYear,
           Role: u.Role,
+          LoginAt: Date.now(),   // sign-in time → "Signed in for 2h 23m" in the phone profile card
         });
       }
       return token;
@@ -80,6 +81,7 @@ export const authOptions: NextAuthOptions = {
         ProductionUnitID: t.ProductionUnitID,
         FYear: t.FYear,
         Role: t.Role,
+        LoginAt: t.LoginAt,
         ...INDAS_UI_CREDENTIAL_PLACEHOLDER,
       });
       return session;

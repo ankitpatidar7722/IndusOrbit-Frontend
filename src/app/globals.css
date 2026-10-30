@@ -284,7 +284,7 @@ button:not(:disabled):not([aria-disabled="true"]),
      NOT the Modules bottom sheet: it is a dialog too, but it must sit on the bottom edge and slide up
      (this rule pinned it under the header and its transform:none killed the slide).
      :where() keeps the specificity at (0,1,0), so the phone full-page form rule still wins. */
-  [role="dialog"]:not(:where(.phone-modules-sheet)) {
+  [role="dialog"]:not(:where(.phone-modules-sheet, .pc-card)) {
     position: fixed !important;
     top: 62px !important;
     bottom: auto !important;
