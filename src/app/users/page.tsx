@@ -5,7 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { Page, StandardModal, Badge, Button, useModalAlert, useDevice } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
+import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound, Search } from "lucide-react";
 import { PERMISSION_CATALOG, clearUserPermissionsCache } from "@/lib/featurePermissions";
 import { insertImageFile } from "@/lib/imageEmbed";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
@@ -197,6 +197,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
   const moduleRef = useRef<ModuleMatrixHandle>(null);        // lets the footer save the authority matrix too
   const { showConfirmation, showSuccess, showError, AlertComponent: DeleteAlert } = useModalAlert();
   const [permKeys, setPermKeys] = useState<string[]>([]);    // granted feature-permission keys (opt-in)
+  const [permQ, setPermQ] = useState("");                    // phone: "Search permissions"
   const togglePerm = (k: string) => setPermKeys((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
   useEffect(() => {
@@ -383,14 +384,62 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 placeholder="— none —" searchable size="md" />
             </div>
             <div><label style={fldLabel}>Password {curId ? "" : "*"}</label><input type="password" value={f.password ?? ""} onChange={(e) => set("password", e.target.value)} style={fldInput} placeholder={curId ? "Leave blank to keep current" : "Set a password"} autoComplete="new-password" /></div>
+            {isMobile ? (
+              // Phone: an ON / OFF switch row (IndusFlexoERP style) instead of a small checkbox.
+              <div className="st-toggle" style={{ gridColumn: "1 / -1", background: "rgb(var(--bg-subtle))", minHeight: 60 }}>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <span className="st-row-label" style={{ fontSize: 15 }}>Active</span>
+                  <span className="st-row-summary st-wrap">The user can log in</span>
+                </span>
+                <input type="checkbox" role="switch" className="st-switch" aria-label="Active (can log in)"
+                  checked={f.isActive} onChange={(e) => set("isActive", e.target.checked)} />
+              </div>
+            ) : (
             <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 20, marginTop: 2 }}>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "rgb(var(--fg-muted))", cursor: "pointer" }}>
                 <input type="checkbox" checked={f.isActive} onChange={(e) => set("isActive", e.target.checked)} style={{ width: 16, height: 16, accentColor: "rgb(var(--color-primary))" }} /> Active (can log in)
               </label>
             </div>
+            )}
             </div>
 
-            {/* ── User Permissions — opt-in feature toggles (off by default; granted per user) ── */}
+            {/* ── User Permissions — opt-in feature toggles (off by default; granted per user) ──
+                Phone: IndusFlexoERP layout — search, one group per category with its "N on" count, and each
+                permission as a full-width row with an ON / OFF switch (one column). */}
+            {isMobile ? (
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "rgb(var(--fg-default))", margin: "4px 2px 10px" }}>User Permissions</div>
+                <div className="pmc-search" style={{ marginBottom: 6 }}>
+                  <Search size={18} style={{ flexShrink: 0, opacity: 0.55 }} />
+                  <input value={permQ} onChange={(e) => setPermQ(e.target.value)} placeholder="Search permissions" aria-label="Search permissions" enterKeyHint="search" autoComplete="off" />
+                  {permQ && <button type="button" className="pl-clear" onClick={() => setPermQ("")} aria-label="Clear search"><XCircle size={16} /></button>}
+                </div>
+                {(() => {
+                  const q = permQ.trim().toLowerCase();
+                  const groups = PERMISSION_CATALOG
+                    .map((g) => ({ ...g, perms: g.perms.filter((p) => !q || p.label.toLowerCase().includes(q) || g.category.toLowerCase().includes(q)) }))
+                    .filter((g) => g.perms.length > 0);
+                  if (!groups.length) return <div className="pmc-empty">No permission matches that search.</div>;
+                  return groups.map((g) => (
+                    <section key={g.category}>
+                      <div className="pf-group-head">
+                        <span>{g.category}</span>
+                        <span className="pf-group-count">{g.perms.filter((p) => permKeys.includes(p.key)).length} on</span>
+                      </div>
+                      <div className="pf-card">
+                        {g.perms.map((p) => (
+                          <div key={p.key} className="pf-row">
+                            <span className="pf-row-label">{p.label}</span>
+                            <input type="checkbox" role="switch" className="st-switch" aria-label={p.label}
+                              checked={permKeys.includes(p.key)} onChange={() => togglePerm(p.key)} />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ));
+                })()}
+              </div>
+            ) : (
             <div style={{ border: "1px solid #e2e8f1", borderRadius: 12, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "rgb(var(--bg-subtle))", borderBottom: "1px solid #e6eaf0" }}>
                 <KeyRound size={14} style={{ color: "rgb(var(--color-primary))" }} />
@@ -415,6 +464,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 
