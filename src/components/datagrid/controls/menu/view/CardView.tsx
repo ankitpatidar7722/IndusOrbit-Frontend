@@ -93,7 +93,12 @@ function cellText<TData>(item: TData, column: ColumnDef<TData>): string {
   const v = rawValue(item, column)
   if (v == null) return ''
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
-  if (typeof v === 'number') return Number.isFinite(v) ? v.toLocaleString('en-IN') : ''
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) return ''
+    // Ids / codes / numbers stay as typed ("1234", not "1,234"); amounts and counts get grouping.
+    const k = `${(column as any).accessorKey ?? column.id ?? ''}`
+    return /(id|code|no|number)$/i.test(k) ? String(v) : v.toLocaleString('en-IN')
+  }
   if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   if (typeof v !== 'string') return ''
   const s = v.trim()
@@ -237,11 +242,15 @@ export function CardView<TData>({
       col.id !== 'select' && col.id !== 'actions' && (col as any).accessorKey !== 'actions' &&
       !(col.id && ACTION_AREA_IDS.includes(col.id as string))
     )
+    const key = (c: ColumnDef<TData>) => ((c as any).accessorKey as string) || (c.id as string)
     if (cardColumns && cardColumns.length) {
-      const key = (c: ColumnDef<TData>) => ((c as any).accessorKey as string) || (c.id as string)
       return cardColumns.map(k => usable.find(c => key(c) === k)).filter(Boolean) as ColumnDef<TData>[]
     }
-    return usable.slice(0, cfg.fields)
+    // Auto: a "title" / "name" column reads better as the card title than an id — it goes first and
+    // the original first column (e.g. Ticket ID) becomes the reference line under it.
+    const named = usable.find((c) => key(c) === 'title' || key(c) === 'name')
+    const ordered = named && usable[0] !== named ? [named, ...usable.filter((c) => c !== named)] : usable
+    return ordered.slice(0, cfg.fields)
   }, [columns, cfg.fields, cardColumns])
 
   // Card actions: a createActionsColumn cell is a single ⋮ dropdown on a phone → stays inline in the corner.
@@ -251,6 +260,10 @@ export function CardView<TData>({
     () => [...actionAreaColumns, ...(actionsColumn && !inlineActions ? [actionsColumn] : [])],
     [actionAreaColumns, actionsColumn, inlineActions]
   )
+  // A card tap opens the record in VIEW mode: the actions column's View handler when the page has one
+  // (createActionsColumn → meta.onView), else the grid's onRowClick.
+  const viewHandler = (actionsColumn?.meta as any)?.onView as ((row: TData) => void) | undefined
+  const openRecord = (item: TData) => { if (viewHandler) viewHandler(item); else handleCardClick(item) }
   const [sheetItem, setSheetItem] = useState<{ item: TData; title: string } | null>(null)
   const closeSheet = useCallback(() => setSheetItem(null), [])
   useBackGuard(!!sheetItem, closeSheet)   // Android / browser Back closes the action sheet
@@ -337,18 +350,19 @@ export function CardView<TData>({
               const isFocused = focusedIndex === index
               const itemSelected = isSelected(item)
 
-              // RECORD CARD (ported from IndusFlexoERP's ListCard variant="record"), read top to bottom:
-              //   overline  2nd card column (e.g. the customer)          [status pill]   ⋮ actions
-              //   TITLE     1st card column, bold in the brand colour, wraps in full
-              //   ─────────────────────────────────────────────── hairline
-              //   Label: value  ·  Label: value  …  (the other columns; empty / "—" values skipped)
+              // RECORD CARD (IndusFlexoERP master-list style, e.g. /master/ledger), read top to bottom:
+              //   TITLE        1st card column, bold in the brand colour, wraps in full      ⋮ actions
+              //   REFERENCE    2nd card column (code / number), brand colour     [status pill]
+              //   Label: value, Label: value, …   ← grey, two ellipsised lines (the other columns;
+              //   Label: value, …                    empty / "—" values skipped)
               // The status pill = the first column whose id/key says "status" (its own cell renderer).
+              // A tap opens the record in VIEW mode (the actions column's onView, else onRowClick).
               // Selection: no checkbox until picking starts — long-press a card (or tap its check once any
-              // card is picked); a tap otherwise opens the record.
+              // card is picked).
               const titleCol = displayColumns[0]
-              const overCol = displayColumns[1]
+              const refCol = displayColumns[1]
               const restCols = displayColumns.slice(2).filter((c) => c !== statusColumn)
-              const overline = overCol && overCol !== statusColumn ? cellText(item, overCol) : ''
+              const reference = refCol && refCol !== statusColumn ? cellText(item, refCol) : ''
               const title = titleCol ? cellText(item, titleCol) : ''
               const statusNode = statusColumn ? renderCell(item, statusColumn) : null
               const hasActions = inlineActions || sheetActionCols.length > 0
@@ -375,7 +389,7 @@ export function CardView<TData>({
                     if (swallowClick()) return
                     setFocusedIndex(index)
                     if (picking) handleCheckboxChange(item, !itemSelected)
-                    else handleCardClick(item)
+                    else openRecord(item)
                   }}
                 >
                   {/* Actions in the top-right corner (always visible — touch has no hover). Includes the
@@ -401,36 +415,46 @@ export function CardView<TData>({
                       </span>
                     )}
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      {(overline || statusNode) && (
-                        <div className="rc-overline-row">
-                          <span className="rc-overline">{overline}</span>
+                      <div className={`rc-title${cardSize === 'expanded' ? ' rc-title-lg' : ''}`}>
+                        {hasActions && <span className="rc-title-float" style={{ width: actionSlots * 36 }} aria-hidden />}
+                        {title || '—'}
+                      </div>
+                      {(reference || statusNode) && (
+                        <div className="rc-ref-row">
+                          <span className="rc-ref">{reference}</span>
                           {statusNode && (
                             <span className="rc-status" onClick={(e) => e.stopPropagation()}>{statusNode}</span>
                           )}
-                          {hasActions && <span className="rc-actions-space" style={{ width: actionSlots * 36 }} aria-hidden />}
                         </div>
                       )}
-                      <div className={`rc-title${cardSize === 'expanded' ? ' rc-title-lg' : ''}`}>
-                        {hasActions && !overline && !statusNode && <span className="rc-title-float" style={{ width: actionSlots * 36 }} aria-hidden />}
-                        {title || '—'}
-                      </div>
 
                       {restCols.length > 0 && (() => {
-                        const facts = restCols.map((column) => {
-                          const fieldKey = ((column as any).accessorKey as string) || (column.id as string)
+                        // Plain values → "Label: value" text, split over two grey lines (ellipsis);
+                        // id-only cells (a toggle, an icon) can't be text → their own row, still tappable.
+                        const texts: string[] = []
+                        const cells: React.ReactNode[] = []
+                        for (const column of restCols) {
                           const text = cellText(item, column)
-                          const interactive = !text && isInteractiveCell(column)
-                          if (!text && !interactive) return null
-                          return (
-                            <span key={fieldKey} className="rc-fact" {...(interactive ? { onClick: (e: React.MouseEvent) => e.stopPropagation() } : {})}>
-                              <span className="rc-fact-label">{getFieldLabel(column)}:</span>{' '}
-                              {interactive
-                                ? <span className="rc-fact-value">{renderCell(item, column)}</span>
-                                : <span className="rc-fact-value">{text}</span>}
-                            </span>
-                          )
-                        }).filter(Boolean)
-                        return facts.length > 0 ? <div className="rc-facts">{facts}</div> : null
+                          if (text) { texts.push(`${getFieldLabel(column)}: ${text}`); continue }
+                          if (isInteractiveCell(column)) {
+                            const fieldKey = ((column as any).accessorKey as string) || (column.id as string)
+                            cells.push(
+                              <span key={fieldKey} className="rc-meta-cell" onClick={(e) => e.stopPropagation()}>
+                                <span>{getFieldLabel(column)}:</span> {renderCell(item, column)}
+                              </span>
+                            )
+                          }
+                        }
+                        const half = Math.ceil(texts.length / 2)
+                        const lines = texts.length > 1 ? [texts.slice(0, half), texts.slice(half)] : [texts]
+                        return (
+                          <>
+                            {lines.filter((l) => l.length).map((l, i) => (
+                              <div key={i} className="rc-meta" title={l.join(', ')}>{l.join(', ')}</div>
+                            ))}
+                            {cells.length > 0 && <div className="rc-meta-cells">{cells}</div>}
+                          </>
+                        )
                       })()}
                     </div>
                   </div>

@@ -607,7 +607,8 @@ export default function UsersPage() {
 
   return (
     <Page>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
+      {/* hide-on-phone: the grid's phone list header + floating "+" replace the title block and Create User. */}
+      <div className="hide-on-phone" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
           <Users size={24} />
         </span>
@@ -643,7 +644,7 @@ export default function UsersPage() {
         </div>
 
         {access.canSave && (
-          <button onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
+          <button className="hide-on-phone" onClick={openCreate} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
             <UserPlus size={15} /> Create User
           </button>
         )}
@@ -656,6 +657,10 @@ export default function UsersPage() {
         getRowId={(r) => String(r.userId)}
         onRowClick={(u) => openEdit(u.userId)}
         title={statusTab === "Active" ? "Active Users" : "Inactive Users"}
+        onCreate={access.canSave ? openCreate : undefined}
+        createLabel="Create User"
+        onRefresh={reload}
+        cardColumns={["fullName", "email", "status", "role", "mobile", "reportingManagerName"]}
         mainColumns="fullName"
         enableRowSelection
         rowSelectionMode="multi"

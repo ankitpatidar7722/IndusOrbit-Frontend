@@ -26,6 +26,9 @@ declare module "@tanstack/react-table" {
     /** Internal marker (createActionsColumn): on a phone the cell is a single ⋮ menu, so the mobile record
      *  card shows it inline in its corner instead of in the card's action sheet. */
     phoneSingleMenu?: boolean;
+    /** Internal (createActionsColumn): the View handler — a mobile record-card tap opens the row with it. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onView?: (row: any) => void;
     /** Internal marker: this is the row-selection checkbox column. */
     isSelectColumn?: boolean;
     /** Internal marker: this is the expand/collapse toggle column. */

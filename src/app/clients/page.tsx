@@ -99,7 +99,9 @@ export default function ClientsPage() {
 
   return (
     <Page>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
+      {/* hide-on-phone: on a phone the grid's own list header (title + sort / search / refresh) and the
+          floating "+" replace this title block and the Create button. */}
+      <div className="hide-on-phone" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 22 }}>
         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
           <FolderKanban size={24} />
         </span>
@@ -110,7 +112,7 @@ export default function ClientsPage() {
       {flash && <div style={{ background: "#e6f6ec", color: "#1c6b3c", border: "1px solid #b7e2c6", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, fontWeight: 600 }}>✓ {flash}</div>}
 
       {canCreate && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <div className="hide-on-phone" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
           <button onClick={() => setWizardOpen(true)}
             style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgb(var(--color-primary))", color: "#fff", border: "none", borderRadius: 9, padding: "9px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
             <FolderPlus size={15} /> Create Client Project
@@ -124,6 +126,9 @@ export default function ClientsPage() {
         columns={columns}
         getRowId={(r) => `${r.companyUserID}|${r.companyUniqueCode ?? ""}|${(r.applicationName ?? "").toLowerCase()}`}
         title="Clients"
+        onCreate={canCreate ? () => setWizardOpen(true) : undefined}
+        createLabel="Create Client Project"
+        onRefresh={reload}
         persistKey="clients-grid-v2"
         mainColumns="companyName"
         onRowClick={openDetail}   // grid fires this on row double-click → open the detail page

@@ -2,6 +2,7 @@
 import KDropdown from "@/components/KDropdown";
 import { usePageAccess } from "@/contexts/ModuleAuthContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Page, useModalAlert, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "indas-ui";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, XCircle, Send, Check, Edit, Trash2, type LucideIcon } from "lucide-react";
@@ -51,6 +52,7 @@ function IconAction({ icon: Icon, label, tone, onClick, disabled }: {
 }
 
 function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: boolean }) {
+  const router = useRouter();
   const access = usePageAccess();  // /point-management/manage-points authority — gates Edit/Delete
   const [rows, setRows] = useState<PointGridRow[]>([]);
   const [customers, setCustomers] = useState<PmCustomer[]>([]);
@@ -143,6 +145,7 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
     {
       // View always. Edit + Delete only for Queue points. Close hidden once Closed (view-only).
       id: "actions", header: "Action", enableSorting: false, enableHiding: false, size: 150,
+      meta: { onView: (r: PointGridRow) => drawer.open(r.pointID) },   // phone card tap → View drawer
       cell: ({ row }) => {
         const r = row.original;
         const isQueue = r.status === "Queue";
@@ -161,7 +164,8 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
 
   return (
     <Page>
-      <PmHeader page="manage-points" />
+      {/* On a phone the grid's own list header replaces the big page header. */}
+      <div className="hide-on-phone"><PmHeader page="manage-points" /></div>
       {err && <div style={{ color: "#c0392b", marginBottom: 14 }}>Error: <small>{err}</small></div>}
 
       <div className="mp-filters" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 18 }}>
@@ -186,7 +190,12 @@ function ManagePoints({ tmsUserId, isAdmin }: { tmsUserId: number; isAdmin: bool
           data={rows} columns={columns}
           getRowId={(r) => String(r.pointID)}
           mainColumns="description"
-          cardColumns={["pointID", "customerName", "reportedByName", "status"]}
+          // Phone card: point title · ticket no. · status pill · customer / module / reporter / assignee
+          cardColumns={["title", "pointID", "status", "customerName", "module", "reportedByName", "assignedToName"]}
+          phoneTitle="Manage Points"
+          onCreate={() => router.push("/point-management/add-point")}
+          createLabel="Add Point"
+          onRefresh={load}
           rightFrozenColumns={["sendtracker", "actions"]}
           {...gridFeatures}
         />

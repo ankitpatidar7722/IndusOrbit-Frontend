@@ -60,17 +60,26 @@
   border: 2px solid rgb(var(--fg-default) / 0.32); background: rgb(var(--bg-surface));
 }
 .rc-check[data-on] { border: none; background: rgb(var(--color-primary)); color: rgb(var(--color-primary-foreground)); }
-.rc-overline-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 2px; }
-.rc-overline {
-  flex: 1; min-width: 0; padding-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 13px; line-height: 18px; font-weight: 500; color: rgb(var(--fg-default));
-}
 .rc-status { display: flex; flex-shrink: 0; align-items: center; gap: 6px; max-width: 55%; }
-.rc-actions-space { width: 34px; flex-shrink: 0; }
 .rc-title {
-  font-size: 14.5px; line-height: 20px; font-weight: 600; overflow-wrap: anywhere;
+  font-size: 15px; line-height: 21px; font-weight: 700; overflow-wrap: anywhere;
   color: rgb(var(--color-primary));
 }
+/* Reference (code / number) under the title, brand colour, with the status pill on the right. */
+.rc-ref-row { display: flex; align-items: center; gap: 10px; margin-top: 1px; min-height: 20px; }
+.rc-ref {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; line-height: 18px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: rgb(var(--color-primary));
+}
+.dark .rc-ref { color: rgb(var(--fg-default) / 0.85); }
+/* Grey "Label: value, Label: value" lines, one line each, ellipsised. */
+.rc-meta {
+  margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12.5px; line-height: 18px; color: rgb(var(--fg-default) / 0.62);
+}
+.rc-meta-cells { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; font-size: 12.5px; color: rgb(var(--fg-default) / 0.62); }
+.rc-meta-cell { display: inline-flex; align-items: center; gap: 6px; }
 .rc-title-lg { font-size: 16px; line-height: 22px; }
 .dark .rc-title { color: rgb(var(--fg-default)); }
 .rc-title-float { float: right; width: 34px; height: 20px; margin-left: 8px; }
@@ -111,15 +120,50 @@
   background: rgb(var(--fg-default) / 0.07); color: rgb(var(--fg-default));
   font-size: 16px; font-weight: 600; cursor: pointer;
 }
-.rc-facts {
-  display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; row-gap: 4px;
-  margin-top: 9px; padding-top: 8px; border-top: 1px solid rgb(var(--fg-default) / 0.13);
+/* --- Phone list header for a DataGrid in card view (IndusFlexoERP master-list style). --- */
+.pl-header { padding: 10px 6px 8px 16px; border-bottom: 1px solid rgb(var(--fg-default) / 0.08); background: rgb(var(--bg-surface)); }
+.pl-row { display: flex; align-items: center; gap: 2px; }
+.pl-title {
+  flex: 1; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 19px; line-height: 24px; font-weight: 700; letter-spacing: -0.01em; color: rgb(var(--fg-default));
 }
-.rc-fact {
-  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 12.5px; line-height: 18px; color: rgb(var(--fg-default) / 0.62);
+.pl-btn {
+  display: grid; place-content: center; flex-shrink: 0; width: 44px; height: 44px;
+  border: none; border-radius: 999px; background: transparent; color: rgb(var(--fg-default)); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.rc-fact-value { font-weight: 600; color: rgb(var(--fg-default)); font-variant-numeric: tabular-nums; }
+.pl-btn:active { background: rgb(var(--fg-default) / 0.07); }
+.pl-btn[data-on] { color: rgb(var(--color-primary)); background: rgb(var(--color-primary) / 0.1); }
+.dark .pl-btn[data-on] { color: rgb(var(--fg-default)); background: rgb(var(--fg-default) / 0.12); }
+.pl-btn:disabled { opacity: 0.6; }
+.pl-search {
+  display: flex; align-items: center; gap: 10px; height: 46px; margin: 8px 10px 2px 0; padding: 0 12px;
+  border-radius: 14px; border: 1px solid rgb(var(--fg-default) / 0.16); background: rgb(var(--bg-surface));
+  color: rgb(var(--fg-default));
+}
+.pl-search:focus-within { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12); }
+.pl-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 16px; color: rgb(var(--fg-default)); }
+.pl-search input::placeholder { color: rgb(var(--fg-default) / 0.5); }
+.pl-clear {
+  display: grid; place-content: center; width: 28px; height: 28px; border: none; border-radius: 999px;
+  background: rgb(var(--fg-default) / 0.1); color: rgb(var(--fg-default) / 0.7); cursor: pointer;
+}
+.pl-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid rgb(var(--fg-default) / 0.08); }
+/* Floating "+" create button, above the bottom bar (bar ≈ 78px + safe area). */
+.pl-fab {
+  position: fixed; right: 18px; bottom: calc(94px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+  display: grid; place-content: center; width: 58px; height: 58px; border: none; border-radius: 999px;
+  color: rgb(var(--color-primary-foreground)); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  background-image: linear-gradient(150deg, rgb(var(--color-primary-muted)), rgb(var(--color-primary)) 55%, rgb(var(--color-primary-hover)));
+  box-shadow: 0 10px 22px -8px rgb(var(--color-primary) / 0.7), 0 3px 8px -3px rgb(15 23 42 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  transition: transform 0.15s;
+}
+.pl-fab:active { transform: scale(0.92); }
+.dark .pl-fab { background-image: none; background-color: color-mix(in srgb, rgb(var(--color-primary)) 60%, rgb(78 80 90)); }
+/* Keyboard up (BottomNav marks itself) → the bar is gone, the FAB drops to the edge. */
+body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
+/* Page-level controls the phone list header / FAB replace (page title block, Create buttons). */
+@media (max-width: 768px) { .hide-on-phone { display: none !important; } }
 
 /* --- Phone FORM PAGE (ported look from IndusFlexoERP master forms). On a phone (≤768px, indas-ui
    useIsMobile) every StandardModal renders as a full-page Radix dialog `fixed inset-0` with a ‹ back header.

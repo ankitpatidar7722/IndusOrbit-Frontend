@@ -518,7 +518,8 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
 }) {
   const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, clientUserId, canEdit = true, sendToPoint, sendToTask, summary } = props;
   const { openComposer } = useEmailComposer();
-  const [modal, setModal] = useState<{ open: boolean; row: T | null }>({ open: false, row: null });
+  // `view`: opened from View (or a phone card tap) → the same form, read-only.
+  const [modal, setModal] = useState<{ open: boolean; row: T | null; view?: boolean }>({ open: false, row: null });
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
@@ -530,6 +531,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
 
   const openCreate = () => setModal({ open: true, row: null });
   const openEdit = (row: T) => setModal({ open: true, row });
+  const openView = (row: T) => setModal({ open: true, row, view: true });
   const close = () => setModal({ open: false, row: null });
 
   const save = async (values: Record<string, unknown>) => {
@@ -779,7 +781,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
     }
     // Standard Actions column (View / Edit / Delete) — same component + look as /users.
     extra.push(createActionsColumn<T>({
-      onView: (r) => openEdit(r),
+      onView: (r) => openView(r),
       onEdit: (r) => openEdit(r),
       onDelete: (r) => doDelete(r),
       showView: true, showEdit: canEdit, showDelete: canEdit,
@@ -798,7 +800,9 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   return (
     <TooltipProvider delayDuration={150}>
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        {/* hide-on-phone: on a phone the grid's list header (title + sort / search / refresh) and the
+            floating "+" replace this row. */}
+        <div className="hide-on-phone" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 15, fontWeight: 700 }}>{title}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {canEdit ? (
@@ -823,6 +827,10 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           data={rows}
           columns={cols}
           getRowId={(r) => String(r.id)}
+          phoneTitle={title}
+          onCreate={canEdit ? openCreate : undefined}
+          createLabel={`New ${singular}`}
+          onRefresh={reload}
           enableRowSelection
           rowSelectionMode="multi"
           enableColumnResizing
@@ -840,8 +848,8 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           // Fresh, per-grid persisted-view key so code column sizes apply (see persisted-width gotcha).
           persistKey={`tracker-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-v1`}
         />
-        <EntityFormModal open={modal.open} title={`${modal.row ? "Edit" : "New"} ${singular}`}
-          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit} columns={props.formColumns} />
+        <EntityFormModal open={modal.open} title={modal.view ? singular : `${modal.row ? "Edit" : "New"} ${singular}`}
+          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit || !!modal.view} columns={props.formColumns} />
         <ImportPreviewModal open={preview.open} title={title} fields={fields} initialRows={preview.rows}
           onClose={() => setPreview({ open: false, rows: [] })} onImport={doImportRows} />
         <AlertComponent />

@@ -756,7 +756,8 @@ export function createActionsColumn<TData>(config: ActionsColumnConfig<TData>) {
     enableHiding: true,
     enableColumnFilter: false,
     // On a phone this cell is always a single ⋮ dropdown, so the mobile record card can show it inline.
-    meta: { phoneSingleMenu: true },
+    // onView: a mobile card tap opens the record in view mode (unless View is explicitly hidden).
+    meta: { phoneSingleMenu: true, onView: defaultConfig.showView === false ? undefined : defaultConfig.onView },
     size: (() => {
       if (defaultConfig.mode === 'dropdown') return 50
       if (defaultConfig.mode === 'buttons') {

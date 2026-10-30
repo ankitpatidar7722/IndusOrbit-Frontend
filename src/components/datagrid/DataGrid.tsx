@@ -120,6 +120,7 @@ const DataVisualization = dynamic(
 // Export/Import - Now handled via ActionsMenu (ExportSection/ImportSection)
 // Draggable Column Header
 import { DraggableColumnHeader } from './columns/DraggableColumnHeader'
+import { PhoneListHeader, PhoneFab } from './controls/PhoneListHeader'
 // Draggable Row Component
 import { DraggableRow } from './rows/DraggableRow'
 import { CellRenderer } from './cells/CellRenderer'
@@ -287,6 +288,15 @@ export interface DataGridProps<TData> {
   onRefresh?: () => void | Promise<unknown>
   /** External loading flag for the refresh icon (e.g. a React Query isFetching). */
   isRefreshing?: boolean
+  /**
+   * Create handler. On a phone (card view) it shows as a round "+" button floating above the bottom
+   * bar (IndusFlexoERP style) — pages then hide their own Create button with `.hide-on-phone`.
+   */
+  onCreate?: () => void
+  /** Accessible name of the "+" button, e.g. "Create Client Project". */
+  createLabel?: string
+  /** Title for the phone list header only (when the desktop grid has no `title` of its own). */
+  phoneTitle?: React.ReactNode
   preToggleActions?: React.ReactNode
   loading?: boolean
   hideHeader?: boolean
@@ -404,6 +414,9 @@ export function DataGrid<TData>({
   preToggleActions,
   loading = false,
   hideHeader = false,
+  onCreate,
+  createLabel = 'Create',
+  phoneTitle,
   compactHeader = true,
   columnResizeMode = 'onChange',
   style,
@@ -1770,6 +1783,21 @@ export function DataGrid<TData>({
     }
   }, [onRefresh, refreshSpinning])
 
+  // Phone card view: the list header's ⇅ sorts by the card's TITLE column (cardColumns[0], else the
+  // first data column): ascending → descending → original order.
+  const phoneCards = isMobile && currentView === 'cards'
+  const phoneSortCol = (() => {
+    const ids = table.getAllLeafColumns().map((c) => c.id).filter((id) => id !== 'select' && id !== 'actions')
+    return cardColumns?.[0] && ids.includes(cardColumns[0]) ? cardColumns[0] : ids[0]
+  })()
+  const phoneSortDir: 'asc' | 'desc' | null =
+    phoneSortCol && sorting[0]?.id === phoneSortCol ? (sorting[0].desc ? 'desc' : 'asc') : null
+  const togglePhoneSort = () => {
+    if (!phoneSortCol) return
+    setSorting(phoneSortDir === null ? [{ id: phoneSortCol, desc: false }]
+      : phoneSortDir === 'asc' ? [{ id: phoneSortCol, desc: true }] : [])
+  }
+
   const handleClearColumnSearch = useCallback((columnId: string) => {
     setColumnSearches(prev => {
       const newSearches = { ...prev }
@@ -1854,8 +1882,27 @@ export function DataGrid<TData>({
         zIndex: 0
       }}
     >
+      {/* Phone card view: IndusFlexoERP-style list header (title + sort / search / refresh) and a
+          floating "+" create button, instead of the desktop toolbar. */}
+      {!hideHeader && phoneCards && (
+        <PhoneListHeader
+          title={phoneTitle ?? title}
+          sortDir={phoneSortDir}
+          onToggleSort={togglePhoneSort}
+          searchValue={searchValue}
+          onSearchChange={handleGlobalSearchChange}
+          onRefresh={onRefresh ? handleRefreshClick : () => window.location.reload()}
+          refreshing={refreshSpinning}
+        />
+      )}
+      {/* Page-supplied toolbar extras must stay reachable on a phone. */}
+      {!hideHeader && phoneCards && (headerActions || preToggleActions || headerActionsRight || toolbarActions) && (
+        <div className="pl-extra">{headerActions}{preToggleActions}{headerActionsRight}{toolbarActions}</div>
+      )}
+      {phoneCards && onCreate && <PhoneFab onClick={onCreate} label={createLabel} />}
+
       {/* Header Row - 20% more height for better balance */}
-      {!hideHeader && (
+      {!hideHeader && !phoneCards && (
         <div
           className={`flex flex-row items-center justify-between gap-1.5 sm:gap-0 py-2 sm:py-1.5 px-2 sm:px-3 border-b border-bd-default bg-bg-subtle transition-colors ${enableGrouping ? 'group-drop-zone' : ''}`}
           onDragOver={enableGrouping ? (e) => {
