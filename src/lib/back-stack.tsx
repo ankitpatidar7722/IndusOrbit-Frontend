@@ -216,10 +216,34 @@ export class BackStackController {
     this.guarded = true
   }
 
+  /**
+   * The next layer close is happening BECAUSE the user is navigating (a module tile, a profile-card row):
+   * leave the guard entry where it is instead of stepping history back. router.push lands its entry a beat
+   * later (it is async), so the usual reclaim - which still sees our entry on top - would history.back()
+   * and cancel the navigation the user just asked for. The entry left behind is the screen they were on,
+   * which is exactly where Back should take them.
+   */
+  leaveForNavigation(): void {
+    this.navigating = true
+    if (this.navigatingTimer !== null) clearTimeout(this.navigatingTimer)
+    // Only for the close that follows right away; never left armed.
+    this.navigatingTimer = setTimeout(() => {
+      this.navigating = false
+      this.navigatingTimer = null
+    }, 500)
+  }
+
+  private navigating = false
+  private navigatingTimer: ReturnType<typeof setTimeout> | null = null
+
   /** Take the guard entry back, if we still own the current one. */
   private popGuard(): void {
     if (!this.guarded) return
     this.guarded = false
+    if (this.navigating) {
+      this.navigating = false
+      return
+    }
     if (this.reclaimTimer !== null) return
     this.reclaimTimer = setTimeout(() => {
       this.reclaimTimer = null
@@ -323,6 +347,7 @@ interface BackStack {
   depth: () => number
   /** Re-register a layer that refused a Back close, at the index it had. */
   restore: (close: () => void, index: number) => number
+  leaveForNavigation: () => void
 }
 
 const BackStackContext = React.createContext<BackStack | null>(null)
@@ -422,9 +447,24 @@ export function BackStackProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
-  const value = React.useMemo(() => ({ open, close, depth, restore }), [open, close, depth, restore])
+  const leaveForNavigation = React.useCallback(() => controller.current?.leaveForNavigation(), [])
+
+  const value = React.useMemo(
+    () => ({ open, close, depth, restore, leaveForNavigation }),
+    [open, close, depth, restore, leaveForNavigation],
+  )
 
   return <BackStackContext.Provider value={value}>{children}</BackStackContext.Provider>
+}
+
+/**
+ * For a layer that closes in order to NAVIGATE (a menu sheet's tile, a profile card's row): call the returned
+ * function, then close the layer, then router.push. Without it the close steps history back and that cancels
+ * the push - the tap seems to do nothing. A no-op outside a BackStackProvider.
+ */
+export function useLeaveForNavigation(): () => void {
+  const stack = React.useContext(BackStackContext)
+  return React.useCallback(() => stack?.leaveForNavigation(), [stack])
 }
 
 /**

@@ -11,6 +11,7 @@ import { NavIcon, type NavIconName } from "@/components/phone/NavIcons";
 import ModulesSheet from "@/components/phone/ModulesSheet";
 import { useKeyboardOpen } from "@/components/phone/useKeyboardOpen";
 import { OPEN_MODULE_SEARCH_EVENT } from "@/components/phone/PhoneTopBar";
+import { useLeaveForNavigation } from "@/lib/back-stack";
 
 /**
  * Native-app bottom navigation — mobile/tablet only (hidden ≥ lg via .bottom-nav CSS).
@@ -24,6 +25,7 @@ const NATIVE_GLYPH: Record<string, NavIconName> = { home: "home", chat: "message
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const leave = useLeaveForNavigation();
   const reduceMotion = !!useReducedMotion();
   const { openMessaging } = useMessagingPanel();
   const { state } = useMessaging();
@@ -50,6 +52,7 @@ export default function BottomNav() {
 
   const active = (route?: string) => (!route ? false : route === "/" ? pathname === "/" : pathname.startsWith(route));
   const onItem = (it: BottomNavStored) => {
+    if (modulesOpen) leave(); // closing the sheet FOR this navigation: keep its history entry (no back)
     setModulesOpen(false); // a bar tab always wins over the open sheet (the sheet closes itself on a tile tap)
     if (it.action === "chat") openMessaging();
     else if (it.route) router.push(it.route);

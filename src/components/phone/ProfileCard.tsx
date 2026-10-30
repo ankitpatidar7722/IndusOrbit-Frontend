@@ -6,7 +6,7 @@ import { ThemeContext } from "indas-ui";
 import { BookOpen, CalendarDays, ChevronRight, LogOut, Mail, Moon, Settings as SettingsIcon, ShieldCheck, Sun, User as UserIcon } from "lucide-react";
 import { signOutTracked } from "@/lib/sessionTracking";
 import { photoUrl } from "@/lib/users";
-import { useBackGuard } from "@/lib/back-stack";
+import { useBackGuard, useLeaveForNavigation } from "@/lib/back-stack";
 
 /**
  * Phone profile card (IndusFlexoERP style), opened from the top bar's avatar over a dimmed screen:
@@ -27,9 +27,11 @@ export default function ProfileCard({ open, onClose, onOpenManual }: { open: boo
   const isDark = !!themeCtx?.isDark;
   const [photoOk, setPhotoOk] = useState(true);
   useBackGuard(open, onClose);   // Android / browser Back closes the card
+  const leave = useLeaveForNavigation();
 
   if (!open) return null;
-  const go = (href: string) => { onClose(); router.push(href); };
+  // Close for a NAVIGATION: without leave() the close steps history back and cancels the push (tap did nothing).
+  const go = (href: string) => { leave(); onClose(); router.push(href); };
   const initials = (u.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
   const signedIn = (() => {
     if (!u.LoginAt) return null;

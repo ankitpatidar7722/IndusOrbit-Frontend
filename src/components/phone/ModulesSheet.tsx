@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/phone/AppIcon";
 import InstallAppButton from "@/components/InstallAppButton";
-import { useBackGuard } from "@/lib/back-stack";
+import { useBackGuard, useLeaveForNavigation } from "@/lib/back-stack";
 import { fetchPhoneGroups, type PhoneGroup, type PhoneLeaf } from "@/lib/phoneModules";
 
 /**
@@ -89,7 +89,9 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
 
   const drilled = openGroup ? groups?.find((g) => g.name === openGroup) ?? null : null;
 
-  const go = (href: string) => { onClose(); router.push(href); };
+  const leave = useLeaveForNavigation();
+  // Close for a NAVIGATION: without leave() the close steps history back and cancels the push (tap did nothing).
+  const go = (href: string) => { leave(); onClose(); router.push(href); };
   const pickGroup = (g: PhoneGroup) => {
     if (g.leaves.length === 1) go(g.leaves[0].href);
     else setOpenGroup(g.name);
