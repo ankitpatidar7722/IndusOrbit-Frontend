@@ -201,7 +201,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
     const seed: Record<string, string> = {};
     for (const v of t.variables) {
       if (v.name === "clientName" && ctx?.clientName) seed[v.name] = ctx.clientName;
-      else if (v.name === "clientCode" && ctx?.clientCode) seed[v.name] = ctx.clientCode;
+      else if (v.name === "clientCode" && (ctx?.displayCode || ctx?.clientCode)) seed[v.name] = (ctx.displayCode || ctx.clientCode)!;
       else if (v.name === "senderName" && sender.name) seed[v.name] = sender.name;
       else if (v.defaultValue != null) seed[v.name] = v.defaultValue;
     }
@@ -273,7 +273,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
         isOpen={open}
         onClose={() => { if (!sending) onClose(); }}
         title="Compose Email"
-        subtitle={ctx?.clientName ? `To ${ctx.clientName}${ctx.clientCode ? ` · ${ctx.clientCode}` : ""}` : undefined}
+        subtitle={ctx?.clientName ? `To ${ctx.clientName}${(ctx.displayCode || ctx.clientCode) ? ` · ${ctx.displayCode || ctx.clientCode}` : ""}` : undefined}
         size="xl"
         showFooter
         onSave={send}
@@ -302,7 +302,7 @@ export default function EmailComposer({ open, init, onClose }: { open: boolean; 
           {(ctx?.clientName || ctx?.pointId || ctx?.module) && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgb(var(--bg-subtle))", border: "1px solid #d6e0ee", borderRadius: 9, padding: "7px 12px", fontSize: 12.5, color: "rgb(var(--color-primary))" }}>
               <Mail size={14} />
-              <span><b>Context:</b> {ctx?.clientName ?? "—"}{ctx?.clientCode ? ` (${ctx.clientCode})` : ""}{ctx?.pointId ? ` · Issue #${ctx.pointId}` : ""}{ctx?.module ? ` · ${ctx.module}` : ""}</span>
+              <span><b>Context:</b> {ctx?.clientName ?? "—"}{(ctx?.displayCode || ctx?.clientCode) ? ` (${ctx?.displayCode || ctx?.clientCode})` : ""}{ctx?.pointId ? ` · Issue #${ctx.pointId}` : ""}{ctx?.module ? ` · ${ctx.module}` : ""}</span>
             </div>
           )}
 

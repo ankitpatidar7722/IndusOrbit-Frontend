@@ -730,6 +730,9 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
 
   // ── Finalized Kick-Off / Sign-Off documents (edit → save → view/download) ──
   const docClientCode = c.companyUniqueCode || c.companyUserID;
+  // CompanyUserID = the client's unique key (CompanyUniqueCode repeats / is blank for some clients).
+  // Sent emails (EmailHistory) + the Communication Log bind to this, so one client's mail never shows on another.
+  const clientUserId = (c.companyUserID ?? "").trim() || undefined;
   const sUser = (session?.user ?? {}) as { name?: string; UserID?: number };
   const docMetaFor = (t: ClientDocType) => docMeta.find((m) => m.docType === t) || null;
   const refreshDocMeta = () => {
@@ -993,7 +996,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
         subject: `${label} Document — ${client}`,
         body: `Dear ${client},\n\nPlease find attached the ${label} document for your reference. Kindly review and let us know if any changes are required.\n\nRegards,\n${me}`,
         attachments: [attachment],
-        context: { clientCode: docClientCode, clientName: c.companyName ?? undefined, module: label },
+        context: { clientCode: clientUserId ?? docClientCode, displayCode: c.companyUniqueCode ?? undefined, clientName: c.companyName ?? undefined, module: label },
         onSent: () => {
           setFlash(`${label} document emailed to the client.`);
           // Email actually sent → log an audit entry (who / to whom / version) + bump the send
@@ -1301,7 +1304,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
             {fld("Connection String", "conn_String", "textarea", { full: true, copy: true })}
           </SectionCard>
 
-          {!editing && <EmailHistoryCard clientCode={c.companyUniqueCode ?? undefined} refreshKey={emailRefresh} />}
+          {!editing && <EmailHistoryCard clientCode={clientUserId} refreshKey={emailRefresh} />}
         </div>
       )}
 
@@ -1323,14 +1326,14 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           {renderDocBar("KickOff", "Kick-Off")}
         </div>
       )}
-      {tab === "tracker" && <TrackerPanel code={trackerCode} view="tracker" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientApplication={c.applicationName} canEdit={canEdit("tracker")} />}
+      {tab === "tracker" && <TrackerPanel code={trackerCode} view="tracker" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientUserId={clientUserId} clientApplication={c.applicationName} canEdit={canEdit("tracker")} />}
       {tab === "templates" && <TemplateMasterPanel client={c} canEdit={canEdit("templates")} canDelete={canDelete("templates")} />}
       {tab === "signoff" && (
         <div>
           {renderDocBar("SignOff", "Sign-Off")}
         </div>
       )}
-      {tab === "onsite" && <TrackerPanel code={trackerCode} view="onsite" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientAddress={c.address} canEdit={canEdit("onsite")} />}
+      {tab === "onsite" && <TrackerPanel code={trackerCode} view="onsite" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientUserId={clientUserId} clientAddress={c.address} canEdit={canEdit("onsite")} />}
 
       {histKind && (
         <div onClick={() => setHistKind(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,.55)", display: "grid", placeItems: "center", padding: 20 }}>

@@ -499,6 +499,9 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   code: string; title: string; rows: T[]; columns: ColumnDef<T>[]; fields: FieldDef[];
   blank: Record<string, unknown>; apiFns: Api<T>; send: ("mail" | "task" | "point")[]; reload: () => void; onFlash: (m: string) => void;
   clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; canEdit?: boolean;
+  // CompanyUserID — the client's unique key; stamped on sent emails (EmailHistory) so they bind to
+  // exactly this client. clientCode (CompanyUniqueCode) is only shown in the email text.
+  clientUserId?: string | null;
   // Explicit singular label for the modal title + toasts. Defaults to `title` minus a trailing "s",
   // which is wrong when the title legitimately ends in "s" (e.g. "…Status") — pass it there.
   singular?: string;
@@ -513,7 +516,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   // Optional pre-save validation — return an error string to block the save (e.g. To ≥ From).
   validate?: (v: Record<string, unknown>) => string | null;
 }) {
-  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, canEdit = true, sendToPoint, sendToTask, summary } = props;
+  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, clientUserId, canEdit = true, sendToPoint, sendToTask, summary } = props;
   const { openComposer } = useEmailComposer();
   const [modal, setModal] = useState<{ open: boolean; row: T | null }>({ open: false, row: null });
   const [saving, setSaving] = useState(false);
@@ -746,7 +749,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       to: clientEmail ? [{ email: clientEmail, name: clientName ?? undefined }] : [],
       subject: `${singular} Update — ${clientName || clientCode || "your project"}`,
       body,
-      context: { clientCode: clientCode ?? undefined, clientName: clientName ?? undefined, module: title },
+      context: { clientCode: clientUserId || clientCode || undefined, displayCode: clientCode ?? undefined, clientName: clientName ?? undefined, module: title },
       onSent: () => flag(row, "emailed"),
     });
   };
@@ -1132,7 +1135,7 @@ const ONSITE_FIELDS: FieldDef[] = [
 const ONSITE_BLANK = { status: "Planned" };
 
 /* ------------------------------------------------------------------ panel */
-export default function TrackerPanel({ code, view, clientEmail, clientName, clientCode, clientApplication, clientAddress, canEdit = true }: { code: string; view: "kickoff" | "tracker" | "signoff" | "onsite"; clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; clientApplication?: string | null; clientAddress?: string | null; canEdit?: boolean }) {
+export default function TrackerPanel({ code, view, clientEmail, clientName, clientCode, clientUserId, clientApplication, clientAddress, canEdit = true }: { code: string; view: "kickoff" | "tracker" | "signoff" | "onsite"; clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; clientUserId?: string | null; clientApplication?: string | null; clientAddress?: string | null; canEdit?: boolean }) {
   const [data, setData] = useState<Tracker | null>(null);
   const [sub, setSub] = useState("milestones");
   const [err, setErr] = useState<string | null>(null);
@@ -1202,7 +1205,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       <div>
         {flashBar}
         <EntityGrid<OnsiteVisit> code={code} title="Onsite Visits" rows={data.onsite} columns={ONSITE_COLS}
-          fields={ONSITE_FIELDS} blank={{ ...ONSITE_BLANK, location: clientAddress ?? "" }} send={SEND_MAIL} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={ONSITE_FIELDS} blank={{ ...ONSITE_BLANK, location: clientAddress ?? "" }} send={SEND_MAIL} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           validate={(v) => { const f = String(v.fromDate ?? "").slice(0, 10), t = String(v.toDate ?? "").slice(0, 10); return f && t && t < f ? "To Date cannot be earlier than From Date." : null; }}
           apiFns={{ add: api.addOnsite, update: api.updateOnsite, del: api.deleteOnsite }} canEdit={canEdit} />
       </div>
@@ -1225,25 +1228,26 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       {sub === "milestones" && (
         <EntityGrid<Milestone> code={code} title="Milestone Roadmap" rows={data.milestones} columns={MILESTONE_COLS}
           summary={<MilestoneProgress milestones={data.milestones} />}
-          fields={milestoneFields} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={milestoneFields} blank={MILESTONE_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "milestone", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addMilestone, update: api.updateMilestone, del: api.deleteMilestone }} canEdit={canEdit} />
       )}
       {sub === "training" && (
         <EntityGrid<TrainingUpdate> code={code} title="Training & Daily Status" singular="Training & Daily Status" rows={data.training} columns={TRAINING_COLS}
-          fields={TRAINING_FIELDS} blank={TRAINING_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={TRAINING_FIELDS} blank={TRAINING_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "training", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addTraining, update: api.updateTraining, del: api.deleteTraining }} canEdit={canEdit} />
       )}
       {sub === "cr" && (
         <EntityGrid<ChangeRequest> code={code} title="Change Requests" rows={data.changeRequests} columns={CR_COLS} formColumns={5}
-          fields={CR_FIELDS} blank={CR_BLANK} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode}
+          fields={CR_FIELDS} blank={CR_BLANK} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToPoint={(cd, id) => api.changeRequestToPoint(cd, id, { clientName: clientName ?? undefined, application: clientApplication ?? undefined })}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "changerequest", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addChangeRequest, update: api.updateChangeRequest, del: api.deleteChangeRequest }} canEdit={canEdit} />
       )}
       {sub === "comm" && (
-        <CommunicationLogTab code={code} clientName={clientName} canEdit={canEdit} onFlash={setFlash} />
+        // Keyed by CompanyUserID (unique) — not the tracker's CompanyUniqueCode, which repeats/blank for some clients.
+        <CommunicationLogTab code={clientUserId || code} clientName={clientName} canEdit={canEdit} onFlash={setFlash} />
       )}
     </div>
   );

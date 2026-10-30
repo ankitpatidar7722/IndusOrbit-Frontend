@@ -123,7 +123,8 @@ export default function TemplateMasterPanel({ client, canEdit = true, canDelete 
         to: client.email ? [{ email: client.email, name: client.companyName ?? undefined }] : [],
         subject: `Master Data Templates — ${client.companyName || "your project"}`,
         body: `Dear ${client.companyName || "Sir/Madam"},<br/><br/>Please find attached the master-data template(s):<br/>${listHtml}<br/><br/>Kindly fill in your data in these Excel sheets and send them back to us for master upload.<br/><br/>Regards,<br/>Indus Analytics`,
-        context: { clientCode: client.companyUniqueCode ?? undefined, clientName: client.companyName ?? undefined, module: "Master Template" },
+        // EmailHistory binds by CompanyUserID (unique); template status (markSent) keeps its own clientCode.
+        context: { clientCode: (client.companyUserID ?? "").trim() || client.companyUniqueCode || undefined, displayCode: client.companyUniqueCode ?? undefined, clientName: client.companyName ?? undefined, module: "Master Template" },
         attachments,
         onSent: async () => { if (clientCode) { await masterTemplatesApi.markSent(clientCode, sentBy, items); loadStatus(); } },
       });

@@ -33,7 +33,8 @@ export function EmailComposerProvider({ children }: { children: React.ReactNode 
         try {
           const c = await customersApi.detail(decodeURIComponent(m[1]));
           resolved = {
-            context: { clientCode: c.companyUniqueCode ?? undefined, clientName: c.companyName ?? undefined, module: "Client" },
+            // Bind by CompanyUserID (unique) — CompanyUniqueCode repeats / is blank for some clients.
+            context: { clientCode: (c.companyUserID ?? "").trim() || c.companyUniqueCode || undefined, displayCode: c.companyUniqueCode ?? undefined, clientName: c.companyName ?? undefined, module: "Client" },
           };
         } catch { /* open blank if the client can't be resolved */ }
       }

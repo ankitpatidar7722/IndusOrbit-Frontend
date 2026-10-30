@@ -15,7 +15,11 @@ export interface EmailAttachmentBase64 {
 
 /** Optional Client / Project / Issue context carried into history. */
 export interface EmailContext {
+  /** Binding key stored in EmailHistory = the client's CompanyUserID (unique). */
   clientCode?: string;
+  /** Human-facing client code (CompanyUniqueCode, e.g. IA00323) — fills the {{clientCode}} template
+   *  variable and the composer header; never stored. Falls back to clientCode when absent. */
+  displayCode?: string;
   clientName?: string;
   pointId?: number;
   ticketId?: number;
