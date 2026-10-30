@@ -440,6 +440,31 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   }
 }
 
+/* --- Phone chip tabs (components/phone/ChipTabs): full-label pills in one sideways-scrolling row. --- */
+.chip-tabs {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;
+  margin: 0 -16px; padding: 2px 16px 4px;
+}
+.chip-tabs::-webkit-scrollbar { display: none; }
+.chip-tab {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; height: 40px; padding: 0 14px;
+  border-radius: 999px; border: 1px solid rgb(var(--fg-default) / 0.16); background: rgb(var(--bg-surface));
+  font-size: 14px; font-weight: 600; white-space: nowrap; color: rgb(var(--fg-default) / 0.8); cursor: pointer;
+  scroll-snap-align: center; -webkit-tap-highlight-color: transparent; transition: background 0.15s, color 0.15s;
+}
+.chip-tab:active { transform: scale(0.97); }
+.chip-tab[data-on] {
+  border-color: transparent; color: rgb(var(--color-primary-foreground));
+  background-image: linear-gradient(150deg, rgb(var(--color-primary-muted)), rgb(var(--color-primary)) 55%, rgb(var(--color-primary-hover)));
+  box-shadow: 0 4px 12px -5px rgb(var(--color-primary) / 0.55);
+}
+.dark .chip-tab[data-on] { background-image: none; background-color: color-mix(in srgb, rgb(var(--color-primary)) 60%, rgb(78 80 90)); }
+.chip-tab-count {
+  min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; line-height: 20px; text-align: center;
+  font-variant-numeric: tabular-nums; background: rgb(var(--fg-default) / 0.08); color: rgb(var(--fg-default) / 0.7);
+}
+.chip-tab[data-on] .chip-tab-count { background: rgb(255 255 255 / 0.25); color: inherit; }
+
 /* --- Phone feature-permission switches (User Master → Profile → User Permissions). --- */
 .pf-group-head { display: flex; align-items: baseline; justify-content: space-between; margin: 16px 2px 8px; font-size: 16px; font-weight: 700; color: rgb(var(--fg-default)); }
 .pf-group-count { font-size: 13px; font-weight: 600; color: rgb(var(--color-primary)); }

@@ -1,12 +1,13 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, useModalAlert, TooltipProvider } from "indas-ui";
+import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, useModalAlert, TooltipProvider, useDevice } from "indas-ui";
+import ChipTabs from "@/components/phone/ChipTabs";
 import KDropdown from "@/components/KDropdown";
 // Same full-featured grid as /users (owned source — colored header tint, white filter row, etc.)
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, Sparkles } from "lucide-react";
+import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, Sparkles, Flag, GraduationCap, GitPullRequest, MessagesSquare } from "lucide-react";
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
@@ -1146,6 +1147,7 @@ const ONSITE_BLANK = { status: "Planned" };
 export default function TrackerPanel({ code, view, clientEmail, clientName, clientCode, clientUserId, clientApplication, clientAddress, canEdit = true }: { code: string; view: "kickoff" | "tracker" | "signoff" | "onsite"; clientEmail?: string | null; clientName?: string | null; clientCode?: string | null; clientUserId?: string | null; clientApplication?: string | null; clientAddress?: string | null; canEdit?: boolean }) {
   const [data, setData] = useState<Tracker | null>(null);
   const [sub, setSub] = useState("milestones");
+  const { isMobile } = useDevice();
   const [err, setErr] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -1222,17 +1224,24 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
 
   // tracker
   const subTabs = [
-    { id: "milestones", label: "Milestone Roadmap" },
-    { id: "training", label: "Training & Daily Status" },
-    { id: "cr", label: "Change Request" },
-    { id: "comm", label: "Communication Log" },
+    { id: "milestones", label: "Milestone Roadmap", icon: Flag, count: data.milestones?.length },
+    { id: "training", label: "Training & Daily Status", icon: GraduationCap, count: data.training?.length },
+    { id: "cr", label: "Change Request", icon: GitPullRequest, count: data.changeRequests?.length },
+    { id: "comm", label: "Communication Log", icon: MessagesSquare },
   ];
   return (
     <div>
       {flashBar}
-      <div className="scroll-tabs" style={{ marginBottom: 14 }}>
-        <Tabs tabs={subTabs} activeTab={sub} onTabChange={setSub} variant="rounded" size="sm" />
-      </div>
+      {/* Phone: full-label chips in one sideways-scrolling row (with record counts); desktop: tabs. */}
+      {isMobile ? (
+        <div style={{ marginBottom: 14 }}>
+          <ChipTabs tabs={subTabs} value={sub} onChange={setSub} ariaLabel="Tracker sections" />
+        </div>
+      ) : (
+        <div className="scroll-tabs" style={{ marginBottom: 14 }}>
+          <Tabs tabs={subTabs.map(({ id, label }) => ({ id, label }))} activeTab={sub} onTabChange={setSub} variant="rounded" size="sm" />
+        </div>
+      )}
       {sub === "milestones" && (
         <EntityGrid<Milestone> code={code} title="Milestone Roadmap" rows={data.milestones} columns={MILESTONE_COLS}
           summary={<MilestoneProgress milestones={data.milestones} />}

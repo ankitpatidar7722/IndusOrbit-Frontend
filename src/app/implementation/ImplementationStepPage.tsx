@@ -118,8 +118,9 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
         </div>
       ) : (
         <>
-          {/* Centered step heading (matches the app-wide page-header look). */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
+          {/* Centered step heading (matches the app-wide page-header look). Hidden on phones — the top
+              bar already names the screen. */}
+          <div className="hide-on-phone" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 20 }}>
             <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: "rgb(var(--color-primary))", color: "#fff", flexShrink: 0, boxShadow: "0 6px 16px -6px rgba(31,69,118,.45)" }}>
               <Icon size={24} />
             </span>
