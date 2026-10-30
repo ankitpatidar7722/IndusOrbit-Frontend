@@ -10,9 +10,12 @@ export default function SessionHeartbeat() {
   const { status } = useSession();
   useEffect(() => {
     if (status !== "authenticated") return;
-    heartbeat();                                   // immediately on load
-    const t = setInterval(heartbeat, 90_000);      // then every 90s
-    const onVisible = () => { if (document.visibilityState === "visible") heartbeat(); };
+    // At most one ping per 30s: switching tabs back and forth used to send one on every return.
+    let last = 0;
+    const beat = () => { const now = Date.now(); if (now - last < 30_000) return; last = now; heartbeat(); };
+    beat();                                        // immediately on load
+    const t = setInterval(beat, 90_000);           // then every 90s
+    const onVisible = () => { if (document.visibilityState === "visible") beat(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
   }, [status]);

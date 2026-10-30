@@ -6,7 +6,7 @@ import { Page, StandardModal, Badge, Button, useModalAlert, useDevice } from "in
 import BrandedLoader from "@/components/BrandedLoader";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck, Save, UserPlus, Mail, Eye, EyeOff, User, Users, Bold, Italic, Underline, List, ListOrdered, Link2, FileSignature, Image as ImageIcon, Trash2, Copy, XCircle, CheckCircle2, Circle, KeyRound } from "lucide-react";
-import { PERMISSION_CATALOG } from "@/lib/featurePermissions";
+import { PERMISSION_CATALOG, clearUserPermissionsCache } from "@/lib/featurePermissions";
 import { insertImageFile } from "@/lib/imageEmbed";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 // Full-featured grid migrated from the legacy Parkson project (owned source).
@@ -300,6 +300,7 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
         if (!mr.success) { showError("Save failed", mr.message || "Module authority save failed."); return; }
       }
       await usersApi.savePermissions(id, permKeys); // opt-in feature permissions
+      clearUserPermissionsCache(id);
       if (wasUpdate) {
         // Update → close the modal and land back on the grid, with a success toast on the page.
         onFlash("User updated successfully.");

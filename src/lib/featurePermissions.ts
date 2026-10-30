@@ -39,13 +39,23 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
 /** Every permission key in the catalog (for select-all / validation). */
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.flatMap((g) => g.perms.map((p) => p.key));
 
+// One request per user per minute: the client detail page alone asked 2–4 times (body + tracker + list).
+const permCache = new Map<number, { at: number; p: Promise<Set<string>> }>();
+const PERM_TTL_MS = 60_000;
+
 /** The feature-permission keys granted to a user (empty set on error or no user). */
 export async function fetchUserPermissions(userId?: number | null): Promise<Set<string>> {
   if (!userId) return new Set();
-  try {
-    const r = await usersApi.getPermissions(userId);
-    return new Set(r.success ? r.data : []);
-  } catch {
-    return new Set();
-  }
+  const hit = permCache.get(userId);
+  if (hit && Date.now() - hit.at < PERM_TTL_MS) return hit.p;
+  const p = usersApi.getPermissions(userId)
+    .then((r) => new Set(r.success ? r.data : []))
+    .catch(() => { permCache.delete(userId); return new Set<string>(); });
+  permCache.set(userId, { at: Date.now(), p });
+  return p;
+}
+
+/** Forget cached grants (call after saving a user's feature permissions). */
+export function clearUserPermissionsCache(userId?: number) {
+  if (userId) permCache.delete(userId); else permCache.clear();
 }

@@ -22,7 +22,7 @@ import {
   CheckCircle,
   X,
 } from 'lucide-react'
-import { importData, ImportResult } from './import'
+import type { ImportResult } from './import'
 
 interface ImportSectionProps<TData> {
   onImport: (data: TData[]) => void
@@ -53,6 +53,8 @@ export function ImportSection<TData>({ onImport }: ImportSectionProps<TData>) {
     }, 100)
 
     try {
+      // Loaded on use: exceljs / papaparse stay out of every grid page's bundle.
+      const { importData } = await import('./import')
       const result = await importData<TData>(file, (progress) => {
         clearInterval(progressInterval)
         setUploadProgress(progress)

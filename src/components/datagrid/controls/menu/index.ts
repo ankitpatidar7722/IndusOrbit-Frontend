@@ -5,6 +5,6 @@ export { ImportSection } from './import/ImportSection'
 export { ColumnSection } from './column/ColumnSection'
 export { FilterSection } from './filter/FilterSection'
 export { CardView } from './view/CardView'
-export { ChartView } from './view/ChartView'
+// ChartView is loaded on demand by DataGrid (echarts) — import './view/ChartView' directly if needed.
 export { ColumnChooserModal } from './column/ColumnChooserModal'
 export { AdvancedFilterModal } from './filter/AdvancedFilterModal'

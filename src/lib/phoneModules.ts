@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { AppIconTone } from "@/components/phone/AppIcon";
+import { fetchMenuRows } from "@/lib/menuCache";
 
 /**
  * Phone navigation model (Modules sheet + phone Home), built from the SAME DB-driven menu the desktop sidebar
@@ -57,8 +58,6 @@ export function groupIconFor(groupName: string): LucideIcon {
   return LayoutDashboard;
 }
 
-type MenuRow = Record<string, unknown>;
-
 // One fetch per user per page-load, shared by the sheet and the Home (both mount together on a phone).
 const cache = new Map<number, Promise<PhoneGroup[]>>();
 
@@ -75,13 +74,8 @@ export function fetchPhoneGroups(userId?: number): Promise<PhoneGroup[]> {
 }
 
 async function load(userId: number): Promise<PhoneGroup[]> {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
-  const res = await fetch(`${base}/api/othermaster/createdynamicmenuwithsubmenu`, {
-    headers: { UserID: String(userId) }, cache: "no-store",
-  });
-  const arr = await res.json();
-  if (!Array.isArray(arr)) return [];
-  const rows = (arr as MenuRow[])
+  const arr = await fetchMenuRows(userId);   // shared with the other menu readers (lib/menuCache)
+  const rows = arr
     .filter((m) => typeof m.ModuleName === "string" && (m.ModuleName as string).startsWith("/") && m.CanView)
     .sort((a, b) => Number(a.SetGroupIndex ?? 0) - Number(b.SetGroupIndex ?? 0) || Number(a.ModuleDisplayOrder ?? 0) - Number(b.ModuleDisplayOrder ?? 0));
 

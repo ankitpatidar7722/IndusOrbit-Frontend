@@ -3,6 +3,7 @@ import {
   ShieldCheck, FlaskConical, GitMerge, LifeBuoy, UserPlus, LayoutGrid, ClipboardCheck, TrendingUp, Clock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { fetchMenuRows } from "@/lib/menuCache";
 
 /**
  * Mobile bottom-nav shortcuts — each user picks up to 4 (a 5th "Menu" is always added by BottomNav).
@@ -54,12 +55,7 @@ export function iconForItem(it: { key: string; route?: string; action?: string }
 export async function fetchNavModules(userId?: number): Promise<BottomNavStored[]> {
   if (!userId) return [];
   try {
-    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
-    const res = await fetch(`${base}/api/othermaster/createdynamicmenuwithsubmenu`, {
-      headers: { UserID: String(userId) }, cache: "no-store",
-    });
-    const arr = await res.json();
-    if (!Array.isArray(arr)) return [];
+    const arr = await fetchMenuRows(userId);   // shared menu fetch (lib/menuCache)
     return arr
       .filter((m: Record<string, unknown>) => typeof m.ModuleName === "string" && (m.ModuleName as string).startsWith("/") && m.CanView)
       .map((m: Record<string, unknown>) => ({ key: m.ModuleName as string, label: (m.ModuleDisplayName as string) || (m.ModuleName as string), route: m.ModuleName as string }));

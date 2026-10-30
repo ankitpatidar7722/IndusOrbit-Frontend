@@ -7,13 +7,12 @@ export { PaginationControls } from './controls/PaginationControls'
 export { AutoResizeButton } from './controls/AutoResizeButton'
 
 // Menu & Sections
-export { ActionsMenu } from './controls/menu'
+export { ActionsMenu } from './controls/menu/ActionsMenu'
 export { AdvancedFilterModal } from './controls/menu/filter/AdvancedFilterModal'
 export { ColumnChooserModal } from './controls/menu/column/ColumnChooserModal'
 export { CardView } from './controls/menu/view/CardView'
-export { ChartView } from './controls/menu/view/ChartView'
-// Legacy export for backward compatibility
-export { ChartView as DataVisualization } from './controls/menu/view/ChartView'
+// ChartView (echarts) is NOT re-exported here: DataGrid loads it on demand, and a barrel re-export
+// would put echarts into every page that imports from "@/components/datagrid".
 
 // Columns
 export { DraggableColumnHeader } from './columns/DraggableColumnHeader'
@@ -46,13 +45,6 @@ export { useClipboard } from './hooks/useClipboard'
 export { useCellRangeSelection } from './hooks/useCellRangeSelection'
 export { useDataGridState } from './hooks/useDataGridState'
 
-// Utils - Export/Import
-export {
-  exportData,
-  exportToCSV,
-  exportToExcel,
-  exportToPDF,
-  exportToJSON,
-} from './controls/menu/export/export'
-export { importData, importFromCSV, importFromExcel, importFromJSON } from './controls/menu/import/import'
+// Utils - Export/Import: import them from './controls/menu/export/export' / '…/import/import' directly
+// (ideally with a dynamic import) — re-exporting them here put exceljs + jspdf into every grid page.
 export type { ImportResult } from './controls/menu/import/import'

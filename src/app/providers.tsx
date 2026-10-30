@@ -18,6 +18,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import SessionHeartbeat from "@/components/SessionHeartbeat";
 import BottomNav from "@/components/BottomNav";
 import PullToRefresh from "@/components/PullToRefresh";
+import FontLoader from "@/components/FontLoader";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
 import { ModuleAuthProvider } from "@/contexts/ModuleAuthContext";
 import { suppressBenignIndasUiWarnings } from "@/lib/suppressBenignWarnings";
@@ -95,9 +96,12 @@ function Shell({ children }: { children: React.ReactNode }) {
 /** All indas-ui providers + next-auth session, in one client wrapper. */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    // No session refetch on every tab focus: each refetch returned a NEW session object, which re-ran
+    // every effect keyed on `session` (permissions, tab permissions, PM profile…) for nothing.
+    <SessionProvider refetchOnWindowFocus={false}>
       <ServiceWorkerRegister />
       <ThemeProvider defaultTheme={{ variant: "default", mode: "light" }} enableSystem>
+        <FontLoader />
         <QueryProvider>
           <DeviceProvider>
             <AppConfigProvider>

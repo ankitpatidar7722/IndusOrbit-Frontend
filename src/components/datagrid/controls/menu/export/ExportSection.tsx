@@ -7,7 +7,6 @@ import {
   DropdownMenuSubContent,
 } from 'indas-ui'
 import { Download, FileSpreadsheet, FileText, File, FileJson } from 'lucide-react'
-import { exportData } from './export'
 
 interface ExportSectionProps<TData> {
   data: TData[]
@@ -17,6 +16,8 @@ interface ExportSectionProps<TData> {
 export function ExportSection<TData>({ data, filename = 'data-export' }: ExportSectionProps<TData>) {
   const handleExport = async (format: 'excel' | 'csv' | 'pdf' | 'json') => {
     try {
+      // Loaded on click: exceljs / jspdf / papaparse stay out of every grid page's bundle.
+      const { exportData } = await import('./export')
       await exportData(data, format, filename)
     } catch (error) {
       console.error('❌ [DataGrid Export] Export failed:', error)

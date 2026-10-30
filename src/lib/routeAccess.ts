@@ -41,6 +41,16 @@ export async function fetchMyModuleAccess(userId?: number): Promise<ModuleAccess
   if (!userId) return {};
   const cached = getCachedModuleAccess(userId);
   if (cached) return cached;
+  // RouteAccessGuard and ModuleAuthContext both ask in the same render — share the in-flight request.
+  if (inflight?.userId === userId) return inflight.p;
+  const p = loadModuleAccess(userId).finally(() => { if (inflight?.p === p) inflight = null; });
+  inflight = { userId, p };
+  return p;
+}
+
+let inflight: { userId: number; p: Promise<ModuleAccessMap> } | null = null;
+
+async function loadModuleAccess(userId: number): Promise<ModuleAccessMap> {
   try {
     const res = await fetch(`${BASE}/api/users/${userId}/modules`, { headers: { UserID: String(userId) }, cache: "no-store" });
     const j = await res.json();

@@ -109,8 +109,14 @@ import { Skeleton } from 'indas-ui'
 // Advanced Filter Modal
 import { AdvancedFilterModal } from './controls/menu/filter/AdvancedFilterModal'
 // Column Chooser Modal (now integrated into AdvancedFilterModal)
-// Data Visualization Component (Chart View)
-import { ChartView as DataVisualization } from './controls/menu/view/ChartView'
+// Data Visualization Component (Chart View) — loaded only when the chart view is chosen, so echarts
+// is not part of every grid page's bundle.
+import dynamic from 'next/dynamic'
+import type { ChartView as ChartViewType } from './controls/menu/view/ChartView'
+const DataVisualization = dynamic(
+  () => import('./controls/menu/view/ChartView').then((m) => m.ChartView),
+  { ssr: false }
+) as typeof ChartViewType
 // Export/Import - Now handled via ActionsMenu (ExportSection/ImportSection)
 // Draggable Column Header
 import { DraggableColumnHeader } from './columns/DraggableColumnHeader'
