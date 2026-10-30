@@ -38,8 +38,10 @@ export default function NotificationsHistoryPage() {
 
   const openItem = (it: FeedItem) => { if (!it.isRead) markRead(it); if (it.link) router.push(it.link); };
 
+  // h-full of the app's <main> (which already sits between the header and the bottom bar) — a
+  // 100vh-based height ran under the phone's bottom bar.
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] bg-[rgb(var(--bg-surface))]">
+    <div className="flex flex-col h-full bg-[rgb(var(--bg-surface))]">
       {/* Top bar */}
       <div className="flex-shrink-0 border-b border-[rgb(var(--bd-default))] px-4 md:px-6 py-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

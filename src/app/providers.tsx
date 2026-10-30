@@ -19,6 +19,9 @@ import SessionHeartbeat from "@/components/SessionHeartbeat";
 import BottomNav from "@/components/BottomNav";
 import PullToRefresh from "@/components/PullToRefresh";
 import FontLoader from "@/components/FontLoader";
+import { BackStackProvider } from "@/lib/back-stack";
+import DialogBackGuard from "@/components/phone/DialogBackGuard";
+import OfflineBanner from "@/components/phone/OfflineBanner";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
 import { ModuleAuthProvider } from "@/contexts/ModuleAuthContext";
 import { suppressBenignIndasUiWarnings } from "@/lib/suppressBenignWarnings";
@@ -65,10 +68,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   // fall back to the unscoped (all-clients) response.
   setCurrentUserId(u.UserID);
   return (
+    <BackStackProvider>
+    {/* Android / browser Back closes the top open dialog or sheet first (lib/back-stack). */}
+    <DialogBackGuard />
     <NotificationsProvider>
       <EmailComposerProvider>
         <MessagingPanelProvider>
-          <div className="app-frame" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+          {/* 100dvh, not 100vh: on phones 100vh is taller than the visible area while the URL bar shows. */}
+          <div className="app-frame" style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
             <TopHeader />
             <div style={{ flex: 1, minHeight: 0 }}>
               {/* .app-shell: below lg the sidebar (rail + drawer) is hidden via CSS — phones navigate with the
@@ -87,9 +94,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NotificationToaster />
           {/* Keeps the login session's "time used" accurate (audit → Sessions). */}
           <SessionHeartbeat />
+          <OfflineBanner />
         </MessagingPanelProvider>
       </EmailComposerProvider>
     </NotificationsProvider>
+    </BackStackProvider>
   );
 }
 

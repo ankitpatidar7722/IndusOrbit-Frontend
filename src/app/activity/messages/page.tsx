@@ -15,8 +15,10 @@ import { MessagingPanelContent } from '@/components/messaging/messaging-panel-co
  * app/providers.tsx, so useMessaging() inside the content works here too.)
  */
 export default function MessagesPage() {
+  // h-full of the app's <main> (between the header and the bottom bar) — a 100vh-based height put
+  // the message composer under the phone's bottom bar.
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="h-full flex flex-col">
       <MessagingPanelContent onClose={() => {}} />
     </div>
   )

@@ -1223,7 +1223,8 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   );
 
   const tabsBar = (
-    <div style={{ flexShrink: 0, padding: inModal ? "12px 22px 0" : "0", background: inModal ? T.surface : undefined, borderBottom: inModal ? `1px solid ${T.bd}` : undefined }}>
+    // .scroll-tabs: on a phone the 7 tabs swipe sideways with full labels instead of 7 squeezed, cut-off pills.
+    <div className="scroll-tabs" style={{ flexShrink: 0, padding: inModal ? "12px 22px 0" : "0", background: inModal ? T.surface : undefined, borderBottom: inModal ? `1px solid ${T.bd}` : undefined }}>
       <Tabs tabs={visibleTabs} activeTab={tab} onTabChange={setTab} variant="pill" size="md" fullWidth />
     </div>
   );

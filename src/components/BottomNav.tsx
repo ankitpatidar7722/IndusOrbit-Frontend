@@ -9,6 +9,7 @@ import { useNotifications } from "@/contexts/NotificationsContext";
 import { loadBottomNav, iconForItem, BOTTOM_NAV_EVENT, type BottomNavStored } from "@/lib/bottomNav";
 import { NavIcon, type NavIconName } from "@/components/phone/NavIcons";
 import ModulesSheet from "@/components/phone/ModulesSheet";
+import { useKeyboardOpen } from "@/components/phone/useKeyboardOpen";
 
 /**
  * Native-app bottom navigation — mobile/tablet only (hidden ≥ lg via .bottom-nav CSS).
@@ -45,9 +46,13 @@ export default function BottomNav() {
     else if (it.route) router.push(it.route);
   };
 
+  // Keyboard up = no tab bar (native iOS / Android): the bar would otherwise ride on the keyboard and
+  // eat the space a form needs. Its flex slot collapses, so the page gets the room.
+  const keyboardOpen = useKeyboardOpen();
+
   return (
     <>
-      <nav className="bottom-nav" aria-label="Primary">
+      <nav className="bottom-nav" aria-label="Primary" data-keyboard={keyboardOpen || undefined} aria-hidden={keyboardOpen || undefined}>
         <div className="bottom-nav-capsule m-glass-bar">
           {items.map((it) => {
             const on = !modulesOpen && active(it.route);

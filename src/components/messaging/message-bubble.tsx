@@ -107,12 +107,24 @@ export const MessageBubble = memo(function MessageBubble({
   // ── Swipe-to-reply (WhatsApp-style): drag a message left → right to reply to it (touch only) ──
   const [swipeX, setSwipeX] = useState(0)
   const swipe = useRef({ x: 0, y: 0, active: false })
+  // Long-press (~500ms, finger still) opens the message menu — touch has no hover, so the Reply / Edit /
+  // Delete / React actions were unreachable on a phone (only swipe-to-reply worked).
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelHold = useCallback(() => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null } }, [])
+  useEffect(() => cancelHold, [cancelHold])
   const onSwipeStart = useCallback((e: ReactTouchEvent) => {
     const p = e.touches[0]; swipe.current = { x: p.clientX, y: p.clientY, active: false }
-  }, [])
+    cancelHold()
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = null
+      try { navigator.vibrate?.(15) } catch { /* no haptics */ }
+      setShowMenu(true); setShowReactionPicker(false)
+    }, 500)
+  }, [cancelHold])
   const onSwipeMove = useCallback((e: ReactTouchEvent) => {
     const p = e.touches[0]
     const dx = p.clientX - swipe.current.x, dy = p.clientY - swipe.current.y
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelHold()   // a scroll or swipe is not a hold
     if (!swipe.current.active) {
       // only start a swipe once the gesture is clearly horizontal — else let the list scroll vertically
       if (Math.abs(dx) < 10 || Math.abs(dy) > Math.abs(dx)) return
@@ -121,10 +133,11 @@ export const MessageBubble = memo(function MessageBubble({
     setSwipeX(dx > 0 ? Math.min(dx, SWIPE_MAX) : 0)
   }, [])
   const onSwipeEnd = useCallback(() => {
+    cancelHold()
     if (swipe.current.active && swipeX >= SWIPE_TRIGGER) { onReply(message); try { navigator.vibrate?.(12) } catch { /* no haptics */ } }
     swipe.current.active = false
     setSwipeX(0)
-  }, [swipeX, onReply, message])
+  }, [swipeX, onReply, message, cancelHold])
 
   const reactions = parseReactions(message.Reactions)
   const attachments = parseAttachments(message.Attachments)
@@ -173,6 +186,8 @@ export const MessageBubble = memo(function MessageBubble({
       onTouchEnd={onSwipeEnd}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowReactionPicker(false) }}
+      // Right-click (desktop) / Android long-press callout → the message menu instead of the browser's.
+      onContextMenu={(e) => { if (isEditing) return; e.preventDefault(); setShowMenu(true); setShowReactionPicker(false) }}
     >
       {/* Swipe-to-reply hint — a reply arrow revealed on the left as the message slides right */}
       {swipeX > 3 && (

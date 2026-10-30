@@ -25,6 +25,16 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#1f4576",     // browser/OS UI tint when the app is open
+  width: "device-width",
+  initialScale: 1,
+  // iOS zooms the page when a field under 16px gets focus and never zooms back; a max scale of 1
+  // stops that auto-zoom (pinch-zoom still works on iOS, which ignores it for accessibility).
+  maximumScale: 1,
+  // Draw under the notch / home indicator so every env(safe-area-inset-*) in the CSS gets real values.
+  viewportFit: "cover",
+  // Android Chrome: the keyboard shrinks the layout viewport (like iOS), so a form's bottom Save bar
+  // stays above the keyboard instead of behind it.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

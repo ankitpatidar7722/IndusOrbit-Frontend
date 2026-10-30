@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/phone/AppIcon";
 import InstallAppButton from "@/components/InstallAppButton";
+import { useBackGuard } from "@/lib/back-stack";
 import { fetchPhoneGroups, type PhoneGroup, type PhoneLeaf } from "@/lib/phoneModules";
 
 /**
@@ -24,6 +25,9 @@ export default function ModulesSheet({ open, onClose }: { open: boolean; onClose
 
   // Load the menu only once the sheet is actually opened (it is mounted on every page, desktop included).
   useEffect(() => { if (open && userId) fetchPhoneGroups(userId).then(setGroups); }, [open, userId]);
+
+  // Android / browser Back closes the sheet instead of leaving the page.
+  useBackGuard(open, onClose);
 
   // Lock the page behind the sheet; Esc closes (tablets with a keyboard).
   useEffect(() => {

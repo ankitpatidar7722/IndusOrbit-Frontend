@@ -6,6 +6,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { Check, LayoutGrid, MoreHorizontal, MoreVertical } from 'lucide-react'
 
 import { Skeleton } from 'indas-ui'
+import { useBackGuard } from '@/lib/back-stack'
 import { useLanguage } from 'indas-ui'
 
 export type CardSize = 'compact' | 'normal' | 'expanded'
@@ -251,6 +252,8 @@ export function CardView<TData>({
     [actionAreaColumns, actionsColumn, inlineActions]
   )
   const [sheetItem, setSheetItem] = useState<{ item: TData; title: string } | null>(null)
+  const closeSheet = useCallback(() => setSheetItem(null), [])
+  useBackGuard(!!sheetItem, closeSheet)   // Android / browser Back closes the action sheet
 
   // The card's status pill: the first column whose id/key says "status" — among the chosen card columns
   // when `cardColumns` is given, else among all data columns (so e.g. /clients' ERP Status still shows).
