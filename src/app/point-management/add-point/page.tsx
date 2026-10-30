@@ -1,6 +1,6 @@
 "use client";
 import KDropdown from "@/components/KDropdown";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Page, Card, CardContent, Textarea, Input, Button } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
@@ -54,6 +54,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
   const [files, setFiles] = useState<File[]>([]);  // attachments (image / excel / pdf / anything)
 
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);   // ref, not state: blocks a double tap before React re-renders
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [converting, setConverting] = useState(false);          // "Convert in English" (Gemini) in progress
   const [convertErr, setConvertErr] = useState<string | null>(null);
@@ -108,12 +109,15 @@ function AddPoint({ reportedById }: { reportedById: number }) {
   };
 
   async function submit() {
+    // Single-tap lock: a second tap while the first save runs must not create a second point.
+    if (submittingRef.current) return;
     setMsg(null);
     if (!customerName || !module || !productID || !description.trim() || !reportedByID) {
       setMsg({ text: "Customer, Module, Product, Description and Reported By are required.", ok: false });
       return;
     }
     setSaving(true);
+    submittingRef.current = true;
     try {
       const uploader = reportedByID || reportedById;
       const { pointId } = await pmApi.addPoint({
@@ -142,17 +146,20 @@ function AddPoint({ reportedById }: { reportedById: number }) {
       setMsg({ text: String(e), ok: false });
     } finally {
       setSaving(false);
+      submittingRef.current = false;
     }
   }
 
   if (loading) return <BrandedLoader size="lg" text="Loading…" />;
 
   return (
-    <Page>
-      <PmHeader page="add-point" />
-      <Card>
-        <CardContent>
-          <div style={{ paddingTop: 22 }} />
+    // phone-form-page (phone-kit.css): on a phone this page is an app-style form — one column, 52px
+    // fields, big labels, no card frame, and the Create Point bar pinned to the bottom.
+    <Page className="phone-form-page">
+      <div className="hide-on-phone"><PmHeader page="add-point" /></div>
+      <Card className="pfp-card">
+        <CardContent className="pfp-content">
+          <div className="hide-on-phone" style={{ paddingTop: 22 }} />
           {msg && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, padding: "10px 14px", borderRadius: 9, fontSize: 13.5,
               background: msg.ok ? "#eaf7ee" : "#fdecec", color: msg.ok ? "#1e7e46" : "#c0392b" }}>
@@ -164,7 +171,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="" />
             </Field>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          <div className="pfp-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <Field label="Product *">
               <KDropdown value={String(productID || "")} onValueChange={(v) => pickProduct(v ? Number(v) : "")}
                 options={productOptions}
@@ -199,7 +206,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           </div>
           <div style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 5 }}>
-              <div style={{ fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600 }}>Description *</div>
+              <div className="pfp-label" style={{ fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600 }}>Description *</div>
               <button type="button" onClick={convertToEnglish} disabled={converting || !description.trim()}
                 title="Rewrite the description in clear, professional English (AI)"
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgb(var(--color-primary))", background: "color-mix(in srgb, rgb(var(--color-primary)) 8%, transparent)", color: "rgb(var(--color-primary))", fontSize: 12, fontWeight: 700, cursor: converting || !description.trim() ? "not-allowed" : "pointer", opacity: !description.trim() ? 0.5 : 1 }}>
@@ -218,7 +225,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
                 <input type="file" multiple hidden
                   onChange={(e) => { const list = Array.from(e.target.files ?? []); if (list.length) setFiles((p) => [...p, ...list]); e.currentTarget.value = ""; }} />
               </label>
-              <span style={{ marginLeft: 10, fontSize: 12, color: "rgb(var(--fg-muted))" }}>Image, Excel, PDF — anything (max 50 MB each)</span>
+              <span className="pfp-hint" style={{ marginLeft: 10, fontSize: 12, color: "rgb(var(--fg-muted))" }}>Image, Excel, PDF — anything (max 50 MB each)</span>
               {files.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
                   {files.map((f, i) => (
@@ -234,14 +241,14 @@ function AddPoint({ reportedById }: { reportedById: number }) {
           </div>
 
           {/* Reported By (defaults to the logged-in user, editable) */}
-          <div style={{ marginTop: 16, maxWidth: 320 }}>
+          <div className="pfp-full" style={{ marginTop: 16, maxWidth: 320 }}>
             <Field label="Reported By *">
               <KDropdown value={String(reportedByID || "")} onValueChange={(v) => setReportedByID(Number(v))}
                 options={userOptions} placeholder="— select user —" searchable size="md" />
             </Field>
           </div>
 
-          <div style={{ marginTop: 20 }}>
+          <div className="pfp-actions" style={{ marginTop: 20 }}>
             <Button onClick={submit} disabled={saving}>
               <Plus size={16} style={{ marginRight: 6 }} /> {saving ? "Saving…" : "Create Point"}
             </Button>
@@ -255,7 +262,7 @@ function AddPoint({ reportedById }: { reportedById: number }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600, marginBottom: 5 }}>{label}</div>
+      <div className="pfp-label" style={{ fontSize: 12, letterSpacing: 0.1, color: "rgb(var(--fg-muted))", fontWeight: 600, marginBottom: 5 }}>{label}</div>
       {children}
     </div>
   );
