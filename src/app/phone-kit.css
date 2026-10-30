@@ -88,6 +88,91 @@
 }
 .rc-fact-value { font-weight: 600; color: rgb(var(--fg-default)); font-variant-numeric: tabular-nums; }
 
+/* --- Phone FORM PAGE (ported look from IndusFlexoERP master forms). On a phone (≤768px, indas-ui
+   useIsMobile) every StandardModal renders as a full-page Radix dialog `fixed inset-0` with a ‹ back header.
+   This turns it into the app-style form: full screen over the app header + bottom bar, grey title bar,
+   big 15px labels, 52px fields with 16px text (no iOS zoom), and ONE full-width Save bar at the bottom
+   (Cancel is the ‹). `[role="dialog"].inset-0` (0,2,0) outranks the generic small-card dialog rule. --- */
+@media (max-width: 768px) {
+  [role="dialog"].inset-0 {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; height: 100dvh !important;
+    max-width: none !important; max-height: none !important;
+    border: none !important; border-radius: 0 !important;
+    background: rgb(var(--bg-surface)) !important;
+  }
+  /* Title bar: ‹ + title, on a soft grey band; the duplicate X is dropped (‹ already closes). */
+  [role="dialog"].inset-0 > :first-child {
+    padding: 10px 12px 10px 6px !important;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+    background-image: none !important;
+    background-color: color-mix(in srgb, rgb(var(--fg-default)) 6%, rgb(var(--bg-surface))) !important;
+    border-bottom: 1px solid rgb(var(--fg-default) / 0.08) !important;
+  }
+  [role="dialog"].inset-0 > :first-child > button:first-child {
+    display: grid; place-content: center; width: 40px; height: 40px; margin: 0 !important; padding: 0 !important;
+    border-radius: 999px; color: rgb(var(--fg-default)) !important;
+  }
+  [role="dialog"].inset-0 > :first-child > button:first-child svg { width: 24px; height: 24px; }
+  [role="dialog"].inset-0 > :first-child h2 { font-size: 18px !important; line-height: 24px !important; font-weight: 700 !important; }
+  [role="dialog"].inset-0 button[aria-label="Close modal"] { display: none !important; }
+
+  /* Body */
+  [role="dialog"].inset-0 > .overflow-y-auto { padding: 20px 16px 24px !important; }
+  [role="dialog"].inset-0 .form-grid-2,
+  [role="dialog"].inset-0 .form-grid-3 { row-gap: 18px !important; }
+
+  /* Labels: 15px semibold dark (not faded caps). */
+  [role="dialog"].inset-0 label {
+    font-size: 15px !important; line-height: 20px !important; font-weight: 600 !important;
+    color: rgb(var(--fg-default)) !important; text-transform: none !important; letter-spacing: normal !important;
+  }
+  [role="dialog"].inset-0 label:has(+ *) { margin-bottom: 8px !important; }
+
+  /* Fields: 52px tall, 16px text (iOS never zooms ≥16px), 12px corners. Table cells (grids in a form) keep theirs. */
+  [role="dialog"].inset-0 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]):not(table *),
+  [role="dialog"].inset-0 select:not(table *),
+  [role="dialog"].inset-0 button[role="combobox"]:not(table *) {
+    min-height: 52px !important; font-size: 16px !important; border-radius: 12px !important;
+  }
+  [role="dialog"].inset-0 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]):not(table *) {
+    padding-left: 14px !important;
+  }
+  [role="dialog"].inset-0 textarea:not(table *) {
+    min-height: 96px; font-size: 16px !important; border-radius: 12px !important; padding: 12px 14px !important;
+  }
+
+  /* Footer → one full-width Save bar (Cancel / Back hidden: the ‹ is the way out). */
+  [role="dialog"].inset-0 > footer {
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    background: rgb(var(--bg-surface)) !important;
+    border-top: 1px solid rgb(var(--fg-default) / 0.08) !important;
+  }
+  [role="dialog"].inset-0 > footer > div,
+  [role="dialog"].inset-0 > footer > div > div {
+    flex-direction: row !important; flex-wrap: nowrap !important; align-items: stretch !important;
+    width: 100% !important; gap: 10px !important; padding: 0 !important;
+  }
+  /* indas-ui Footer = [left KPIs div (often empty)] [actions div] — drop the empty one so actions get the row. */
+  [role="dialog"].inset-0 > footer > div > div:empty { display: none !important; }
+  [role="dialog"].inset-0 > footer button {
+    flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;
+    height: 52px !important; padding: 0 14px !important; gap: 8px !important;
+    border-radius: 14px !important; font-size: 16px !important; font-weight: 700 !important;
+  }
+  [role="dialog"].inset-0 > footer button svg { width: 20px !important; height: 20px !important; }
+  [role="dialog"].inset-0 > footer button .hidden { display: inline !important; }   /* show the label, not just the icon */
+  [role="dialog"].inset-0 > footer button[class*="hover:bg-[rgb(var(--bg-subtle))]"] { display: none !important; }  /* Cancel / Back */
+  /* Save (action-save) = the solid primary bar. */
+  [role="dialog"].inset-0 > footer button[class*="color-success))]/10"] {
+    background: rgb(var(--color-primary)) !important; color: rgb(var(--color-primary-foreground)) !important;
+    border: none !important;
+    box-shadow: 0 6px 16px -8px rgb(var(--color-primary) / 0.7);
+  }
+}
+
 /* Skeleton sweep on the grey glass. */
 .m-skel {
   background-image: linear-gradient(90deg, rgb(var(--fg-default) / 0.07) 25%, rgb(var(--fg-default) / 0.13) 50%, rgb(var(--fg-default) / 0.07) 75%);
