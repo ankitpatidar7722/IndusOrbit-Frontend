@@ -13,10 +13,10 @@ import { fetchPhoneGroups, type PhoneGroup, type PhoneLeaf } from "@/lib/phoneMo
  * Phone "Modules" bottom sheet (ported from IndusFlexoERP's mobile-menu-sheet): slides up from the bottom-bar
  * button that opens it, so the whole interaction stays inside the thumb arc.
  *   - Header modules (ModuleHeadName groups) as an app-drawer grid of tonal app icons.
- *   - Tap a group â†’ its screens as a second grid (back arrow returns); a one-screen group opens directly.
+ *   - Tap a group → its screens as a second grid (back arrow returns); a one-screen group opens directly.
  *   - Search finds any screen by name or group.
  * Same DB menu as the sidebar (lib/phoneModules), so permissions are identical. Flick down / backdrop / Esc closes.
- * Phone + tablet only (the bottom bar that opens it is hidden â‰¥ lg).
+ * Phone + tablet only (the bottom bar that opens it is hidden ≥ lg).
  */
 export default function ModulesSheet({ open, onClose, focusSearch = false }: { open: boolean; onClose: () => void; focusSearch?: boolean }) {
   const reduceMotion = useReducedMotion();
@@ -63,7 +63,7 @@ export default function ModulesSheet({ open, onClose, focusSearch = false }: { o
           dragElastic={{ top: 0, bottom: 0.4 }}
           onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) onClose(); }}
         >
-          {/* Mounted per open â†’ every open starts from the group grid with an empty search. */}
+          {/* Mounted per open → every open starts from the group grid with an empty search. */}
           <SheetContent groups={groups} onClose={onClose} reduceMotion={!!reduceMotion} focusSearch={focusSearch} />
         </motion.div>
       )}
@@ -136,7 +136,7 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
 
       <div className="phone-sheet-body">
         {groups === null ? (
-          <p className="phone-sheet-empty">Loading modulesâ€¦</p>
+          <p className="phone-sheet-empty">Loading modules…</p>
         ) : results ? (
           results.length === 0 ? (
             <p className="phone-sheet-empty">No modules found</p>
