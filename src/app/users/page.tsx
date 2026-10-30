@@ -427,15 +427,13 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
 
         {tab === "emails" && (
           <div style={{ maxWidth: 960 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
-              <div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 700, color: "rgb(var(--fg-default))" }}><Mail size={16} /> Email Settings</div>
-                <div style={{ fontSize: 12.5, color: "rgb(var(--fg-muted))", marginTop: 3 }}>This user&apos;s mailbox — emails they send in Indus 360 go out from here (From = their email).</div>
-              </div>
-              <div style={{ display: "inline-flex", background: "rgb(var(--bg-subtle))", borderRadius: 9, padding: 3, gap: 3, flexShrink: 0 }}>
+            {/* Phone: title on its own line, the provider switch full width below it (two equal segments). */}
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? 12 : 16, marginBottom: 16 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: isMobile ? 17 : 15, fontWeight: 700, color: "rgb(var(--fg-default))" }}><Mail size={isMobile ? 18 : 16} /> Email Settings</div>
+              <div style={{ display: "flex", background: "rgb(var(--bg-subtle))", borderRadius: isMobile ? 12 : 9, padding: 3, gap: 3, flexShrink: 0 }}>
                 {[["MicrosoftGraph", "Microsoft Graph"], ["SMTP", "SMTP"]].map(([pv, lbl]) => (
-                  <button key={pv} onClick={() => set("emailProvider", pv)}
-                    style={{ padding: "6px 14px", borderRadius: 7, border: "none", fontSize: 12.5, fontWeight: 700, cursor: "pointer", background: provider === pv ? "rgb(var(--color-primary))" : "transparent", color: provider === pv ? "#fff" : "#48586b" }}>
+                  <button key={pv} type="button" onClick={() => set("emailProvider", pv)}
+                    style={{ flex: isMobile ? 1 : undefined, minHeight: isMobile ? 42 : undefined, padding: "6px 14px", borderRadius: isMobile ? 10 : 7, border: "none", fontSize: isMobile ? 14.5 : 12.5, fontWeight: 700, cursor: "pointer", background: provider === pv ? "rgb(var(--color-primary))" : "transparent", color: provider === pv ? "#fff" : "#48586b" }}>
                     {lbl}
                   </button>
                 ))}
@@ -458,12 +456,30 @@ function UserFormModal({ userId, isOpen, lookups, onClose, onSaved, onFlash }: {
               </div>
               <div><label style={fldLabel}>SMTP Server</label><input value={f.smtpServer ?? ""} onChange={(e) => set("smtpServer", e.target.value)} style={fldInput} placeholder="smtp.gmail.com" /></div>
               <div><label style={fldLabel}>Port</label><input inputMode="numeric" value={f.smtpPort ?? ""} onChange={(e) => set("smtpPort", e.target.value)} style={fldInput} placeholder="587" /></div>
-              <div><label style={fldLabel}>Authenticate</label>
-                <KDropdown value={f.smtpAuthenticate ? "Yes" : "No"} onValueChange={(v) => set("smtpAuthenticate", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
-              </div>
-              <div><label style={fldLabel}>Use SSL</label>
-                <KDropdown value={f.smtpUseSSL ? "Yes" : "No"} onValueChange={(v) => set("smtpUseSSL", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
-              </div>
+              {/* Phone: Yes/No pickers become switch rows (one tap, like a phone's settings). */}
+              {isMobile ? (
+                <div className="st-group" style={{ gap: 8 }}>
+                  {([["smtpAuthenticate", "Authenticate", "Sign in to the mail server with the username and password"], ["smtpUseSSL", "Use SSL", "Encrypt the connection to the mail server"]] as const).map(([k, title, sub]) => (
+                    <div key={k} className="st-toggle" style={{ background: "rgb(var(--bg-subtle))", minHeight: 60 }}>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span className="st-row-label" style={{ fontSize: 15 }}>{title}</span>
+                        <span className="st-row-summary st-wrap">{sub}</span>
+                      </span>
+                      <input type="checkbox" role="switch" className="st-switch" aria-label={title}
+                        checked={!!f[k]} onChange={(e) => set(k, e.target.checked)} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div><label style={fldLabel}>Authenticate</label>
+                    <KDropdown value={f.smtpAuthenticate ? "Yes" : "No"} onValueChange={(v) => set("smtpAuthenticate", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
+                  </div>
+                  <div><label style={fldLabel}>Use SSL</label>
+                    <KDropdown value={f.smtpUseSSL ? "Yes" : "No"} onValueChange={(v) => set("smtpUseSSL", v === "Yes")} options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} size="md" />
+                  </div>
+                </>
+              )}
             </div>
 
             <div style={{ fontSize: 11.5, color: "rgb(var(--fg-subtle))", marginTop: 12 }}>

@@ -242,6 +242,10 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   [role="dialog"].inset-0 > footer button svg { width: 20px !important; height: 20px !important; }
   [role="dialog"].inset-0 > footer button .hidden { display: inline !important; }   /* show the label, not just the icon */
   [role="dialog"].inset-0 > footer button[class*="hover:bg-[rgb(var(--bg-subtle))]"] { display: none !important; }  /* Cancel / Back */
+  /* Several actions (Delete · Update · Save As): only the Save/Update bar keeps its label and the width;
+     the others shrink to 52px icon buttons beside it, so nothing is cut off ("Sa…"). */
+  [role="dialog"].inset-0 > footer button:not([class*="color-success))]/10"]) { flex: 0 0 52px !important; padding: 0 !important; }
+  [role="dialog"].inset-0 > footer button:not([class*="color-success))]/10"]) .hidden { display: none !important; }
   /* Save (action-save) = the solid primary bar. */
   [role="dialog"].inset-0 > footer button[class*="color-success))]/10"] {
     background: rgb(var(--color-primary)) !important; color: rgb(var(--color-primary-foreground)) !important;
