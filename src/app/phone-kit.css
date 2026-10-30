@@ -440,6 +440,31 @@ body:has(.bottom-nav[data-keyboard]) .pl-fab { display: none; }
   }
 }
 
+/* --- Phone Home: "Edit" beside a section title + the Quick actions picker sheet. --- */
+.phone-section-action {
+  margin: 0 0 8px; padding: 6px 10px; border: none; border-radius: 999px; background: rgb(var(--color-primary) / 0.1);
+  font-size: 13.5px; font-weight: 600; color: rgb(var(--color-primary)); cursor: pointer;
+}
+.dark .phone-section-action { color: rgb(var(--fg-default)); background: rgb(var(--fg-default) / 0.1); }
+.qa-sheet { display: flex; flex-direction: column; max-height: 86dvh; }
+.qa-hint { padding: 0 4px 4px; font-size: 13px; color: rgb(var(--fg-default) / 0.62); }
+.qa-hint b { color: rgb(var(--color-primary)); }
+.qa-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 6px; }
+.qa-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 8px 12px 8px 12px;
+  border: none; background: transparent; text-align: left; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent;
+}
+.qa-row:disabled { opacity: 0.45; cursor: default; }
+.qa-row:active:not(:disabled) { background: rgb(var(--fg-default) / 0.05); }
+.qa-check {
+  display: grid; place-content: center; flex: none; width: 26px; height: 26px; border-radius: 999px;
+  border: 2px solid rgb(var(--fg-default) / 0.28); font-size: 13px; font-weight: 700; color: rgb(var(--color-primary-foreground));
+}
+.qa-row[data-on] .qa-check { border-color: transparent; background: rgb(var(--color-primary)); }
+.qa-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; }
+.qa-save { color: rgb(var(--color-primary-foreground)) !important; background: rgb(var(--color-primary)) !important; }
+.qa-save:disabled { opacity: 0.5; }
+
 /* --- Phone chip tabs (components/phone/ChipTabs): full-label pills in one sideways-scrolling row. --- */
 .chip-tabs {
   display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;

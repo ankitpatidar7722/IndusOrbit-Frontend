@@ -1,7 +1,8 @@
 /* indas-ui design tokens first (defines --bg-*, --color-*, --bd-* variables) */
 @import "../../node_modules/indas-ui/src/styles/tokens.css";
 @import "tailwindcss";
-/* Phone app kit (glass bottom bar, Modules sheet, phone Home) — ported from IndusFlexoERP */
+/* Phone app kit (glass bottom bar, Modules sheet, phone Home, forms, settings) — ported from IndusFlexoERP.
+   (Turbopack dev sometimes keeps serving an old copy of this import — edit globals.css or restart dev.) */
 @import "./phone-kit.css";
 
 /* Tailwind v4 defaults the `dark:` variant to the OS `prefers-color-scheme` media query.

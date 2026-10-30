@@ -11,7 +11,9 @@ import { AppIcon, type AppIconTone } from "@/components/phone/AppIcon";
 import TodayCard from "@/components/phone/TodayCard";
 import {
   fetchPhoneGroups, pickQuickActions, pickDashboards, hasMainDashboard, dashboardHref, type PhoneGroup,
+  loadQuickActions, saveQuickActions,
 } from "@/lib/phoneModules";
+import QuickActionsEditor from "@/components/phone/QuickActionsEditor";
 
 /**
  * Phone Home (ported from IndusFlexoERP's HomePhone) — an app home screen in the iOS / Android dashboard style,
@@ -37,6 +39,9 @@ export default function HomePhone() {
   const { unread, notifications } = useNotifications();
   const { state: msg } = useMessaging();
   const [groups, setGroups] = useState<PhoneGroup[] | null>(null);
+  // The user's own Quick actions (Edit sheet) — read once; null = the automatic default.
+  const [savedQuick, setSavedQuick] = useState<string[] | null>(() => loadQuickActions(user.UserID));
+  const [editingQuick, setEditingQuick] = useState(false);
 
   useEffect(() => { if (user.UserID) fetchPhoneGroups(user.UserID).then(setGroups); }, [user.UserID]);
 
@@ -47,7 +52,7 @@ export default function HomePhone() {
   const dayTone = h < 17 ? "rgb(var(--color-warning))" : h < 20 ? "rgb(var(--color-orange))" : "rgb(var(--color-info))";
 
   const emailUnread = notifications.filter((n) => n.Type === "Email" && !n.IsRead).length;
-  const quick = groups ? pickQuickActions(groups) : [];
+  const quick = groups ? pickQuickActions(groups, undefined, savedQuick) : [];
   const dashboards: DashCard[] = groups
     ? [...(hasMainDashboard(groups) ? MAIN_DASH : []), ...pickDashboards(groups).map((l) => ({ href: l.href, label: l.label, icon: l.icon, tone: l.tone }))]
     : [];
@@ -79,7 +84,9 @@ export default function HomePhone() {
 
         {/* Quick actions */}
         <section>
-          <SectionTitle>Quick actions</SectionTitle>
+          <SectionTitle action={groups && <button type="button" className="phone-section-action" onClick={() => setEditingQuick(true)}>Edit</button>}>
+            Quick actions
+          </SectionTitle>
           <div className="m-glass-card phone-quick-grid">
             {groups === null
               ? Array.from({ length: 8 }).map((_, i) => (
@@ -97,6 +104,13 @@ export default function HomePhone() {
           </div>
           {groups !== null && quick.length === 0 && <p className="phone-sheet-empty">No modules assigned to you yet.</p>}
         </section>
+
+        {editingQuick && groups && (
+          <QuickActionsEditor groups={groups} initial={quick.map((q) => q.route)}
+            onSave={(routes) => { saveQuickActions(user.UserID, routes); setSavedQuick(routes); }}
+            onReset={() => { saveQuickActions(user.UserID, null); setSavedQuick(null); }}
+            onClose={() => setEditingQuick(false)} />
+        )}
 
         {/* Dashboards — sideways cards */}
         {dashboards.length > 0 && (
@@ -120,8 +134,13 @@ export default function HomePhone() {
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="phone-section-title">{children}</h2>;
+function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+      <h2 className="phone-section-title">{children}</h2>
+      {action}
+    </div>
+  );
 }
 
 function StatusTile({ icon, tone, count, label, onClick }: { icon: LucideIcon; tone: AppIconTone; count: number; label: string; onClick: () => void }) {

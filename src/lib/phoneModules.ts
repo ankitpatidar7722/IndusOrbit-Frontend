@@ -121,8 +121,35 @@ const QUICK_PREFERRED = [
   "/email", "/point-management/developer", "/point-management/support", "/implementation/kickoff",
 ];
 
-export function pickQuickActions(groups: PhoneGroup[], max = 8): PhoneLeaf[] {
-  const all = groups.flatMap((g) => g.leaves).filter((l) => l.route !== "/" && !isDashboard(l));
+export const MAX_QUICK_ACTIONS = 8;
+const quickKey = (userId?: number) => `indus360.quickActions.${userId ?? "anon"}`;
+
+/** The user's own Quick actions (routes, in their order) — null when they never customised them. */
+export function loadQuickActions(userId?: number): string[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(quickKey(userId)) || "null");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, MAX_QUICK_ACTIONS) : null;
+  } catch { return null; }
+}
+/** Save (or, with null, reset to the automatic default) the user's Quick actions on this device. */
+export function saveQuickActions(userId: number | undefined, routes: string[] | null) {
+  try {
+    if (routes) localStorage.setItem(quickKey(userId), JSON.stringify(routes.slice(0, MAX_QUICK_ACTIONS)));
+    else localStorage.removeItem(quickKey(userId));
+  } catch { /* storage blocked — the choice lasts this visit */ }
+}
+
+/** Everything the Quick actions can hold: the user's screens, minus the Dashboard and dashboard-like ones. */
+export const quickActionCandidates = (groups: PhoneGroup[]) =>
+  groups.flatMap((g) => g.leaves).filter((l) => l.route !== "/" && !isDashboard(l));
+
+export function pickQuickActions(groups: PhoneGroup[], max = MAX_QUICK_ACTIONS, saved?: string[] | null): PhoneLeaf[] {
+  const all = quickActionCandidates(groups);
+  // The user's own choice wins (a screen they lost access to simply drops out).
+  if (saved) {
+    const byRoute = new Map(all.map((l) => [l.route, l]));
+    return saved.map((r) => byRoute.get(r)).filter((l): l is PhoneLeaf => !!l).slice(0, max);
+  }
   const byRoute = new Map(all.map((l) => [l.route, l]));
   const out: PhoneLeaf[] = [];
   for (const r of QUICK_PREFERRED) {
