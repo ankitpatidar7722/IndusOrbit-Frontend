@@ -10,19 +10,13 @@ import UserManual from "@/components/UserManual";
 import { useMessagingPanel } from "@/components/messaging/MessagingPanelProvider";
 import { useMessaging } from "@/contexts/MessagingContext";
 import HeaderEmailMenu from "@/components/HeaderEmailMenu";
-import { toggleMobileNav } from "@/components/MobileNav";
 import { photoUrl } from "@/lib/users";
 
 /**
- * Toggle the sidebar. Below the AppShell `lg` breakpoint (1024px) the sidebar is an off-canvas
- * drawer that indas-ui can't open on its own — so there we flip our own `mobi-nav-open` body
- * class (see MobileNav + globals.css). On desktop we click AppShell's Expand/Collapse button.
+ * Toggle the sidebar (desktop only — below lg there is no sidebar; phones use the bottom bar's
+ * Modules sheet). Clicks AppShell's Expand/Collapse button.
  */
 function toggleSidebar() {
-  if (typeof window !== "undefined" && window.innerWidth < 1024) {
-    toggleMobileNav();
-    return;
-  }
   const btn = document.querySelector(
     'button[title="Expand sidebar"], button[title="Collapse sidebar"]'
   ) as HTMLButtonElement | null;
@@ -64,8 +58,8 @@ export default function TopHeader() {
         boxShadow: "0 2px 10px rgba(0,0,0,.18)",
       }}
     >
-      {/* Sidebar toggle */}
-      <button style={{ ...iconBtn, background: "rgba(255,255,255,.14)" }} onClick={toggleSidebar} title="Toggle sidebar" aria-label="Toggle sidebar">
+      {/* Sidebar toggle — desktop only; phones/tablets have no sidebar (bottom bar → Modules sheet). */}
+      <button className="hide-on-mobile" style={{ ...iconBtn, background: "rgba(255,255,255,.14)" }} onClick={toggleSidebar} title="Toggle sidebar" aria-label="Toggle sidebar">
         <PanelLeft size={18} />
       </button>
 

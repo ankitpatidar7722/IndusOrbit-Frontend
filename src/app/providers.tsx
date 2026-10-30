@@ -16,7 +16,6 @@ import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationToaster from "@/components/NotificationToaster";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import SessionHeartbeat from "@/components/SessionHeartbeat";
-import MobileNav from "@/components/MobileNav";
 import BottomNav from "@/components/BottomNav";
 import PullToRefresh from "@/components/PullToRefresh";
 import RouteAccessGuard from "@/components/RouteAccessGuard";
@@ -69,10 +68,11 @@ function Shell({ children }: { children: React.ReactNode }) {
       <EmailComposerProvider>
         <MessagingPanelProvider>
           <div className="app-frame" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-            <MobileNav companyId={u.CompanyID} userId={u.UserID} />
             <TopHeader />
             <div style={{ flex: 1, minHeight: 0 }}>
-              <AppShell sidebar={{ companyId: u.CompanyID, userId: u.UserID }}>
+              {/* .app-shell: below lg the sidebar (rail + drawer) is hidden via CSS — phones navigate with the
+                  bottom bar + Modules sheet instead. */}
+              <AppShell className="app-shell" sidebar={{ companyId: u.CompanyID, userId: u.UserID }}>
                 <ModuleAuthProvider>
                   <RouteAccessGuard>{children}</RouteAccessGuard>
                 </ModuleAuthProvider>

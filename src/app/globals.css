@@ -325,63 +325,6 @@ button:not(:disabled):not([aria-disabled="true"]),
   }
 }
 
-/* ---- Mobile sidebar drawer (our own — see MobileNav.tsx; AppShell's built-in drawer can't be
-   opened programmatically). Hidden ≥ lg; slides in when the `mobi-nav-open` body class is set. ---- */
-.mobile-nav-backdrop { display: none; }
-.mobile-drawer { display: none; }
-
-@media (max-width: 1023px) {
-  .mobile-drawer {
-    display: block;
-    position: fixed;
-    top: 0; bottom: 0; left: 0;
-    width: 82vw;
-    max-width: 300px;
-    background: rgb(var(--color-primary-hover));   /* same navy as the desktop sidebar */
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    z-index: 60;
-    overflow-y: auto;
-    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.28);
-  }
-  body.mobi-nav-open .mobile-drawer { transform: translateX(0); }
-
-  body.mobi-nav-open .mobile-nav-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 55;                /* under the drawer (60), over everything else */
-  }
-}
-
-/* Drawer contents (navy, white text — matches the desktop sidebar). */
-.mobile-drawer-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 16px 12px; color: #fff; font-size: 15px; font-weight: 800; letter-spacing: 0.3px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-.mobile-drawer-close {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border: none; border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
-}
-.mobile-drawer-nav { padding: 8px 10px 24px; }
-.mobile-nav-group { margin-top: 14px; }
-.mobile-nav-group-title {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5); padding: 0 12px; margin-bottom: 5px;
-}
-.mobile-nav-link {
-  display: block; width: 100%; text-align: left;
-  padding: 11px 12px; margin: 2px 0; border: none; border-radius: 9px;
-  background: transparent; color: rgba(255, 255, 255, 0.9);
-  font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.12s;
-}
-.mobile-nav-link:hover { background: rgba(255, 255, 255, 0.08); }
-.mobile-nav-link[data-active="true"] { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.mobile-nav-empty { color: rgba(255, 255, 255, 0.7); font-size: 13px; padding: 16px 12px; }
-
 /* ---- Native-app bottom navigation bar (mobile only) ---- */
 .bottom-nav { display: none; }
 
@@ -397,6 +340,9 @@ button:not(:disabled):not([aria-disabled="true"]),
     background: transparent;     /* the Modules sheet shows around the capsule while it is open */
   }
   .app-frame { background: rgb(var(--bg-app)); }
+  /* No sidebar on phones/tablets: AppShell's children are [overlays…, rail, drawer, main column] — keep only
+     the main column. Navigation is the bottom bar + Modules sheet. */
+  .app-shell > :not(:last-child) { display: none !important; }
   .bottom-nav-capsule {
     position: relative;
     display: flex;

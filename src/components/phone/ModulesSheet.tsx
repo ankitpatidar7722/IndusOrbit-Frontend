@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, Search, X } from "lucide-react";
 import { AppIcon } from "@/components/phone/AppIcon";
+import InstallAppButton from "@/components/InstallAppButton";
 import { fetchPhoneGroups, type PhoneGroup, type PhoneLeaf } from "@/lib/phoneModules";
 
 /**
@@ -169,6 +170,12 @@ function SheetContent({ groups, onClose, reduceMotion }: { groups: PhoneGroup[] 
         )}
         {groups !== null && groups.length === 0 && !results && (
           <p className="phone-sheet-empty">No modules assigned to you yet.</p>
+        )}
+        {/* Install App (was in the old side drawer) — renders nothing unless the app is installable. */}
+        {!results && !drilled && (
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 16 }}>
+            <InstallAppButton variant="card" />
+          </div>
         )}
       </div>
     </>
