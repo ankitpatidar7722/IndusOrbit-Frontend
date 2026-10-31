@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, memo, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -23,8 +23,9 @@ export default function ModulesSheet({ open, onClose, focusSearch = false }: { o
   const userId = (useSession().data?.user as { UserID?: number } | undefined)?.UserID;
   const [groups, setGroups] = useState<PhoneGroup[] | null>(null);
 
-  // Load the menu only once the sheet is actually opened (it is mounted on every page, desktop included).
-  useEffect(() => { if (open && userId) fetchPhoneGroups(userId).then(setGroups); }, [open, userId]);
+  // Load the menu up front (the same cached promise the top bar already holds): loading it on open made the
+  // tiles pop in halfway through the slide-up.
+  useEffect(() => { if (userId) fetchPhoneGroups(userId).then(setGroups); }, [userId]);
 
   // Android / browser Back closes the sheet instead of leaving the page.
   useBackGuard(open, onClose);
@@ -39,39 +40,56 @@ export default function ModulesSheet({ open, onClose, focusSearch = false }: { o
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
   }, [open, onClose]);
 
+  // The sheet stays MOUNTED, pre-rendered and parked below the screen, so a tap only slides it: building
+  // every tile on the tap was the stutter at the start of the slide. Once it has slid away it is remounted
+  // (epoch) so the next open starts fresh on the group grid with an empty search.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [epoch, setEpoch] = useState(0);
+  // A stable close for the memoised content: the parent passes a fresh arrow every render, which made every
+  // open re-render the whole tile grid in the frame the slide starts.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  const closeSheet = useCallback(() => onCloseRef.current(), []);
+  const onSlid = () => {
+    if (!open) setEpoch((e) => e + 1);
+    else if (focusSearch) sheetRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+  };
+
   return (
-    // Backdrop + sheet are keyed SIBLINGS (not a fragment) so AnimatePresence can play their exit.
-    <AnimatePresence>
-      {open && (
-        <motion.div key="modules-backdrop" className="phone-sheet-backdrop" onClick={onClose}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
-      )}
-      {open && (
-        <motion.div
-          key="modules-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Modules"
-          className="phone-modules-sheet m-glass-sheet"
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%", transition: reduceMotion ? { duration: 0.15 } : { duration: 0.26, ease: [0.4, 0, 1, 1] } }}
-          transition={reduceMotion ? { duration: 0.2 } : { type: "spring", stiffness: 420, damping: 38 }}
-          // Flick down to dismiss; no upward lift off the bottom edge.
-          drag={reduceMotion ? false : "y"}
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.4 }}
-          onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) onClose(); }}
-        >
-          {/* Mounted per open → every open starts from the group grid with an empty search. */}
-          <SheetContent groups={groups} onClose={onClose} reduceMotion={!!reduceMotion} focusSearch={focusSearch} />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <>
+      <AnimatePresence>
+        {open && (
+          <motion.div key="modules-backdrop" className="phone-sheet-backdrop" onClick={onClose}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+        )}
+      </AnimatePresence>
+      <motion.div
+        ref={sheetRef}
+        role={open ? "dialog" : undefined}
+        aria-modal={open || undefined}
+        aria-label="Modules"
+        aria-hidden={!open || undefined}
+        inert={!open}
+        className="phone-modules-sheet m-glass-sheet"
+        initial={false}
+        animate={{ y: open ? 0 : "105%" }}
+        // Open: a tween on the iOS sheet curve (one fixed-length GPU slide, no settle frames). Close: quicker.
+        transition={reduceMotion ? { duration: open ? 0.2 : 0.15 }
+          : open ? { type: "tween", duration: 0.28, ease: [0.32, 0.72, 0, 1] } : { duration: 0.22, ease: [0.4, 0, 1, 1] }}
+        onAnimationComplete={onSlid}
+        // Flick down to dismiss; no upward lift off the bottom edge.
+        drag={reduceMotion || !open ? false : "y"}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.4 }}
+        onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) onClose(); }}
+      >
+        <SheetContent key={epoch} groups={groups} onClose={closeSheet} />
+      </motion.div>
+    </>
   );
 }
 
-function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: PhoneGroup[] | null; onClose: () => void; reduceMotion: boolean; focusSearch: boolean }) {
+const SheetContent = memo(function SheetContent({ groups, onClose }: { groups: PhoneGroup[] | null; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -124,10 +142,7 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
         <label className="phone-search m-glass-well">
           <Search size={18} style={{ flexShrink: 0, opacity: 0.55 }} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search modules and screens"
-            aria-label="Search modules" enterKeyHint="search" autoComplete="off"
-            // Opened from the top bar's Search → type straight away (never on a plain Modules open:
-            // the keyboard would cover the grid the user came to see).
-            autoFocus={focusSearch} />
+            aria-label="Search modules" enterKeyHint="search" autoComplete="off" />
           {query && (
             <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="phone-search-clear">
               <X size={16} />
@@ -150,7 +165,7 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
           )
         ) : (
           <div className="phone-app-grid">
-            {(drilled ? drilled.leaves : groups).map((item, i) => {
+            {(drilled ? drilled.leaves : groups).map((item) => {
               const leaf = drilled ? (item as PhoneLeaf) : null;
               const group = drilled ? null : (item as PhoneGroup);
               const name = leaf ? leaf.label : group!.name;
@@ -163,9 +178,6 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
                   aria-current={here ? "true" : undefined}
                   className="phone-app-tile"
                   data-here={here || undefined}
-                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32, delay: Math.min(i, 16) * 0.018 }}
                   whileTap={{ scale: 0.92 }}
                 >
                   <AppIcon icon={(leaf ?? group)!.icon} tone={(leaf ?? group)!.tone} size={50}>
@@ -190,7 +202,7 @@ function SheetContent({ groups, onClose, reduceMotion, focusSearch }: { groups: 
       </div>
     </>
   );
-}
+});
 
 function LeafRow({ leaf, active, onSelect }: { leaf: PhoneLeaf; active: boolean; onSelect: (href: string) => void }) {
   return (
