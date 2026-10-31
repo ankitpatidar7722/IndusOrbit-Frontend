@@ -577,7 +577,7 @@ button.pc-tile { cursor: pointer; }
 
 /* Safety net: a phone screen never scrolls sideways — a too-wide child must not shift the whole page
    left (the Settings → Notifications bug). Wide grids/tables keep their own inner scroll. */
-@media (max-width: 768px) { .app-frame main { overflow-x: hidden; } }
+@media (max-width: 768px) { .app-frame main { overflow-x: clip; }   /* clip, not hidden: hidden makes main a scroll box and breaks position:sticky Save bars */ }
 
 /* --- Phone Settings (app/settings/SettingsPhone.tsx, IndusFlexoERP style): account card, search,
    grouped rows with a round tinted icon + summary + chevron, Gestures switches. --- */

@@ -579,3 +579,11 @@ button:not(:disabled):not([aria-disabled="true"]),
      off the LEFT edge on a phone (success message cut). Re-centre deterministically with inset+margin
      (no % transform, which resolves wrong) and fit it to the viewport. */
 }
+
+/* A dialog / full-page phone form is open: its own Save bar sits at the bottom of the screen, so the floating
+   bottom bar (z 62, above the dialog layer) must step aside or it covers Save. The Modules sheet and the
+   profile card carry no data-state, so the bar stays with them. */
+@media (max-width: 1023px) {
+  body:has([role="dialog"][data-state="open"]) .bottom-nav,
+  body:has([role="alertdialog"][data-state="open"]) .bottom-nav { display: none !important; }
+}
