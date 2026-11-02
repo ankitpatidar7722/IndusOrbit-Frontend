@@ -5,12 +5,13 @@ import { Badge, Button, StandardModal, useModalAlert } from "indas-ui";
 import BrandedLoader from "@/components/BrandedLoader";
 import {
   Mail, Inbox, Star, Send, Archive, Trash2, RefreshCw, Search, Paperclip,
-  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText, Menu, Sparkles,
+  Reply, Forward, Pencil, ChevronLeft, ChevronRight, Printer, X, Download, FileText, Menu, Sparkles, ClipboardList,
 } from "lucide-react";
 import { mailApi, mailTime, attachmentUrl, type MailMessage, type MailListResult, type MailFolder } from "@/lib/mail";
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import TemplatesManager from "./TemplatesManager";
+import LogToClientModal from "./LogToClientModal";
 
 // Theme tokens (indas-ui) — never hardcode colors (frontend-design skill).
 const T = {
@@ -291,6 +292,10 @@ function EmailViewer({ m, loading, email, folder, onClose, onReply, onForward, o
   m: MailMessage; loading: boolean; email: string; folder: string; onClose: () => void;
   onReply: () => void; onForward: () => void; onArchive: () => void; onDelete: () => void;
 }) {
+  // "Add to Communication Log" — file this email under a client's Tracker timeline.
+  const [logOpen, setLogOpen] = useState(false);
+  const [loggedTo, setLoggedTo] = useState<string | null>(null);   // confirmation shown inside the reader
+  useEffect(() => { setLoggedTo(null); }, [m.id]);
   // AI "Summarise this email" — a quick overview (a few bullet points) via the user's Gemini key.
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -365,15 +370,22 @@ function EmailViewer({ m, loading, email, folder, onClose, onReply, onForward, o
         </div>
       )}
 
+      {loggedTo && (
+        <div style={{ margin: "8px 0", padding: "8px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: "#166534", background: "#dcfce7", border: "1px solid #bbf7d0" }}>
+          ✓ Added to {loggedTo}&apos;s Communication Log
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10, paddingTop: 14, borderTop: `1px solid ${T.bd}`, marginTop: 8 }}>
         <Button variant="primary" size="sm" icon={Reply} onClick={onReply}>Reply</Button>
         <Button variant="outline" size="sm" icon={Forward} onClick={onForward}>Forward</Button>
         <Button variant="outline" size="sm" icon={Printer} onClick={() => window.print()}>Print</Button>
+        <Button variant="outline" size="sm" icon={ClipboardList} disabled={loading} onClick={() => setLogOpen(true)}>Add to Communication Log</Button>
         <div style={{ flex: 1 }} />
         <Button variant="outline" size="sm" icon={Archive} onClick={onArchive}>Archive</Button>
         <Button variant="action-delete" size="sm" icon={Trash2} onClick={onDelete}>Delete</Button>
         <Button variant="ghost" size="sm" iconOnly icon={X} tooltip="Close" onClick={onClose} />
       </div>
+      {logOpen && <LogToClientModal m={m} userEmail={email} onClose={() => setLogOpen(false)} onLogged={(name) => { setLogOpen(false); setLoggedTo(name); }} />}
     </StandardModal>
   );
 }

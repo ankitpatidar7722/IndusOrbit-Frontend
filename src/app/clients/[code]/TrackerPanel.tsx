@@ -30,7 +30,8 @@ type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "mod
 // autofill: for a "person" field — on select, also fill the given keys from the chosen app-user (mobile / age-from-DOB).
 // span: grid-column width on a 12-col layout — lets a form pack rows of 3 (span 4) or 4 (span 3) fields; omit for the default 3-up grid.
 // autoGrow: textarea that grows its height to fit the text inside it (no scrollbar, no manual drag handle).
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean; multi?: boolean };
+// typable: for a "module" field — free text is allowed alongside picking from the dropdown.
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean; multi?: boolean; typable?: boolean };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -322,8 +323,15 @@ function EntityFormModal({
                 <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                   options={(fd.options ?? []).map((o) => ({ value: o, label: o }))} placeholder="— select —" size="md" />
               ) : fd.type === "module" ? (
-                <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v))}
-                  options={heads.map((h) => ({ value: h, label: h }))} placeholder="— select —" searchable size="md" />
+                fd.typable ? (
+                  // Typable: pick a keyline module OR type any name; a saved custom value stays in the list.
+                  <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v ?? "").trim())}
+                    options={(val && !heads.includes(val) ? [val, ...heads] : heads).map((h) => ({ value: h, label: h }))}
+                    placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
+                ) : (
+                  <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v))}
+                    options={heads.map((h) => ({ value: h, label: h }))} placeholder="— select —" searchable size="md" />
+                )
               ) : fd.type === "submodule" ? (
                 (() => {
                   const head = (f[fd.dependsOn ?? ""] as string) || "";
@@ -604,7 +612,12 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
     if (!sendToTask) return flag(row, "tasked");
     showConfirmation(
       "Send Task to Internal App",
-      "Are you sure you want to send this Task to Internal App? It will be added to your today's Draft worklog.",
+      // Training rows go on their Schedule Date's worklog (backend); everything else on today's.
+      (() => {
+        const d = String((row as unknown as Record<string, unknown>).logDate ?? "").slice(0, 10);
+        const day = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, "-") : "";
+        return `Are you sure you want to send this Task to Internal App? It will be added to your ${day ? `${day} (Schedule Date)` : "today's"} Draft worklog.`;
+      })(),
       async () => {
         setBusyId(row.id);
         try {
@@ -1052,7 +1065,7 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
 ];
 const TRAINING_FIELDS: FieldDef[] = [
   // Row 1 — 4 fields (span 3 each = 12)
-  { key: "moduleName", label: "Main Module", type: "module", span: 3 },
+  { key: "moduleName", label: "Main Module", type: "module", span: 3, typable: true },
   { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName", span: 3, multi: true },
   { key: "timelineDays", label: "Timeline in Days", span: 3 },
   { key: "logDate", label: "Schedule Date", type: "date", span: 3 },

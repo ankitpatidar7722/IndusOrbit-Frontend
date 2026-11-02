@@ -34,6 +34,13 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { key: "signoff.editTemplate", label: "Can Edit Signoff Template" },
     ],
   },
+  {
+    category: "Database Backup",
+    perms: [
+      { key: "databaseBackup.serverDetail", label: "Can See Server Detail" },
+      { key: "databaseBackup.uploadRestore", label: "Can Upload & Restore Backup" },
+    ],
+  },
 ];
 
 /** Every permission key in the catalog (for select-all / validation). */

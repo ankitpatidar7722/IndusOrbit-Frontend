@@ -2,10 +2,14 @@
 import KDropdown from "@/components/KDropdown";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Page, Button, Input, Tabs } from "indas-ui";
-import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateCcw, Server, User, KeyRound, PlugZap, History, X } from "lucide-react";
+import { Package, Users2, Database, Download, CheckCircle2, AlertCircle, RotateCcw, Server, User, KeyRound, PlugZap, History, X, Activity, Upload } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import { customersApi, type CustomerCard } from "@/lib/customers";
-import { databaseBackupApi, type ServerDatabase, type SavedServer } from "@/lib/databaseBackup";
+import { databaseBackupApi, type ServerDatabase, type SavedServer, type ServerInfo } from "@/lib/databaseBackup";
+import ServerInfoPanel from "./ServerInfoPanel";
+import UploadBackupModal from "./UploadBackupModal";
+import { useSession } from "next-auth/react";
+import { fetchUserPermissions } from "@/lib/featurePermissions";
 import { useInProgressNavGuard } from "@/hooks/useInProgressNavGuard";
 import LeaveGuardDialog from "@/components/LeaveGuardDialog";
 
@@ -52,6 +56,30 @@ export default function DatabaseBackupPage() {
   const [showSuggest, setShowSuggest] = useState(false);
   const [remember, setRemember] = useState(false);
   const [usingSaved, setUsingSaved] = useState(false);
+  // Read-only server health snapshot (drives, CPU/RAM, database sizes), loaded after Show Databases.
+  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoError, setInfoError] = useState("");
+  const [showInfo, setShowInfo] = useState(false);
+  const clearInfo = () => { setServerInfo(null); setInfoError(""); setInfoLoading(false); setShowInfo(false); };
+
+  // "Server Details" button is opt-in per user (Users → User Profile → "Can See Server Detail").
+  const { data: session } = useSession();
+  const [canSeeServerDetail, setCanSeeServerDetail] = useState(false);
+  // "Upload Backup" (local .bak → server backup folder, optional restore) — also opt-in per user.
+  const [canUploadRestore, setCanUploadRestore] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  useEffect(() => {
+    const uid = (session?.user as { UserID?: number } | undefined)?.UserID;
+    if (!uid) return;
+    fetchUserPermissions(uid)
+      .then((perms) => {
+        setCanSeeServerDetail(perms.has("databaseBackup.serverDetail"));
+        setCanUploadRestore(perms.has("databaseBackup.uploadRestore"));
+      })
+      .catch(() => { /* keep opt-in default (hidden) */ });
+  }, [session]);
 
   const refreshSaved = () => databaseBackupApi.savedServers().then(setSavedServers).catch(() => {});
   useEffect(() => { refreshSaved(); }, []);
@@ -137,6 +165,7 @@ export default function DatabaseBackupPage() {
     setUsingSaved(s.hasPassword);
     setRemember(s.hasPassword);
     setShowSuggest(false);
+    clearInfo();
     setServerDbs(null);
     setDbName("");
     setDbError("");
@@ -155,6 +184,7 @@ export default function DatabaseBackupPage() {
   const editCred = (setter: (v: string) => void) => (v: string) => {
     setter(v);
     setUsingSaved(false);
+    clearInfo();
     setServerDbs(null);
     setDbName("");
     setDbError("");
@@ -167,6 +197,7 @@ export default function DatabaseBackupPage() {
     setDbError("");
     setServerDbs(null);
     setDbName("");
+    clearInfo();
     reset();
     try {
       setServerDbs(await databaseBackupApi.serverDatabases(serverCreds()));
@@ -176,6 +207,19 @@ export default function DatabaseBackupPage() {
     } finally {
       setDbLoading(false);
     }
+  };
+
+  // Toggle the read-only server snapshot; loaded on first open, then kept until credentials change.
+  const toggleServerInfo = () => {
+    if (showInfo) { setShowInfo(false); return; }
+    setShowInfo(true);
+    if (serverInfo || infoLoading) return;
+    setInfoLoading(true);
+    setInfoError("");
+    databaseBackupApi.serverInfo({ ...serverCreds(), remember: false })
+      .then(setServerInfo)
+      .catch((e) => setInfoError(e instanceof Error ? e.message : "Could not load server details."))
+      .finally(() => setInfoLoading(false));
   };
 
   const dbOptions = useMemo(
@@ -272,7 +316,7 @@ export default function DatabaseBackupPage() {
 
   // While a backup is being prepared + streamed, block leaving the page (sidebar / in-app nav → Leave/Cancel
   // popup; tab close / refresh → native prompt) so the user doesn't abandon the in-flight backup by accident.
-  const navGuard = useInProgressNavGuard(busy);
+  const navGuard = useInProgressNavGuard(busy || uploadBusy);
 
   // Trigger the browser download only once phase === "done" (guard released). A 0ms timeout pushes it
   // to the next macrotask, so the nav guard's beforeunload cleanup has definitely run and the
@@ -343,12 +387,12 @@ export default function DatabaseBackupPage() {
             <label style={fieldLabel}><User size={15} /> User ID</label>
             <Input value={serverUser} onChange={(e) => editCred(setServerUser)(e.target.value)} placeholder="e.g. sa" autoComplete="off" disabled={busy} />
           </div>
-          <div style={{ width: 170, maxWidth: "100%" }}>
+          <div style={{ width: 170, maxWidth: "100%", position: "relative" }}>
             <label style={fieldLabel}><KeyRound size={15} /> Password</label>
             <Input type="password" value={serverPassword} onChange={(e) => editCred(setServerPassword)(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") loadServerDatabases(); }} autoComplete="new-password"
               placeholder={usingSaved ? "Saved password" : ""} disabled={busy} />
-            <label style={{ position: "absolute", marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#334155", cursor: "pointer", userSelect: "none" }}>
+            <label style={{ position: "absolute", top: "100%", left: 0, marginTop: 6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#334155", cursor: "pointer", userSelect: "none" }}>
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={busy}
                 style={{ accentColor: "rgb(var(--color-primary))", width: 14, height: 14, cursor: "pointer" }} />
               Remember password
@@ -357,6 +401,18 @@ export default function DatabaseBackupPage() {
           <Button onClick={loadServerDatabases} size="md" icon={PlugZap} disabled={!canConnect || dbLoading || busy}>
             {dbLoading ? "Connecting…" : "Show Databases"}
           </Button>
+          {canSeeServerDetail && (
+            <Button onClick={toggleServerInfo} size="md" icon={Activity} variant="action-secondary"
+              disabled={!canConnect || dbLoading || busy}>
+              {showInfo ? "Hide Server Details" : "Server Details"}
+            </Button>
+          )}
+          {canUploadRestore && (
+            <Button onClick={() => setUploadOpen(true)} size="md" icon={Upload} variant="action-secondary"
+              disabled={!canConnect || dbLoading || busy}>
+              Upload Backup
+            </Button>
+          )}
           {serverDbs && (
             <div style={{ width: 340, maxWidth: "100%" }}>
               <label style={fieldLabel}><Database size={15} /> Database ({serverDbs.length})</label>
@@ -485,13 +541,42 @@ export default function DatabaseBackupPage() {
           )}
         </div>
       )}
+
+      {mode === "server" && canSeeServerDetail && showInfo && (
+        <ServerInfoPanel
+          info={serverInfo}
+          loading={infoLoading}
+          error={infoError}
+          selectedDb={dbName}
+          onSelectDb={(name) => {
+            if (busy) return;
+            setDbName(name);
+            reset();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      )}
       </div>{/* end data-navguard-safe */}
+
+      {canUploadRestore && uploadOpen && (
+        <UploadBackupModal
+          isOpen
+          onClose={() => setUploadOpen(false)}
+          creds={() => ({ ...serverCreds(), remember: false })}
+          serverLabel={server.trim()}
+          existingDatabases={(serverDbs ?? []).map((d) => d.name)}
+          onBusyChange={setUploadBusy}
+          onRestored={() => { if (serverDbs) loadServerDatabases(); }}
+        />
+      )}
 
       {/* Leave / Cancel popup when the user navigates away mid-backup (tab-close handled natively). */}
       <LeaveGuardDialog
         open={navGuard.blocked}
-        title="Leave while the backup is running?"
-        message="A database backup is being prepared and downloaded right now. If you leave this page it will be cancelled."
+        title={uploadBusy ? "Leave while the upload is running?" : "Leave while the backup is running?"}
+        message={uploadBusy
+          ? "A backup file is being uploaded or restored right now. If you leave this page the upload will stop."
+          : "A database backup is being prepared and downloaded right now. If you leave this page it will be cancelled."}
         onConfirm={navGuard.confirmLeave}
         onCancel={navGuard.cancelLeave}
       />
