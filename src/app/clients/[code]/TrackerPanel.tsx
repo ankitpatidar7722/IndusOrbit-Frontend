@@ -7,7 +7,7 @@ import KDropdown from "@/components/KDropdown";
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, Target, Eye, Sparkles, Flag, GraduationCap, GitPullRequest, MessagesSquare } from "lucide-react";
+import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, FileSpreadsheet, Target, Eye, Sparkles, Flag, GraduationCap, GitPullRequest, MessagesSquare } from "lucide-react";
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
@@ -106,6 +106,17 @@ function composeTime(h: string, m: string, ap: string) {
   let H = parseInt(h, 10) % 12;
   if (ap === "PM") H += 12;
   return `${String(H).padStart(2, "0")}:${m}`;
+}
+/** Training session time rule: End Time must be after Start Time (same day) and the session at most
+ *  12 hours. Times are "HH:mm" (24h). Either one left blank is allowed (e.g. still scheduled). */
+const MAX_SESSION_MINUTES = 12 * 60;
+function validateSessionTime(v: Record<string, unknown>): string | null {
+  const toMin = (t: unknown) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(t ?? "").trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const a = toMin(v.startTime), b = toMin(v.endTime);
+  if (a === null || b === null) return null;
+  if (b <= a) return "End Time must be later than Start Time.";
+  if (b - a > MAX_SESSION_MINUTES) return "A training session cannot be longer than 12 hours. Please check Start Time and End Time.";
+  return null;
 }
 function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { h, m, ap } = parseTime(value);
@@ -677,6 +688,48 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
     } catch (e) { showError("Template failed", String(e)); }
   };
 
+  // ── Excel: export — every row of this grid, one column per form field (same order as the form) ──
+  const [exporting, setExporting] = useState(false);
+  const exportExcel = async () => {
+    if (!rows.length) { showError("Nothing to export", `There are no ${title} rows for this client yet.`); return; }
+    setExporting(true);
+    try {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet(singular.slice(0, 28) || "Export");
+      ws.columns = fields.map((fd) => ({ header: fd.label, key: fd.key, width: Math.max(14, Math.min(48, fd.label.length + 6)) }));
+      const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const fmtDate = (v: unknown) => {
+        const s = String(v ?? "").slice(0, 10);
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+        return m ? `${m[3]}-${MON[Number(m[2]) - 1]}-${m[1]}` : String(v ?? "");
+      };
+      for (const r of rows) {
+        const rec = r as unknown as Record<string, unknown>;
+        const out: Record<string, unknown> = {};
+        for (const fd of fields) {
+          const v = fd.compute && (rec[fd.key] == null || rec[fd.key] === "") ? fd.compute(rec) : rec[fd.key];
+          out[fd.key] = v == null ? "" : fd.type === "date" ? fmtDate(v) : String(v);
+        }
+        ws.addRow(out);
+      }
+      const hdr = ws.getRow(1);
+      hdr.font = { bold: true, color: { argb: "FF15233A" } };
+      hdr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF1F8" } };
+      ws.views = [{ state: "frozen", ySplit: 1 }];
+      ws.eachRow((row, i) => { if (i > 1) row.alignment = { vertical: "top", wrapText: true }; });
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const d = new Date();
+      const who = (clientName || clientCode || code || "").replace(/[\\/:*?"<>|]+/g, " ").trim();
+      a.href = url; a.download = `${title}${who ? ` - ${who}` : ""} - ${String(d.getDate()).padStart(2, "0")}-${MON[d.getMonth()]}-${d.getFullYear()}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (e) { showError("Export failed", String(e)); } finally { setExporting(false); }
+  };
+
   // ── Excel: import — parse, validate, add only valid rows ──
   const importExcel = async (file: File) => {
     setImporting(true);
@@ -819,6 +872,10 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
         <div className="hide-on-phone" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ fontSize: 15, fontWeight: 700 }}>{title}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Export Excel: read-only, so view-only users get it too (desktop only, like Import). */}
+            <span className="hide-on-mobile" style={{ display: "contents" }}>
+              <Button variant="outline" size="sm" icon={FileSpreadsheet} loading={exporting} onClick={exportExcel}>Export Excel</Button>
+            </span>
             {canEdit ? (
               <>
                 {/* Download Template + Import Excel: desktop only (hidden on phones — bulk Excel work isn't practical there). */}
@@ -1266,6 +1323,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
         <EntityGrid<TrainingUpdate> code={code} title="Training & Daily Status" singular="Training & Daily Status" rows={data.training} columns={TRAINING_COLS}
           fields={TRAINING_FIELDS} blank={TRAINING_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "training", id, { clientName: clientName ?? undefined })}
+          validate={validateSessionTime}
           apiFns={{ add: api.addTraining, update: api.updateTraining, del: api.deleteTraining }} canEdit={canEdit} />
       )}
       {sub === "cr" && (
