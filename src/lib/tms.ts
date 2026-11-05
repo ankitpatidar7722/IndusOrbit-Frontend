@@ -42,6 +42,16 @@ export interface AdminDashboardStats {
   closed: number; delayed: number; open: number;
 }
 
+export interface ImplementorAssigneeRow {
+  assignedToID?: number | null; assignedToName: string;
+  total: number; pending: number; closed: number; rejected: number;
+}
+
+export interface ImplementorDashboard {
+  stats: AdminDashboardStats;   // here `open` = pending: not Closed and not Rejected
+  assignees: ImplementorAssigneeRow[];
+}
+
 export interface PointGridRow {
   pointID: number;
   title: string;
@@ -196,6 +206,7 @@ export const pmApi = {
 
   // admin dashboard
   adminStats: (f: PointFilter = {}) => get<AdminDashboardStats>(`/api/point-management/dashboard/admin/stats${qs(f)}`),
+  implementorDashboard: (f: PointFilter = {}) => get<ImplementorDashboard>(`/api/point-management/dashboard/implementor${qs(f)}`),
   points: (f: PointFilter = {}) => get<PointGridRow[]>(`/api/point-management/points${qs(f)}`),
   queue: () => get<PointGridRow[]>("/api/point-management/points/queue"),
 
@@ -368,10 +379,11 @@ export const PM_SUBMODULES: { route: string; label: string }[] = [
   { route: "/point-management/admin-dashboard", label: "Admin Dashboard" },
   { route: "/point-management/developer", label: "Developer Dashboard" },
   { route: "/point-management/developer-kpi", label: "Developer KPI" },
+  { route: "/point-management/implementor-dashboard", label: "Implementor Dashboard" },
   { route: "/point-management/tester", label: "Tester Dashboard" },
   { route: "/point-management/add-point", label: "Add Point" },
   { route: "/point-management/manage-points", label: "Manage Points" },
-  { route: "/point-management/assign", label: "Assign / Create Ticket" },
+  { route: "/point-management/assign", label: "Assign Ticket" },
   { route: "/point-management/manage-assignments", label: "Manage Assignments" },
   { route: "/point-management/verify", label: "Verify Tickets" },
   { route: "/point-management/merge", label: "Merge Code" },

@@ -131,6 +131,7 @@ export const usersApi = {
     send<{ success: boolean; message: string; savedCount?: number }>("POST", `/api/users/${id}/modules`, { userId: id, modules }),
 
   // Feature permissions (opt-in list of granted keys) — see lib/featurePermissions.ts for the catalog.
+  usersWithPermission: (key: string) => get<{ success: boolean; data: number[]; message?: string }>(`/api/users/with-permission/${encodeURIComponent(key)}`),
   getPermissions: (id: number) => get<{ success: boolean; data: string[]; message?: string }>(`/api/users/${id}/permissions`),
   savePermissions: (id: number, keys: string[]) =>
     send<{ success: boolean; message: string; savedCount?: number }>("POST", `/api/users/${id}/permissions`, { keys }),

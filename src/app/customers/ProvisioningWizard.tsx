@@ -1,6 +1,7 @@
 "use client";
 import KDropdown from "@/components/KDropdown";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { createPortal } from "react-dom";
 import { Input } from "indas-ui";
 import { Database, CreditCard, Building2, GitBranch, Factory, CheckCircle2, Copy, X, ChevronLeft, PartyPopper, Check, Users2, Loader2, ArrowRight, ArrowRightLeft } from "lucide-react";
@@ -17,6 +18,7 @@ import { crmApi, type CrmClient } from "@/lib/crm";
 import { api } from "@/lib/api";
 import CrmClientPickerModal from "./CrmClientPickerModal";
 import { countryNames, stateNames, cityNames, useLocationData } from "@/lib/location";
+import { gstStateCode } from "@/lib/gstStateCode";
 
 const APP_OPTIONS = ["estimoprime", "multiunit", "PrintudeERP", "Coreasy", "EstimoReact", "EstimoFlexo"];
 const BACKUP_TYPES = ["Offset", "Flexo", "Rotogravure"];
@@ -67,6 +69,30 @@ const STEP_META: Record<number, { title: string; sub: string; icon: React.Compon
   5: { title: "Production Unit", sub: "Add the production unit details to complete the setup.", icon: Factory },
 };
 
+/** Mobile / Email fields may hold several values separated by commas (or ; /). */
+const splitMulti = (v: unknown) => String(v ?? "").split(/[,;/]+/).map((x) => x.trim()).filter(Boolean);
+const MULTI_HINT = "Separate multiple with commas";
+/** "Not available" markers accepted in place of a GSTIN / mobile when the client has none (0, NA, N/A). */
+const isNotAvailable = (v: unknown) => /^(0|na|n\/a)$/i.test(String(v ?? "").trim());
+
+/** Validates a wizard step: lists every blank required field, then checks the GSTIN format
+ *  (15 letters/digits), that EVERY mobile number has at least 10 digits and every email is valid.
+ *  Returns the error, or null. */
+function requiredError(required: [string, unknown][], gstin?: [string, unknown], mobile?: [string, unknown], email?: [string, unknown]): string | null {
+  const missing = required.filter(([, v]) => !String(v ?? "").trim()).map(([n]) => n);
+  if (missing.length) return `Please fill the required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`;
+  if (gstin && !isNotAvailable(gstin[1]) && !/^[0-9A-Z]{15}$/i.test(String(gstin[1]).trim())) return `${gstin[0]} must be 15 characters (letters and digits), e.g. 23AAIFI7293K1ZY — or 0 / NA if the client has none.`;
+  if (mobile && !isNotAvailable(mobile[1])) {
+    const bad = splitMulti(mobile[1]).filter((m) => m.replace(/\D/g, "").length < 10);
+    if (bad.length) return `${mobile[0]}: "${bad[0]}" must have at least 10 digits (or 0 if the client has none). Separate multiple numbers with commas.`;
+  }
+  if (email) {
+    const bad = splitMulti(email[1]).filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (bad.length) return `${email[0]}: "${bad[0]}" is not a valid email. Separate multiple emails with commas.`;
+  }
+  return null;
+}
+
 /** Premium field label: colored required asterisk + optional "AUTO" chip. */
 function Label({ text, extra }: { text: string; extra?: string }) {
   const req = /\*\s*$/.test(text);
@@ -91,6 +117,12 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   const [progress, setProgress] = useState<{ stage: string; percent: number; message: string } | null>(null);
   // Step 2 (Subscription): the first save INSERTs; re-saving after going Back UPDATEs (keyed by the first login).
   const [subSaved, setSubSaved] = useState(false);
+  // Roadmap auto-init (Order Date = today + Res. Person + Complete) — done once per wizard run. Tried right
+  // after the DB is created and again after the Subscription save, so a missed first call (no client code
+  // yet / network blip) can't leave the Order Date row blank.
+  const [roadmapDone, setRoadmapDone] = useState(false);
+  const { data: session } = useSession();
+  const myName = (session?.user as { name?: string } | undefined)?.name ?? "";
   const [savedLogin, setSavedLogin] = useState("");
   // A floating success toast shown after each step completes (auto-dismisses).
   const [flash, setFlash] = useState<string | null>(null);
@@ -111,6 +143,12 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
 
   // step 3-5
   const [company, setCompany] = useState<CompanyMasterRequest>({ connectionString: "", companyID: 2, companyName: "" });
+  // State TIN No is derived (GST state code of the State, else the GSTIN prefix) — refilled only when State or
+  // GSTIN changes, so a manual edit of the TIN itself is kept.
+  useEffect(() => {
+    const tin = gstStateCode(company.state, company.gstin);
+    if (tin) setCompany((p) => (p.stateTinNo === tin ? p : { ...p, stateTinNo: tin }));
+  }, [company.state, company.gstin]);
   const [branch, setBranch] = useState<BranchMasterRequest>({ connectionString: "", branchID: 1, branchName: "" });
   const [prod, setProd] = useState<ProductionUnitRequest>({ connectionString: "", productionUnitName: "" });
   const [done, setDone] = useState<CompleteSetupResponse | null>(null);
@@ -118,14 +156,15 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   useEffect(() => {
     if (!isOpen) return;
     setStep(1); setMaxStep(1); setErr(null); setSetup(null); setDone(null); setFlash(null);
-    setCreating(false); setProgress(null); setSubSaved(false); setSavedLogin("");
+    setCreating(false); setProgress(null); setSubSaved(false); setSavedLogin(""); setRoadmapDone(false);
     setDb({ server: "", app: "", backupType: "", clientName: "", dbName: "", backupDb: "", dbEdited: false });
     setCrmPick(null);
     setSub({ subscriptionStatus: "Active", cloudSubscriptionStatus: "Active", country: "India", loginAllowed: 1 });
     provisioningApi.servers()
       .then((r) => { const merged = Array.from(new Set([...r.servers, ...loadStoredServers()])); setServers(merged); setDb((p) => ({ ...p, server: merged[0] ?? "" })); })
       .catch(() => { const s = loadStoredServers(); setServers(s); setDb((p) => ({ ...p, server: s[0] ?? "" })); });
-    customersApi.nextCode().then((r) => setSub((p) => ({ ...p, companyUniqueCode: r.companyUniqueCode }))).catch(() => {});
+    // Company Code defaults to the new Client Code (still editable).
+    customersApi.nextCode().then((r) => setSub((p) => ({ ...p, companyUniqueCode: r.companyUniqueCode, companyCode: (p.companyCode as string) || r.companyUniqueCode }))).catch(() => {});
   }, [isOpen]);
 
   // auto db name + backup list when app/client change
@@ -164,11 +203,20 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
     }));
     // This CRM client now has a database — stamp it so the picker shows DB Status = Created.
     if (crmPick) crmApi.markProvisioned(crmPick.customerID, r.clientName, r.databaseName).catch(() => {});
-    // Auto-init the implementation roadmap: Order Date = today (Est/Act/End) + sales person + Complete/On-Time,
+    // Auto-init the implementation roadmap: Order Date = today (Est/Act/End) + Res. Person + Complete/On-Time,
     // and every later phase's Estimated Start cascades from its Task Timeline (skipping Sundays).
-    if (sub.companyUniqueCode) api.initRoadmap(String(sub.companyUniqueCode), crmPick?.assignedToName).catch(() => {});
+    initRoadmapOnce(sub.companyUniqueCode as string | undefined);
     setFlash(`Database "${r.databaseName}" successfully created on ${db.server}.`);
     go(2);
+  }
+
+  // Res. Person = the CRM sales person when the client came from CRM, else the user creating the client.
+  async function initRoadmapOnce(code?: string) {
+    if (roadmapDone || !code) return;
+    try {
+      await api.initRoadmap(String(code), crmPick?.assignedToName || myName || null);
+      setRoadmapDone(true);
+    } catch { /* retried after the Subscription save */ }
   }
 
   async function step1() {
@@ -200,36 +248,58 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   }
 
   async function step2() {
-    if (!sub.companyName || !sub.companyUserID || !sub.password) { setErr("Client Name, Login Name and Password are required."); return; }
+    // Required (Vivek, 2026-11-03): Company Code, GSTIN, Country, State, City, Mobile + Client Name / Login / Password.
+    const e2 = requiredError([
+      ["Client Name", sub.companyName], ["Company Code", sub.companyCode], ["GSTIN", sub.gstin],
+      ["Country", (sub.country as string) ?? "India"], ["State", sub.state], ["City", sub.city], ["Mobile", sub.mobile],
+      ["Company Login Name", sub.companyUserID], ["Password", sub.password],
+    ], ["GSTIN", sub.gstin], ["Mobile", sub.mobile], ["Email", sub.email]);
+    if (e2) { setErr(e2); return; }
+
     setBusy(true); setErr(null);
     try {
       // First save = INSERT; after going Back and re-saving = UPDATE (keyed by the login used the first time,
       // so renaming the login still works). This is why re-saving no longer throws "login already exists".
+      // The Client Code comes from next-code when the wizard opens; if that call failed, fetch it now so the
+      // client (and its roadmap) never ends up without one.
+      let code = (sub.companyUniqueCode as string | undefined) || "";
+      if (!code) { code = (await customersApi.nextCode()).companyUniqueCode; setSub((p) => ({ ...p, companyUniqueCode: code })); }
       const r = subSaved
-        ? await customersApi.update({ ...sub, originalCompanyUserID: savedLogin })
-        : await customersApi.create(sub);
+        ? await customersApi.update({ ...sub, companyUniqueCode: code, country: (sub.country as string) ?? "India", originalCompanyUserID: savedLogin })
+        : await customersApi.create({ ...sub, companyUniqueCode: code, country: (sub.country as string) ?? "India" });
       if (!r.success) { setErr(r.message); return; }
       setCompany((p) => ({ ...p, connectionString: (sub.conn_String as string) ?? p.connectionString, companyName: sub.companyName as string, city: sub.city as string, state: sub.state as string, country: (sub.country as string) ?? "India", email: sub.email as string, gstin: sub.gstin as string, mobileNO: sub.mobile as string, address: sub.address as string, address1: sub.address as string }));
       setFlash(subSaved ? "Subscription details updated successfully." : "Subscription details saved successfully.");
       setSavedLogin(String(sub.companyUserID)); setSubSaved(true);
+      await initRoadmapOnce(code);
       go(3);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
 
   async function step3() {
-    if (!company.companyName?.trim()) { setErr("Company Name is required."); return; }
+    // Required (Vivek, 2026-11-03): GSTIN, Country, State, City, Address 1, Mobile No + Company Name.
+    const e3 = requiredError([
+      ["Company Name", company.companyName], ["GSTIN", company.gstin], ["Country", company.country],
+      ["State", company.state], ["City", company.city], ["Address 1", company.address1], ["Mobile No", company.mobileNO],
+    ], ["GSTIN", company.gstin], ["Mobile No", company.mobileNO], ["Email", company.email]);
+    if (e3) { setErr(e3); return; }
     setBusy(true); setErr(null);
     try {
       const r = await provisioningApi.saveCompanyMaster(company);
       if (!r.success) { setErr(r.message); return; }
-      setBranch((p) => ({ ...p, connectionString: company.connectionString, branchName: company.companyName, mailingName: company.companyName, city: company.city, state: company.state, country: company.country ?? "India", pincode: company.pincode, mobileNo: company.mobileNO, email: company.email, gstin: company.gstin, companyID: r.companyID }));
+      setBranch((p) => ({ ...p, connectionString: company.connectionString, branchName: company.companyName, mailingName: company.companyName, city: company.city, state: company.state, country: company.country ?? "India", pincode: company.pincode, mobileNo: company.mobileNO, email: company.email, gstin: company.gstin, stateTinNo: company.stateTinNo, companyID: r.companyID }));
       setFlash("Company master saved successfully.");
       go(4);
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
 
   async function step4() {
-    if (!branch.branchName?.trim()) { setErr("Branch Name is required."); return; }
+    // Required (Vivek, 2026-11-03): GSTIN, Country, State, City, Mobile No + Branch Name.
+    const e4 = requiredError([
+      ["Branch Name", branch.branchName], ["GSTIN", branch.gstin], ["Country", branch.country],
+      ["State", branch.state], ["City", branch.city], ["Mobile No", branch.mobileNo],
+    ], ["GSTIN", branch.gstin], ["Mobile No", branch.mobileNo], ["Email", branch.email]);
+    if (e4) { setErr(e4); return; }
     setBusy(true); setErr(null);
     try {
       const r = await provisioningApi.saveBranchMaster(branch);
@@ -241,7 +311,12 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
   }
 
   async function step5() {
-    if (!prod.productionUnitName?.trim()) { setErr("Production Unit Name is required."); return; }
+    // Required (Vivek, 2026-11-03): GST No, Country, State, City, Address + Prod. Unit Name.
+    const e5 = requiredError([
+      ["Prod. Unit Name", prod.productionUnitName], ["GST No", prod.gstNo], ["Country", prod.country],
+      ["State", prod.state], ["City", prod.city], ["Address", prod.address],
+    ], ["GST No", prod.gstNo]);
+    if (e5) { setErr(e5); return; }
     setBusy(true); setErr(null);
     try {
       const pu = await provisioningApi.saveProductionUnit(prod);
@@ -253,17 +328,18 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
     } catch (e) { setErr(String(e)); } finally { setBusy(false); }
   }
 
-  const T = (label: string, val: unknown, on: (v: string) => void, opts?: { type?: string; readOnly?: boolean; hint?: string }) => {
+  const T = (label: string, val: unknown, on: (v: string) => void, opts?: { type?: string; readOnly?: boolean; hint?: string; placeholder?: string }) => {
     const t = opts?.type ?? "text";
     // Mobile keyboard hints: email → @ keyboard, tel → phone pad, numeric → number pad (kept a text
     // input so leading zeros/formatting survive). email/tel also turn off auto-capitalize/correct.
     const inputMode = t === "email" ? "email" : t === "tel" ? "tel" : t === "numeric" ? "numeric" : undefined;
-    const htmlType = t === "numeric" ? "text" : t;
+    // email → plain text input: these fields can hold several comma-separated addresses.
+    const htmlType = t === "numeric" || t === "email" ? "text" : t;
     const noCaps = t === "email" || t === "tel";
     return (
       <div><Label text={label} extra={opts?.hint} />
         <Input type={htmlType} inputMode={inputMode} autoCapitalize={noCaps ? "none" : undefined} autoCorrect={noCaps ? "off" : undefined}
-          value={(val as string | number | undefined) ?? ""} onChange={(e) => on(e.target.value)} readOnly={opts?.readOnly}
+          value={(val as string | number | undefined) ?? ""} onChange={(e) => on(e.target.value)} readOnly={opts?.readOnly} placeholder={opts?.placeholder}
           style={opts?.readOnly ? { background: "#eef4fb", color: "#1e2a3d", fontWeight: 700, letterSpacing: 0.3 } : undefined} />
       </div>
     );
@@ -467,14 +543,14 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px 18px" }}>
           {T("Client Code", sub.companyUniqueCode, () => {}, { readOnly: true, hint: "auto" })}
           {T("Client Name *", sub.companyName, (v) => setSub((p) => ({ ...p, companyName: v })))}
-          {T("Company Code", sub.companyCode, (v) => setSub((p) => ({ ...p, companyCode: v })))}
-          {T("GSTIN", sub.gstin, (v) => setSub((p) => ({ ...p, gstin: v })))}
-          {S("Country", (sub.country as string) ?? "India", (v) => setSub((p) => ({ ...p, country: v, state: "", city: "" })), countryNames((sub.country as string) || "India"), { searchable: true })}
-          {S("State", (sub.state as string) ?? "", (v) => setSub((p) => ({ ...p, state: v, city: "" })), stateNames((sub.country as string) || "India", sub.state as string), { searchable: true })}
-          {S("City", (sub.city as string) ?? "", (v) => setSub((p) => ({ ...p, city: v })), cityNames((sub.country as string) || "India", sub.state as string, sub.city as string), { searchable: true })}
+          {T("Company Code *", sub.companyCode, (v) => setSub((p) => ({ ...p, companyCode: v })))}
+          {T("GSTIN *", sub.gstin, (v) => setSub((p) => ({ ...p, gstin: v })))}
+          {S("Country *", (sub.country as string) ?? "India", (v) => setSub((p) => ({ ...p, country: v, state: "", city: "" })), countryNames((sub.country as string) || "India"), { searchable: true })}
+          {S("State *", (sub.state as string) ?? "", (v) => setSub((p) => ({ ...p, state: v, city: "" })), stateNames((sub.country as string) || "India", sub.state as string), { searchable: true })}
+          {S("City *", (sub.city as string) ?? "", (v) => setSub((p) => ({ ...p, city: v })), cityNames((sub.country as string) || "India", sub.state as string, sub.city as string), { searchable: true })}
           {T("Address", sub.address as string, (v) => setSub((p) => ({ ...p, address: v })))}
-          {T("Email", sub.email, (v) => setSub((p) => ({ ...p, email: v })), { type: "email" })}
-          {T("Mobile", sub.mobile, (v) => setSub((p) => ({ ...p, mobile: v })), { type: "tel" })}
+          {T("Email", sub.email, (v) => setSub((p) => ({ ...p, email: v })), { type: "email", placeholder: MULTI_HINT })}
+          {T("Mobile *", sub.mobile, (v) => setSub((p) => ({ ...p, mobile: v })), { type: "tel", placeholder: MULTI_HINT })}
           {S("ERP Status", sub.subscriptionStatus as string, (v) => setSub((p) => ({ ...p, subscriptionStatus: v })), ["Active", "Expired"])}
           {S("Cloud Status", sub.cloudSubscriptionStatus as string, (v) => setSub((p) => ({ ...p, cloudSubscriptionStatus: v })), ["Active", "Expired", "Trial", "Suspended"])}
           {T("Company Login Name *", sub.companyUserID, (v) => setSub((p) => ({ ...p, companyUserID: v })))}
@@ -487,16 +563,16 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           <div style={sect}>Company Master</div>
           {T("Company ID", company.companyID, (v) => setCompany((p) => ({ ...p, companyID: Number(v) || 2 })), { type: "number" })}
           {T("Company Name *", company.companyName, (v) => setCompany((p) => ({ ...p, companyName: v })))}
-          {T("GSTIN", company.gstin, (v) => setCompany((p) => ({ ...p, gstin: v })))}
-          {T("Address 1", company.address1, (v) => setCompany((p) => ({ ...p, address1: v })))}
-          {S("Country", company.country ?? "", (v) => setCompany((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(company.country), { searchable: true })}
-          {S("State", company.state ?? "", (v) => setCompany((p) => ({ ...p, state: v, city: "" })), stateNames(company.country, company.state), { searchable: true })}
-          {S("City", company.city ?? "", (v) => setCompany((p) => ({ ...p, city: v })), cityNames(company.country, company.state, company.city), { searchable: true })}
+          {T("GSTIN *", company.gstin, (v) => setCompany((p) => ({ ...p, gstin: v })))}
+          {S("Country *", company.country ?? "", (v) => setCompany((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(company.country), { searchable: true })}
+          {S("State *", company.state ?? "", (v) => setCompany((p) => ({ ...p, state: v, city: "" })), stateNames(company.country, company.state), { searchable: true })}
+          {S("City *", company.city ?? "", (v) => setCompany((p) => ({ ...p, city: v })), cityNames(company.country, company.state, company.city), { searchable: true })}
           {T("Pincode", company.pincode, (v) => setCompany((p) => ({ ...p, pincode: v })), { type: "numeric" })}
-          {T("Mobile No", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })), { type: "tel" })}
-          {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })), { type: "email" })}
+          {T("Address 1 *", company.address1, (v) => setCompany((p) => ({ ...p, address1: v })))}
+          {T("Email", company.email, (v) => setCompany((p) => ({ ...p, email: v })), { type: "email", placeholder: MULTI_HINT })}
+          {T("Mobile No *", company.mobileNO, (v) => setCompany((p) => ({ ...p, mobileNO: v })), { type: "tel", placeholder: MULTI_HINT })}
           {T("Website", company.website, (v) => setCompany((p) => ({ ...p, website: v })))}
-          {T("State TIN No", company.stateTinNo, (v) => setCompany((p) => ({ ...p, stateTinNo: v })))}
+          {T("State TIN No", company.stateTinNo, (v) => setCompany((p) => ({ ...p, stateTinNo: v })), { hint: "auto" })}
           {T("PAN", company.pan, (v) => setCompany((p) => ({ ...p, pan: v })))}
           {T("Prod. Unit Name", company.productionUnitName, (v) => setCompany((p) => ({ ...p, productionUnitName: v })))}
         </div>
@@ -508,14 +584,14 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
           {T("Branch ID", branch.branchID, (v) => setBranch((p) => ({ ...p, branchID: Number(v) || 1 })), { type: "number" })}
           {T("Branch Name *", branch.branchName, (v) => setBranch((p) => ({ ...p, branchName: v })))}
           {T("Mailing Name", branch.mailingName, (v) => setBranch((p) => ({ ...p, mailingName: v })))}
-          {S("Country", branch.country ?? "", (v) => setBranch((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(branch.country), { searchable: true })}
-          {S("State", branch.state ?? "", (v) => setBranch((p) => ({ ...p, state: v, city: "" })), stateNames(branch.country, branch.state), { searchable: true })}
-          {S("City", branch.city ?? "", (v) => setBranch((p) => ({ ...p, city: v })), cityNames(branch.country, branch.state, branch.city), { searchable: true })}
+          {T("GSTIN *", branch.gstin, (v) => setBranch((p) => ({ ...p, gstin: v })))}
+          {S("Country *", branch.country ?? "", (v) => setBranch((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(branch.country), { searchable: true })}
+          {S("State *", branch.state ?? "", (v) => setBranch((p) => ({ ...p, state: v, city: "" })), stateNames(branch.country, branch.state), { searchable: true })}
+          {S("City *", branch.city ?? "", (v) => setBranch((p) => ({ ...p, city: v })), cityNames(branch.country, branch.state, branch.city), { searchable: true })}
           {T("District", branch.district, (v) => setBranch((p) => ({ ...p, district: v })))}
           {T("Pincode", branch.pincode, (v) => setBranch((p) => ({ ...p, pincode: v })), { type: "numeric" })}
-          {T("Mobile No", branch.mobileNo, (v) => setBranch((p) => ({ ...p, mobileNo: v })), { type: "tel" })}
-          {T("Email", branch.email, (v) => setBranch((p) => ({ ...p, email: v })), { type: "email" })}
-          {T("GSTIN", branch.gstin, (v) => setBranch((p) => ({ ...p, gstin: v })))}
+          {T("Email", branch.email, (v) => setBranch((p) => ({ ...p, email: v })), { type: "email", placeholder: MULTI_HINT })}
+          {T("Mobile No *", branch.mobileNo, (v) => setBranch((p) => ({ ...p, mobileNo: v })), { type: "tel", placeholder: MULTI_HINT })}
         </div>
       )}
 
@@ -523,14 +599,14 @@ export default function ProvisioningWizard({ isOpen, onClose, onDone }: { isOpen
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px 16px" }}>
           <div style={sect}>Production Unit</div>
           {T("Prod. Unit Name *", prod.productionUnitName, (v) => setProd((p) => ({ ...p, productionUnitName: v })))}
-          {S("Country", prod.country ?? "", (v) => setProd((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(prod.country), { searchable: true })}
-          {S("State", prod.state ?? "", (v) => setProd((p) => ({ ...p, state: v, city: "" })), stateNames(prod.country, prod.state), { searchable: true })}
-          {S("City", prod.city ?? "", (v) => setProd((p) => ({ ...p, city: v })), cityNames(prod.country, prod.state, prod.city), { searchable: true })}
-          {T("GST No", prod.gstNo, (v) => setProd((p) => ({ ...p, gstNo: v })))}
-          {T("Pincode", prod.pincode, (v) => setProd((p) => ({ ...p, pincode: v })))}
-          {T("PAN", prod.pan, (v) => setProd((p) => ({ ...p, pan: v })))}
-          <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Address</label>
+          {T("GST No *", prod.gstNo, (v) => setProd((p) => ({ ...p, gstNo: v })))}
+          {S("Country *", prod.country ?? "", (v) => setProd((p) => ({ ...p, country: v, state: "", city: "" })), countryNames(prod.country), { searchable: true })}
+          {S("State *", prod.state ?? "", (v) => setProd((p) => ({ ...p, state: v, city: "" })), stateNames(prod.country, prod.state), { searchable: true })}
+          {S("City *", prod.city ?? "", (v) => setProd((p) => ({ ...p, city: v })), cityNames(prod.country, prod.state, prod.city), { searchable: true })}
+          {T("Pincode", prod.pincode, (v) => setProd((p) => ({ ...p, pincode: v })), { type: "numeric" })}
+          <div style={{ gridColumn: "span 2" }}><Label text="Address *" />
             <Input value={prod.address ?? ""} onChange={(e) => setProd((p) => ({ ...p, address: e.target.value }))} /></div>
+          {T("PAN", prod.pan, (v) => setProd((p) => ({ ...p, pan: v })))}
         </div>
       )}
 

@@ -544,7 +544,9 @@ const SUB_TABS = [
  * bordered card with a dark, legible header. **Edit is IN-PLACE** — the Company Detail
  * tab's cards flip to editable inputs (no second modal); Save persists via customersApi.
  */
-export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable, lockTabDelete, compactHeader = false }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean; lockTabDelete?: boolean; compactHeader?: boolean }) {
+// mode: "view" = everything read-only (the grid's View button); "edit" = Company Detail opens straight in edit
+// mode (the grid's Edit button). Omitted = the old behaviour (read-only until Edit is clicked).
+export default function ClientDetailBody({ id, onClose, onChanged, inModal = false, lockTab, lockTabEditable, lockTabDelete, compactHeader = false, mode }: { id: string; onClose: () => void; onChanged?: () => void; inModal?: boolean; lockTab?: string; lockTabEditable?: boolean; lockTabDelete?: boolean; compactHeader?: boolean; mode?: "view" | "edit" }) {
   const { data: session } = useSession();
   const { openComposer } = useEmailComposer();
   const [c, setC] = useState<CustomerDetail | null>(null);
@@ -658,6 +660,15 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   const set = (k: keyof SubscriptionSave, v: unknown) => setF((p) => ({ ...p, [k]: v }));
   const startEdit = () => { if (!c) return; setF({ ...c, originalCompanyUserID: c.companyUserID }); setErpPeriod(c.erpSubscriptionPeriod ?? ""); setCloudPeriod(c.cloudSubscriptionPeriod ?? ""); setFormErr(null); setEditing(true); };
   const cancelEdit = () => { setEditing(false); setFormErr(null); };
+  // Opened from the grid's Edit button: start in edit mode once the client + the user's tab rights are loaded
+  // (only when Company Detail is editable for them; otherwise it simply stays view-only).
+  const [autoEditDone, setAutoEditDone] = useState(false);
+  useEffect(() => {
+    if (mode !== "edit" || autoEditDone || !c || tab !== "company" || !perms.company?.canEdit) return;
+    setAutoEditDone(true);
+    startEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, autoEditDone, c, tab, perms]);
   async function save() {
     if (!f.companyName?.trim()) { setFormErr("Client Name is required."); return; }
     if (!f.companyUserID?.trim()) { setFormErr("Company Login Name is required."); return; }
@@ -716,14 +727,16 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
   // permission that /clients uses. So granting the /implementation/<step> module edit rights in
   // User Management makes the tab editable here, matching the admin's expectation.
   const canEdit = (tabId: string) =>
-    (lockTab && tabId === lockTab && lockTabEditable !== undefined)
+    mode === "view" ? false
+    : (lockTab && tabId === lockTab && lockTabEditable !== undefined)
       ? lockTabEditable
       : (perms[tabId]?.canEdit ?? false);
   // Delete authority. For the locked Implementation tab it comes from that module's own CanDelete
   // (lockTabDelete); the client-detail-tab (clienttab-*) perms don't track delete separately, so on
   // the /clients path it falls back to edit rights (unchanged behaviour there).
   const canDelete = (tabId: string) =>
-    (lockTab && tabId === lockTab && lockTabDelete !== undefined)
+    mode === "view" ? false
+    : (lockTab && tabId === lockTab && lockTabDelete !== undefined)
       ? lockTabDelete
       : canEdit(tabId);
   const visibleTabs = TABS.filter((t) => canView(t.id));
@@ -1327,7 +1340,7 @@ export default function ClientDetailBody({ id, onClose, onChanged, inModal = fal
           {renderDocBar("KickOff", "Kick-Off")}
         </div>
       )}
-      {tab === "tracker" && <TrackerPanel code={trackerCode} view="tracker" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientUserId={clientUserId} clientApplication={c.applicationName} canEdit={canEdit("tracker")} />}
+      {tab === "tracker" && <TrackerPanel code={trackerCode} view="tracker" clientEmail={c.email} clientName={c.companyName} clientCode={c.companyUniqueCode} clientUserId={clientUserId} clientAddress={c.city || c.address} clientApplication={c.applicationName} canEdit={canEdit("tracker")} />}
       {tab === "templates" && <TemplateMasterPanel client={c} canEdit={canEdit("templates")} canDelete={canDelete("templates")} />}
       {tab === "signoff" && (
         <div>

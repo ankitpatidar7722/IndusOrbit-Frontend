@@ -46,7 +46,7 @@ const MANUAL: Section[] = [
       { n: 1, label: "Username / Email", desc: "The email address your admin gave you.", pos: [75, 46] },
       { n: 2, label: "Password (with 👁 eye)", desc: "Your password. Click the eye icon to show/hide what you type.", pos: [75, 57] },
       { n: 3, label: "Remember me", desc: "Keeps you signed in on this device — use only on your own computer.", pos: [63, 62] },
-      { n: 4, label: "Forgot Password", desc: "Ask your admin to reset it (there is no self-service reset).", pos: [83, 62] },
+      { n: 4, label: "Forgot Password", desc: "Enter your email — a 6-digit code (OTP) is emailed to you; type it with a new password (or ask your admin).", pos: [83, 62] },
       { n: 5, label: "Login button", desc: "Signs you in and opens the dashboard.", pos: [75, 69] },
     ],
     steps: [
@@ -237,10 +237,10 @@ const MANUAL: Section[] = [
   {
     id: "tracker", group: "Clients & Onboarding", title: "Tracker (Roadmap, Training, CRs)", icon: Map,
     intro:
-      "The implementation Tracker for a client has three tabs: Milestone Roadmap (the 14-phase plan), Training & Daily Status, and Change Request. Each has a grid you can fill in, plus Download Template / Import Excel / Create.",
+      "The implementation Tracker for a client has three tabs: Milestone Roadmap (the 14-phase plan), Training Update & Status, and Change Request. Each has a grid you can fill in, plus Download Template / Import Excel / Create.",
     shots: [
       { src: "s20.jpg", caption: "Milestone Roadmap — phases and % complete." },
-      { src: "s21.jpg", caption: "Training & Daily Status — module-wise training log." },
+      { src: "s21.jpg", caption: "Training Update & Status — module-wise training log." },
       { src: "s22.jpg", caption: "Change Request — client-raised changes." },
     ],
     callouts: [

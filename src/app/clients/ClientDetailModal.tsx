@@ -8,9 +8,11 @@ import ClientDetailBody from "./ClientDetailBody";
  * scrollable body). 90vw × 90vh.
  */
 export default function ClientDetailModal({
-  id, isOpen, onClose, onChanged,
+  id, isOpen, onClose, onChanged, mode,
 }: {
   id: string | null;
+  /** "view" = read-only everywhere; "edit" = Company Detail opens in edit mode. */
+  mode?: "view" | "edit";
   isOpen: boolean;
   onClose: () => void;
   onChanged?: () => void;
@@ -25,7 +27,7 @@ export default function ClientDetailModal({
         aria-describedby={undefined}
       >
         <ModalTitle className="sr-only">Client Detail</ModalTitle>
-        {isOpen && id && <ClientDetailBody id={id} onClose={onClose} onChanged={onChanged} inModal />}
+        {isOpen && id && <ClientDetailBody id={id} onClose={onClose} onChanged={onChanged} inModal mode={mode} />}
       </ModalContent>
     </Modal>
   );

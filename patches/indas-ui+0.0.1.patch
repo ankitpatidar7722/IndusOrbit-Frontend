@@ -1,5 +1,5 @@
 diff --git a/node_modules/indas-ui/dist/index.cjs b/node_modules/indas-ui/dist/index.cjs
-index 99c0137..0f7fb98 100644
+index 99c0137..cec508d 100644
 --- a/node_modules/indas-ui/dist/index.cjs
 +++ b/node_modules/indas-ui/dist/index.cjs
 @@ -3168,7 +3168,7 @@ function SingleSelect({
@@ -22,7 +22,7 @@ index 99c0137..0f7fb98 100644
 +          // Mobile: tapping the search box opens the phone keyboard, whose focus change makes Radix
 +          // dismiss the popover (the reported "keyboard doesn't show + dropdown closes"). Prevent the
 +          // focus-driven dismiss on touch; a genuine tap OUTSIDE still closes it (pointer path).
-+          onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
++          onFocusOutside: (e) => { if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) e.preventDefault(); },
            children: [
              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
                /* @__PURE__ */ jsxRuntime.jsx(lucideReact.Search, { className: "w-3.5 h-3.5 text-[rgb(var(--fg-muted))] flex-shrink-0" }),
@@ -35,6 +35,15 @@ index 99c0137..0f7fb98 100644
                      "button",
                      {
                        type: "button",
+@@ -4504,7 +4509,7 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+     searchInputRef.current = el;
+   }, [searchInputRef]);
+   React26__namespace.useEffect(() => {
+-    const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
++    const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+     if (isTouchDevice) return;
+     const timer = setTimeout(() => {
+       searchInputRef.current?.focus();
 @@ -4523,15 +4528,19 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
          value: searchTerm,
          onChange: (e) => setSearchTerm(e.target.value),
@@ -65,7 +74,7 @@ index 99c0137..0f7fb98 100644
 +            // Mobile: tapping the search box opens the phone keyboard, whose focus change makes
 +            // Radix dismiss the popover (search box "closes, keyboard never shows"). Stop the
 +            // focus-driven dismiss on touch; a real tap OUTSIDE still closes it (pointer path).
-+            onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
++            onFocusOutside: (e) => { if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) e.preventDefault(); },
              children: /* @__PURE__ */ jsxRuntime.jsx(
                MultiSelect,
                {
@@ -78,6 +87,42 @@ index 99c0137..0f7fb98 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
+@@ -6331,7 +6344,7 @@ function DatePicker({
+                 /* @__PURE__ */ jsxRuntime.jsx("h4", { className: "text-sm font-semibold text-[rgb(var(--fg-default))]", children: "Select Date" }),
+                 /* @__PURE__ */ jsxRuntime.jsx(Button, { variant: "ghost", size: "sm", onClick: () => setShowMonthYearScroller(false), className: "h-6 w-6 p-0", children: /* @__PURE__ */ jsxRuntime.jsx(lucideReact.X, { className: "h-3 w-3" }) })
+               ] }),
+-              /* @__PURE__ */ jsxRuntime.jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", "data-year": year, children: [
++              /* @__PURE__ */ jsxRuntime.jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", onWheel: (e) => e.stopPropagation(), onTouchMove: (e) => e.stopPropagation(), children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", "data-year": year, children: [
+                 /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-xs font-semibold text-[rgb(var(--fg-muted))] sticky top-0 bg-[rgb(var(--bg-surface))] py-1", children: year }),
+                 /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-3 gap-2", children: MONTHS.map((month, monthIndex) => {
+                   const isSelected = currentMonth.getFullYear() === year && currentMonth.getMonth() === monthIndex;
+@@ -6378,7 +6391,7 @@ function DatePicker({
+             "pl-2 pr-9 text-xs w-full",
+             error && "border-red-300"
+           ),
+-          onFocus: () => !disabled && setIsOpen(true),
++          // (no open-on-focus: the click already toggles the Popover.Trigger — focus+click opened then closed it, a "blink")
+           rightIcon: lucideReact.Calendar,
+           onRightIconClick: () => !disabled && setIsOpen(!isOpen)
+         }
+@@ -6658,7 +6671,7 @@ function DatePicker({
+                       }
+                     )
+                   ] }),
+-                  /* @__PURE__ */ jsxRuntime.jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", "data-year": year, children: [
++                  /* @__PURE__ */ jsxRuntime.jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", onWheel: (e) => e.stopPropagation(), onTouchMove: (e) => e.stopPropagation(), children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "space-y-2", "data-year": year, children: [
+                     /* @__PURE__ */ jsxRuntime.jsx("div", { className: "text-xs font-semibold text-[rgb(var(--fg-muted))] sticky top-0 bg-[rgb(var(--bg-surface))] py-1", children: year }),
+                     /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-3 gap-2", children: MONTHS.map((month, monthIndex) => {
+                       const isSelected = currentMonth.getFullYear() === year && currentMonth.getMonth() === monthIndex;
+@@ -6949,7 +6962,7 @@ function DateTimePicker({
+           disabled,
+           error,
+           className: cn("pl-2 pr-9 text-xs w-full", error && "border-red-300"),
+-          onFocus: () => !disabled && setIsOpen(true),
++          // (no open-on-focus: the click already toggles the Popover.Trigger — focus+click opened then closed it, a "blink")
+           rightIcon: lucideReact.Calendar,
+           onRightIconClick: () => !disabled && setIsOpen(!isOpen),
+           readOnly: true
 @@ -7691,7 +7704,7 @@ var SidebarPreferencesContext = React26.createContext(void 0);
  function useSidebarPreferences() {
    const context = React26.useContext(SidebarPreferencesContext);
@@ -168,7 +213,7 @@ index 4bdc704..64a1a6c 100644
  declare function StandardModal({ isOpen, onClose, title, subtitle, badge, children, size, className, showFooter, footerActions, onSave, onCancel, saveLabel, cancelLabel, saveIcon: SaveIcon, cancelIcon: CancelIcon, saving, ariaDescribedBy, ariaDescription }: StandardModalProps): react_jsx_runtime.JSX.Element;
  
 diff --git a/node_modules/indas-ui/dist/index.js b/node_modules/indas-ui/dist/index.js
-index 920f23c..b2d77d7 100644
+index 920f23c..b6e625b 100644
 --- a/node_modules/indas-ui/dist/index.js
 +++ b/node_modules/indas-ui/dist/index.js
 @@ -1109,7 +1109,7 @@ function SingleSelect({
@@ -201,14 +246,14 @@ index 920f23c..b2d77d7 100644
 +            // On touch devices, DON'T auto-focus the search input: focusing it pops the phone keyboard,
 +            // whose viewport resize makes Radix dismiss the popover — so the combobox appears to open
 +            // then instantly close. The user taps the search box to type instead.
-+            if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) return;
++            if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) return;
 +            const focusSearch = () => searchInputRef.current?.focus();
 +            requestAnimationFrame(() => { focusSearch(); setTimeout(focusSearch, 60); });
            },
 +          // Mobile: tapping the search box opens the phone keyboard, whose focus change makes Radix
 +          // dismiss the popover (the reported "keyboard doesn't show + dropdown closes"). Prevent the
 +          // focus-driven dismiss on touch; a genuine tap OUTSIDE still closes it (pointer path).
-+          onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
++          onFocusOutside: (e) => { if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) e.preventDefault(); },
            children: [
              /* @__PURE__ */ jsx("div", { className: "px-3 py-2 border-b border-[rgb(var(--bd-default))]", children: /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[rgb(var(--bd-default))] bg-[rgb(var(--bg-surface))]", children: [
                /* @__PURE__ */ jsx(Search, { className: "w-3.5 h-3.5 text-[rgb(var(--fg-muted))] flex-shrink-0" }),
@@ -218,7 +263,7 @@ index 920f23c..b2d77d7 100644
                    onKeyDown: handleComboKeyDown,
 -                  autoFocus: true
 +                  // Don't autofocus on touch (keyboard would pop & close the popover); desktop keeps it.
-+                  autoFocus: !(typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0))
++                  autoFocus: !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches)
                  }
                ),
                filteredOptions.length > 0 && /* @__PURE__ */ jsxs("span", { className: "text-[0.625rem] font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-subtle))] px-1.5 py-0.5 rounded-md flex-shrink-0 tabular-nums", children: [
@@ -243,6 +288,15 @@ index 920f23c..b2d77d7 100644
              children: [
                searchable && /* @__PURE__ */ jsx(
                  DropdownSearch,
+@@ -2445,7 +2464,7 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
+     searchInputRef.current = el;
+   }, [searchInputRef]);
+   React26.useEffect(() => {
+-    const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
++    const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+     if (isTouchDevice) return;
+     const timer = setTimeout(() => {
+       searchInputRef.current?.focus();
 @@ -2463,16 +2482,24 @@ function DropdownSearch({ searchTerm, setSearchTerm, placeholder = "Type to sear
          className: "w-full text-xs bg-transparent text-[rgb(var(--fg-default))] placeholder:text-[rgb(var(--fg-muted))] focus:outline-none",
          value: searchTerm,
@@ -290,7 +344,7 @@ index 920f23c..b2d77d7 100644
 +            // Mobile: tapping the search box opens the phone keyboard, whose focus change makes
 +            // Radix dismiss the popover (search box "closes, keyboard never shows"). Stop the
 +            // focus-driven dismiss on touch; a real tap OUTSIDE still closes it (pointer path).
-+            onFocusOutside: (e) => { if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) e.preventDefault(); },
++            onFocusOutside: (e) => { if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) e.preventDefault(); },
              children: /* @__PURE__ */ jsx(
                MultiSelect,
                {
@@ -303,18 +357,33 @@ index 920f23c..b2d77d7 100644
        const now = /* @__PURE__ */ new Date();
        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
        onChange(today);
-@@ -4315,6 +4349,11 @@ function DatePicker({
+@@ -4272,7 +4306,7 @@ function DatePicker({
+                 /* @__PURE__ */ jsx("h4", { className: "text-sm font-semibold text-[rgb(var(--fg-default))]", children: "Select Date" }),
+                 /* @__PURE__ */ jsx(Button, { variant: "ghost", size: "sm", onClick: () => setShowMonthYearScroller(false), className: "h-6 w-6 p-0", children: /* @__PURE__ */ jsx(X, { className: "h-3 w-3" }) })
+               ] }),
+-              /* @__PURE__ */ jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxs("div", { className: "space-y-2", "data-year": year, children: [
++              /* @__PURE__ */ jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", onWheel: (e) => e.stopPropagation(), onTouchMove: (e) => e.stopPropagation(), children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxs("div", { className: "space-y-2", "data-year": year, children: [
+                 /* @__PURE__ */ jsx("div", { className: "text-xs font-semibold text-[rgb(var(--fg-muted))] sticky top-0 bg-[rgb(var(--bg-surface))] py-1", children: year }),
+                 /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 gap-2", children: MONTHS.map((month, monthIndex) => {
+                   const isSelected = currentMonth.getFullYear() === year && currentMonth.getMonth() === monthIndex;
+@@ -4315,11 +4349,16 @@ function DatePicker({
            placeholder: getPlaceholder(),
            disabled,
            error,
 +          // On touch devices make the field read-only so tapping it opens ONLY the calendar
 +          // popover — not the phone's text keyboard, which otherwise collides with / hides the
 +          // calendar. Desktop keeps typing enabled.
-+          readOnly: typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0),
-+          inputMode: (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) ? "none" : void 0,
++          readOnly: typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
++          inputMode: (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) ? "none" : void 0,
            className: cn(
              "pl-2 pr-9 text-xs w-full",
              error && "border-red-300"
+           ),
+-          onFocus: () => !disabled && setIsOpen(true),
++          // (no open-on-focus: the click already toggles the Popover.Trigger — focus+click opened then closed it, a "blink")
+           rightIcon: Calendar,
+           onRightIconClick: () => !disabled && setIsOpen(!isOpen)
+         }
 @@ -4329,6 +4368,7 @@ function DatePicker({
          {
            ref: calendarRef,
@@ -338,6 +407,24 @@ index 920f23c..b2d77d7 100644
            },
            children: [
              /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-3", children: [
+@@ -4599,7 +4645,7 @@ function DatePicker({
+                       }
+                     )
+                   ] }),
+-                  /* @__PURE__ */ jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxs("div", { className: "space-y-2", "data-year": year, children: [
++                  /* @__PURE__ */ jsx("div", { ref: yearScrollerRef, className: "max-h-[calc(100%-60px)] overflow-y-auto space-y-4", onWheel: (e) => e.stopPropagation(), onTouchMove: (e) => e.stopPropagation(), children: generateYearOptions().reverse().map((year) => /* @__PURE__ */ jsxs("div", { className: "space-y-2", "data-year": year, children: [
+                     /* @__PURE__ */ jsx("div", { className: "text-xs font-semibold text-[rgb(var(--fg-muted))] sticky top-0 bg-[rgb(var(--bg-surface))] py-1", children: year }),
+                     /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 gap-2", children: MONTHS.map((month, monthIndex) => {
+                       const isSelected = currentMonth.getFullYear() === year && currentMonth.getMonth() === monthIndex;
+@@ -4890,7 +4936,7 @@ function DateTimePicker({
+           disabled,
+           error,
+           className: cn("pl-2 pr-9 text-xs w-full", error && "border-red-300"),
+-          onFocus: () => !disabled && setIsOpen(true),
++          // (no open-on-focus: the click already toggles the Popover.Trigger — focus+click opened then closed it, a "blink")
+           rightIcon: Calendar,
+           onRightIconClick: () => !disabled && setIsOpen(!isOpen),
+           readOnly: true
 @@ -5632,7 +5678,7 @@ var SidebarPreferencesContext = createContext(void 0);
  function useSidebarPreferences() {
    const context = useContext(SidebarPreferencesContext);

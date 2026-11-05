@@ -85,7 +85,7 @@ export default function ModuleManagerModal({
       <Tabs tabs={tabs} activeTab={tab} onTabChange={setTab} variant="pill" size="sm" />
       <div style={{ marginTop: 16 }}>
         {tab === "settings" && <ModuleSettingsTab app={app} connStr={connStr} onFlash={onFlash} />}
-        {tab === "copy" && <CopyModulesTab source={customer} connStr={connStr} onFlash={onFlash} />}
+        {tab === "copy" && <CopyModulesTab target={customer} onFlash={onFlash} />}
         {tab === "groups" && <ModuleGroupsTab app={app} connStr={connStr} onFlash={onFlash} clientName={customer?.companyName} />}
         {tab === "newmodule" && <NewModuleTab app={app} connStr={connStr} onFlash={onFlash} />}
         {tab === "toolauth" && <ToolAuthorityTab customer={customer} onFlash={onFlash} />}
@@ -203,11 +203,11 @@ export function ModuleSettingsTab({ app, connStr, onFlash, source }: { app: stri
           isOpen={copyOpen}
           onClose={() => setCopyOpen(false)}
           title={`Copy As — ${source.companyName}`}
-          subtitle="Copy this client's module configuration to another client"
+          subtitle="Copy another client's module configuration into this client"
           size="lg"
           showFooter={false}
         >
-          <CopyModulesTab source={source} connStr={connStr} onFlash={(m) => { onFlash(m); setCopyOpen(false); }} />
+          <CopyModulesTab target={source} onCopied={load} onFlash={(m) => { onFlash(m); setCopyOpen(false); }} />
         </StandardModal>
       )}
       {syncType && (
@@ -357,10 +357,10 @@ function SecurityConfirmDialog({
 }
 
 /* ── Tab 2: Copy Modules ────────────────────────────────── */
-export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerCard | null; connStr: string; onFlash: (m: string) => void }) {
+/** "Copy As": the client being edited is the TARGET — pick a SOURCE client whose modules are copied into it. */
+export function CopyModulesTab({ target, onFlash, onCopied }: { target: CustomerCard | null; onFlash: (m: string) => void; onCopied?: () => void }) {
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
-  const [target, setTarget] = useState("");
-  const [q, setQ] = useState("");
+  const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<{ a: number; b: number } | null>(null);
@@ -368,57 +368,63 @@ export function CopyModulesTab({ source, connStr, onFlash }: { source: CustomerC
   const [vErr, setVErr] = useState<string | null>(null);
 
   useEffect(() => {
-    modulesApi.clientDropdown().then((r) => setClients((r.data || []).filter((c) => c.companyUserID !== source?.companyUserID))).catch(() => {});
-  }, [source]);
+    modulesApi.clientDropdown()
+      .then((r) => setClients((r.data || []).filter((c) => c.companyUserID && c.companyUserID !== target?.companyUserID)))
+      .catch(() => {});
+  }, [target]);
 
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return t ? clients.filter((c) => (c.companyName + c.companyUserID).toLowerCase().includes(t)) : clients;
-  }, [clients, q]);
-  const targetName = useMemo(() => clients.find((c) => c.companyUserID === target)?.companyName || target, [clients, target]);
+  const sourceOptions = useMemo(() => clients.map((c) => ({
+    value: c.companyUserID,
+    label: `${c.companyName || c.companyUserID} (${c.applicationName ? appLbl(c.applicationName) : c.companyUserID})`,
+  })), [clients]);
+  const sourceName = useMemo(() => clients.find((c) => c.companyUserID === source)?.companyName || source, [clients, source]);
+  const targetName = target?.companyName || "this client";
 
   function start() {
-    if (!target) { setMsg("Select a target client."); return; }
+    if (!source) { setMsg("Select a source client."); return; }
     setMsg(null); setVErr(null); setAnswer(""); setCaptcha(makeCaptcha());   // open the confirm dialog
   }
 
   async function doCopy() {
-    if (!captcha) return;
+    if (!captcha || !target) return;
     if (parseInt(answer, 10) !== captcha.a - captcha.b) {                    // wrong → new sum, ask again
       setVErr("Incorrect answer — please solve the new sum."); setAnswer(""); setCaptcha(makeCaptcha()); return;
     }
     setBusy(true); setVErr(null);
     try {
-      const r = await modulesApi.copy(connStr, target);
-      if (r.success) { setCaptcha(null); onFlash(r.message || `Copied ${r.copiedCount} modules.`); }
+      // The copy API takes the SOURCE database's connection string + the TARGET client id.
+      const srcConn = (await customersApi.detail(source)).conn_String ?? "";
+      if (!srcConn) { setVErr(`No database connection found for ${sourceName}.`); return; }
+      const r = await modulesApi.copy(srcConn, target.companyUserID);
+      if (r.success) { setCaptcha(null); onCopied?.(); onFlash(r.message || `Copied ${r.copiedCount} modules.`); }
       else setVErr(r.message || "Copy failed. Please try again.");
     } catch (e) { setVErr(String(e)); } finally { setBusy(false); }
   }
 
   return (
     <div>
-      <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>Copy all modules from <b>{source?.companyName}</b> to another client (overwrites the target&apos;s modules).</div>
-      {msg && <div style={{ color: "#8a6d1a", fontSize: 12.5, marginBottom: 8 }}>{msg}</div>}
-      <div style={{ position: "relative", maxWidth: 360, marginBottom: 10 }}>
-        <Search size={14} style={{ position: "absolute", left: 10, top: 10, opacity: 0.5 }} />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search target client…" style={{ paddingLeft: 28 }} />
+      <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>
+        Copy all modules from another client into <b>{targetName}</b> (overwrites {targetName}&apos;s modules).
       </div>
-      <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid var(--bd-subtle,#eef1f6)", borderRadius: 10 }}>
-        {filtered.map((c, i) => (
-          <label key={`${c.companyUserID || "no-id"}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderBottom: "1px solid var(--bd-subtle,#f2f4f8)", cursor: "pointer" }}>
-            <input type="radio" name="copytarget" checked={target === c.companyUserID} onChange={() => setTarget(c.companyUserID)} />
-            <div><div style={{ fontSize: 13, fontWeight: 600 }}>{c.companyName}</div><div style={{ fontSize: 11, opacity: 0.55 }}>{c.companyUserID} · {c.applicationName}</div></div>
-          </label>
-        ))}
-        {filtered.length === 0 && <div style={{ padding: 20, textAlign: "center", opacity: 0.6 }}>No clients.</div>}
+      {msg && <div style={{ color: "#8a6d1a", fontSize: 12.5, marginBottom: 8 }}>{msg}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, maxWidth: 760 }}>
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 5 }}>Source Client</label>
+          <KDropdown value={source} onValueChange={(v) => { setSource(String(v ?? "")); setMsg(null); }}
+            options={sourceOptions} placeholder="Select source client…" searchable size="md" />
+        </div>
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 5 }}>Target Client</label>
+          <Input value={`${targetName}${target?.applicationName ? ` (${appLbl(target.applicationName)})` : ""}`} readOnly disabled />
+        </div>
       </div>
 
-      <Button size="sm" onClick={start} disabled={busy} style={{ marginTop: 12 }}><Copy size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Copy to Selected</Button>
+      <Button size="sm" onClick={start} disabled={busy || !source} style={{ marginTop: 14 }}><Copy size={14} style={{ verticalAlign: -2, marginRight: 4 }} />Copy Modules</Button>
 
       {captcha && (
         <SecurityConfirmDialog
           title="WARNING — DATA OVERWRITE" icon={Copy} confirmLabel="Yes, Continue" busyLabel="Copying…"
-          message={<>Are you sure you want to copy all the modules of <b style={{ color: "rgb(var(--color-primary))" }}>{source?.companyName || "this client"}</b> to <b style={{ color: "#e07a1a" }}>{targetName}</b>?</>}
+          message={<>Are you sure you want to copy all the modules of <b style={{ color: "rgb(var(--color-primary))" }}>{sourceName}</b> to <b style={{ color: "#e07a1a" }}>{targetName}</b>?</>}
           note={<>NOTE: THIS WILL DELETE ALL EXISTING MODULES FOR {String(targetName).toUpperCase()}.</>}
           a={captcha.a} b={captcha.b} answer={answer} setAnswer={setAnswer}
           error={vErr} busy={busy}

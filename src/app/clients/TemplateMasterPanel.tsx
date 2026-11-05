@@ -2,10 +2,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button, StandardModal, useModalAlert } from "indas-ui";
-import { FileSpreadsheet, Download, Send, Trash2, Upload, RefreshCw, Inbox, Layers, CheckCircle2 } from "lucide-react";
+import KDropdown from "@/components/KDropdown";
+import { FileSpreadsheet, Download, Send, Trash2, Upload, RefreshCw, Inbox, Layers, CheckCircle2, Users2 } from "lucide-react";
 import { masterTemplatesApi, type MasterTemplate, type TemplateSentStatus } from "@/lib/masterTemplates";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
 import type { CustomerDetail } from "@/lib/customers";
+
+/** The client fields this panel needs (a CustomerDetail or a CustomerCard both fit). */
+type TemplateClient = Pick<CustomerDetail, "companyName" | "companyUniqueCode" | "companyUserID" | "email">;
+/** A pickable recipient for the library view (one page for every client). */
+export interface TemplateRecipient { value: string; label: string; client: TemplateClient }
 
 const T = {
   surface: "rgb(var(--bg-surface))",
@@ -45,26 +51,35 @@ function TriCheck({ checked, indeterminate, onChange }: { checked: boolean; inde
  * "Template Master Excel" tab — a GLOBAL, group-organised library of master-data Excel
  * templates (same set shows for every client). Multi-select templates and email them to the
  * client to fill in for master upload; or download / upload / soft-delete.
+ *
+ * Two ways in: a client's own tab (`client` fixed), or the Implementation → Template Master Excel
+ * page (`recipients`): every template shows straight away and the client is picked only when emailing.
  */
-export default function TemplateMasterPanel({ client, canEdit = true, canDelete = true }: { client: CustomerDetail; canEdit?: boolean; canDelete?: boolean }) {
+export default function TemplateMasterPanel({ client: fixedClient, recipients, canEdit = true, canDelete = true }: {
+  client?: TemplateClient; recipients?: TemplateRecipient[]; canEdit?: boolean; canDelete?: boolean;
+}) {
+  const [recipientId, setRecipientId] = useState("");
+  const client: TemplateClient | undefined = fixedClient ?? recipients?.find((r) => r.value === recipientId)?.client;
   const { showSuccess, showError, showWarning, hideAlert, AlertComponent } = useModalAlert();
   const { openComposer } = useEmailComposer();
   const { data: session } = useSession();
   const sentBy = (session?.user as { UserID?: number } | undefined)?.UserID;
-  const clientCode = client.companyUniqueCode ?? "";
+  const clientCode = client?.companyUniqueCode ?? "";
   const [rows, setRows] = useState<MasterTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Per-client "Sent to Client" status, keyed by `${group}/${name}`.
-  const [sentStatus, setSentStatus] = useState<Map<string, TemplateSentStatus>>(new Map());
+  // Tagged with the client it belongs to, so switching the "Send to" client never shows the previous one's ticks.
+  const [statusOf, setStatusOf] = useState<{ code: string; map: Map<string, TemplateSentStatus> }>({ code: "", map: new Map() });
+  const sentStatus = statusOf.code === clientCode ? statusOf.map : new Map<string, TemplateSentStatus>();
   const loadStatus = useCallback(() => {
     if (!clientCode) return;
     masterTemplatesApi.listStatus(clientCode).then((r) => {
       const m = new Map<string, TemplateSentStatus>();
       (r?.data || []).forEach((s) => m.set(`${s.group}/${s.name}`, s));
-      setSentStatus(m);
+      setStatusOf({ code: clientCode, map: m });
     }).catch(() => {});
   }, [clientCode]);
   useEffect(loadStatus, [loadStatus]);
@@ -106,6 +121,7 @@ export default function TemplateMasterPanel({ client, canEdit = true, canDelete 
 
   const emailSelected = async () => {
     if (!selectedRows.length) return;
+    if (!client) { showWarning("Select a client", "Choose the client to email these templates to."); return; }
     // Always open the composer with the templates attached. Prefill "To" with the client's
     // email if we have it; otherwise leave it blank for the user to fill in.
     setSending(true);
@@ -170,14 +186,26 @@ export default function TemplateMasterPanel({ client, canEdit = true, canDelete 
     <div>
       {/* Toolbar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: T.fg }}>Template Master Excel</div>
-          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 2 }}>
-            Shared master-data templates (same for every client). Tick the ones you need and email them to the client to fill in for master upload.
+        {/* The Implementation page already has the big "Template Master Excel" heading — no repeat there. */}
+        {!recipients && (
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.fg }}>Template Master Excel</div>
+            <div style={{ fontSize: 12.5, color: T.muted, marginTop: 2 }}>
+              Shared master-data templates (same for every client). Tick the ones you need and email them to the client to fill in for master upload.
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button variant="action-create" size="sm" icon={Send} loading={sending} disabled={!selected.size || sending} onClick={emailSelected}>
+        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {recipients && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#334155", whiteSpace: "nowrap" }}><Users2 size={15} /> Send to</span>
+              <div style={{ width: 300, maxWidth: "70vw" }}>
+                <KDropdown value={recipientId} onValueChange={(v) => setRecipientId(String(v ?? ""))} options={recipients.map(({ value, label }) => ({ value, label }))}
+                  placeholder="Select a client…" searchable size="md" />
+              </div>
+            </div>
+          )}
+          <Button variant="action-create" size="sm" icon={Send} loading={sending} disabled={!selected.size || sending || !client} onClick={emailSelected}>
             Email Selected{selected.size ? ` (${selected.size})` : ""}
           </Button>
           {canEdit && <Button variant="outline" size="sm" icon={Upload} onClick={() => setUploadOpen(true)}>Upload Template</Button>}

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOutTracked } from "@/lib/sessionTracking";
@@ -37,6 +37,17 @@ export default function TopHeader() {
   const themeCtx = useContext(ThemeContext);
   const isDark = !!themeCtx?.isDark;
   const [manualOpen, setManualOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the profile menu on a click/tap outside it (pointerdown covers mouse + touch) or on Esc.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [menuOpen]);
 
   return (
     <>
@@ -94,7 +105,7 @@ export default function TopHeader() {
       </button>
 
       {/* Profile */}
-      <div style={{ position: "relative", flexShrink: 0 }}>
+      <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
         <button style={{ ...iconBtn, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.18)", padding: 0, overflow: "hidden" }} onClick={() => setMenuOpen((o) => !o)} title={name}>
           {u.UserID && avatarOk ? (
             // eslint-disable-next-line @next/next/no-img-element

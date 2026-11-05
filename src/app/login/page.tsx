@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLoginForm } from "./useLoginForm";
 import { getSkin } from "./skins";
+import ForgotPasswordModal from "./ForgotPasswordModal";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5080";
 
@@ -31,5 +32,13 @@ export default function LoginPage() {
   if (designId === null) return <main style={{ minHeight: "100vh", background: "#f8fafc" }} />;
 
   const Skin = getSkin(designId).Component;
-  return <Skin form={form} />;
+  return (
+    <>
+      <Skin form={form} />
+      {/* Always mounted (only `open` toggles) — a dialog mounted already-open can close itself on phones. */}
+      <ForgotPasswordModal open={form.forgotOpen} initialEmail={form.email}
+        onClose={() => form.setForgotOpen(false)}
+        onDone={(email) => { form.setForgotOpen(false); form.setEmail(email); form.setPassword(""); }} />
+    </>
+  );
 }

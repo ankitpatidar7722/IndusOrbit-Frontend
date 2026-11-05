@@ -8,6 +8,7 @@ import { BookOpen, RefreshCw, Save, SquarePen, Trash2, Eye, Package, Users2 } fr
 import { DataGrid } from "@/components/datagrid";
 import { api, sopViewUrl, sopSlug, type KeylineSopModule } from "@/lib/api";
 import { customersApi, type CustomerCard } from "@/lib/customers";
+import { modulesApi } from "@/lib/modules";
 import { fetchMyModulePerms } from "@/lib/myPermissions";
 
 // Indus Product picker (same logic as /implementation/kickoff): options come from the clients'
@@ -163,18 +164,31 @@ export default function SopWebModulesPage() {
   const setEdit = (moduleName: string, on: boolean) =>
     setEditing((prev) => { const n = new Set(prev); on ? n.add(moduleName) : n.delete(moduleName); return n; });
 
+  // A module has an SOP when its display name matches a SOP document (minus the wrong-head matches).
+  const hasSop = (m: { moduleHeadName: string; moduleDisplayName: string }) => {
+    const slug = sopSlug(m.moduleDisplayName);
+    return sopSlugs.has(slug) && !SOP_EXCLUDE.has(`${sopSlug(m.moduleHeadName)}::${slug}`);
+  };
+
   const loadModules = async () => {
     if (!product || !clientId) { showError("Select Product and Client", "Please choose a Product and a Client, then click Load."); return; }
     setLoading(true);
     try {
-      // Load the Keyline modules + this client's saved SOP data together.
-      const [r, saved] = await Promise.all([
+      // Load the Keyline modules + this client's saved SOP data + the modules in the client's OWN database together.
+      const [r, saved, clientMods] = await Promise.all([
         api.keylineSopModules(),
         clientCode ? api.sopStatusGet(clientCode).catch(() => ({ success: false, data: [] as import("@/lib/api").SopStatusRow[] })) : Promise.resolve({ success: false, data: [] as import("@/lib/api").SopStatusRow[] }),
+        customersApi.detail(clientId).then((d) => {
+          if (!d.conn_String) throw new Error("This client has no database connection.");
+          return modulesApi.clientModules(d.conn_String);
+        }),
       ]);
+      if (!clientMods.success) { showError("Could not load modules", "Could not read the modules from this client's database."); return; }
       if (r.success) {
         const byModule = new Map((saved.success ? saved.data : []).map((s) => [s.moduleName, s]));
-        setRows((r.data || []).map((m) => {
+        // Always dynamic: only modules that exist in THIS client's database AND have an SOP document.
+        const inClient = new Set(clientMods.data.map((m) => (m.moduleName ?? "").toLowerCase()));
+        setRows((r.data || []).filter((m) => inClient.has(m.moduleName.toLowerCase()) && hasSop(m)).map((m) => {
           const s = byModule.get(m.moduleName);
           return { ...m, youtubeLink: s?.youtubeLink ?? "", sopDocument: s?.sopDocument ?? "", status: s?.status ?? false };
         }));
@@ -322,8 +336,11 @@ export default function SopWebModulesPage() {
         ) : (
           <div style={{ border: `1px dashed ${T.bd}`, borderRadius: 12, padding: "60px 20px", textAlign: "center", color: T.faint, background: "rgb(var(--bg-subtle))" }}>
             <BookOpen size={44} style={{ opacity: 0.4 }} />
-            <div style={{ fontWeight: 700, color: T.muted, marginTop: 10 }}>{loaded ? "No modules found" : "No Modules Loaded"}</div>
-            <div style={{ fontSize: 13, marginTop: 3 }}>Select a Product and Client, then click &quot;Load Module&quot; to view web modules.</div>
+            <div style={{ fontWeight: 700, color: T.muted, marginTop: 10 }}>{loaded ? "No SOPs for this client" : "No Modules Loaded"}</div>
+            <div style={{ fontSize: 13, marginTop: 3 }}>
+              {loaded ? "None of the modules in this client's database has an SOP document yet."
+                : <>Select a Product and Client, then click &quot;Load Module&quot; to view web modules.</>}
+            </div>
           </div>
         )}
       </div>

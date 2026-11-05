@@ -22,9 +22,11 @@ const parse = (v?: string | null) => {
  * + a capture-phase handler so it runs before indas-ui's default arrow behaviour.
  */
 export default function DateField({
-  value, onChange, placeholder = "Select date", disabled, className = "w-full", style,
+  value, onChange, placeholder = "Select date", disabled, className = "w-full", style, minDate,
 }: {
   value?: string | null;
+  /** Earliest pickable day (yyyy-mm-dd), e.g. To Date ≥ From Date. */
+  minDate?: string;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -51,6 +53,7 @@ export default function DateField({
       next = new Date(cur);
       next.setDate(next.getDate() + (e.key === "ArrowUp" ? 1 : -1));
     }
+    if (minDate && toYmd(next) < minDate.slice(0, 10)) return;
     onChange(toYmd(next));
   };
 
@@ -61,6 +64,7 @@ export default function DateField({
       onChange={(d) => onChange(d instanceof Date ? toYmd(d) : "")}
       placeholder={placeholder}
       disabled={disabled}
+      minDate={minDate ? new Date(`${minDate.slice(0, 10)}T00:00:00`) : undefined}
       className={className}
     />
   );

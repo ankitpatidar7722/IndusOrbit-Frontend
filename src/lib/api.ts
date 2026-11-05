@@ -82,6 +82,7 @@ export interface SupportLog { id: number; clientCode: string; logDate?: string; 
 export interface OnsiteVisit {
   id: number; clientCode: string;
   person: string;                  // Person Name
+  designation?: string;            // from the user's Role
   age?: string;
   mobileNo?: string;
   location?: string;
@@ -89,7 +90,9 @@ export interface OnsiteVisit {
   ticketCharge?: string;           // Tickets
   hotelCharge?: string;
   foodCharge?: string;
-  siteCharge?: string;
+  siteCharge?: string;             // per day
+  salary?: string;
+  totalAmount?: string;
   status: string;
   emailed?: boolean;
 }
@@ -112,6 +115,11 @@ export interface CommunicationEntry {
   contactPerson?: string | null; contactInfo?: string | null; outcome?: string | null;
   durationMinutes?: number | null; subject?: string | null; notes?: string | null;
   followUpDate?: string | null; handledBy?: string | null; loggedBy?: string | null; loggedAt?: string | null;
+}
+/** A file attached to a Tracker row. */
+export interface TrackerAttachment {
+  id: number; originalName: string; contentType?: string | null; sizeBytes: number;
+  uploadedAt: string; uploadedByName?: string | null;
 }
 /** Write payload for a manual Communication-Log entry. */
 export interface CommunicationSave {
@@ -168,6 +176,22 @@ export const api = {
   updateCommunication: (code: string, id: number, b: CommunicationSave) => j<unknown>(`/api/clients/${code}/communications/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteCommunication: (code: string, id: number) => j<void>(`/api/clients/${code}/communications/${id}`, { method: "DELETE" }),
 
+  // Tracker row attachments (PDF / images — e.g. the client-signed Training Sheet).
+  trackerAttachments: (code: string, entity: string, rowId: number) =>
+    j<TrackerAttachment[]>(`/api/clients/${encodeURIComponent(code)}/tracker/${entity}/${rowId}/attachments`),
+  uploadTrackerAttachments: async (code: string, entity: string, rowId: number, files: File[]) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append("files", f));
+    const res = await fetch(`${BASE}/api/clients/${encodeURIComponent(code)}/tracker/${entity}/${rowId}/attachments`, { method: "POST", body: fd, headers: { ...userIdHeader() } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || `${res.status} ${res.statusText}`);
+    return data as { success: boolean; saved: number };
+  },
+  deleteTrackerAttachment: (code: string, entity: string, rowId: number, id: number) =>
+    j<unknown>(`/api/clients/${encodeURIComponent(code)}/tracker/${entity}/${rowId}/attachments/${id}`, { method: "DELETE" }),
+  trackerAttachmentUrl: (code: string, entity: string, rowId: number, id: number) =>
+    `${BASE}/api/clients/${encodeURIComponent(code)}/tracker/${entity}/${rowId}/attachments/${id}/file`,
+
   addChangeRequest: (code: string, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests`, { method: "POST", body: JSON.stringify(b) }),
   updateChangeRequest: (code: string, id: number, b: unknown) => j<ChangeRequest>(`/api/clients/${code}/changerequests/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteChangeRequest: (code: string, id: number) => j<void>(`/api/clients/${code}/changerequests/${id}`, { method: "DELETE" }),
@@ -182,6 +206,7 @@ export const api = {
 
   addSupport: (code: string, b: unknown) => j<SupportLog>(`/api/clients/${code}/support`, { method: "POST", body: JSON.stringify(b) }),
 
+  allOnsite: () => j<OnsiteVisit[]>(`/api/clients/onsite/all`),
   addOnsite: (code: string, b: unknown) => j<OnsiteVisit>(`/api/clients/${code}/onsite`, { method: "POST", body: JSON.stringify(b) }),
   updateOnsite: (code: string, id: number, b: unknown) => j<OnsiteVisit>(`/api/clients/${code}/onsite/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteOnsite: (code: string, id: number) => j<void>(`/api/clients/${code}/onsite/${id}`, { method: "DELETE" }),

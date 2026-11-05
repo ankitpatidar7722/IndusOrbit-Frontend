@@ -35,6 +35,12 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     ],
   },
   {
+    category: "Onsite",
+    perms: [
+      { key: "onsite.person", label: "Onsite Person" },
+    ],
+  },
+  {
     category: "Database Backup",
     perms: [
       { key: "databaseBackup.serverDetail", label: "Can See Server Detail" },

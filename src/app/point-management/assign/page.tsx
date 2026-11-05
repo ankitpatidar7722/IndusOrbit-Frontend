@@ -33,7 +33,15 @@ function AssignPage({ createdById }: { createdById: number }) {
 
   async function assign() {
     setMsg(null);
-    if (!devId || selected.length === 0) { setMsg({ text: "Select at least one point and a developer.", ok: false }); return; }
+    const minutes = Number(expMin);
+    const missing = [
+      selected.length === 0 && "Point",
+      !devId && "Developer",
+      !expDate && "Expected Date",
+      !expMin && "Est. Minutes",
+    ].filter(Boolean);
+    if (missing.length) { setMsg({ text: `Please fill the required field(s): ${missing.join(", ")}.`, ok: false }); return; }
+    if (!Number.isInteger(minutes) || minutes <= 0) { setMsg({ text: "Est. Minutes must be a whole number greater than 0.", ok: false }); return; }
     setSaving(true);
     try {
       // capture the ticket ids + developer name for the success message (state is cleared below)
@@ -41,8 +49,8 @@ function AssignPage({ createdById }: { createdById: number }) {
       const tickets = selected.map((s) => `#${s.pointID}`).join(", ");
       await pmApi.assign({
         devId: Number(devId), createdById,
-        expectedDate: expDate || undefined,
-        expectedMinutes: expMin ? Number(expMin) : undefined,
+        expectedDate: expDate,
+        expectedMinutes: minutes,
         pointIds: selected.map((s) => s.pointID),
       });
       setMsg({ text: `Ticket ${tickets} ${selected.length > 1 ? "have" : "has"} been assigned to ${devName}.`, ok: true });
@@ -79,9 +87,9 @@ function AssignPage({ createdById }: { createdById: number }) {
                 options={devs.map((d) => ({ value: String(d.userID), label: d.fullName }))}
                 placeholder="— Assign to developer —" searchable size="md" />
             </div>
-            <label style={lblStyle}>Expected date <DateField value={expDate} onChange={setExpDate} style={{ width: 150 }} /></label>
-            <label style={lblStyle}>Est. minutes <Input type="number" value={expMin} onChange={(e) => setExpMin(e.target.value)} style={{ width: 110 }} placeholder="e.g. 60" /></label>
-            <Button onClick={assign} disabled={saving || !devId || selected.length === 0}>
+            <label style={{ ...lblStyle, whiteSpace: "nowrap" }}>Expected Date <span style={{ color: "#dc2626" }}>*</span> <DateField value={expDate} onChange={setExpDate} style={{ width: 150 }} /></label>
+            <label style={{ ...lblStyle, whiteSpace: "nowrap" }}>Est. Minutes <span style={{ color: "#dc2626" }}>*</span> <Input type="number" min={1} step={1} value={expMin} onChange={(e) => setExpMin(e.target.value)} style={{ width: 110 }} placeholder="e.g. 60" /></label>
+            <Button onClick={assign} disabled={saving}>
               <Send size={15} style={{ marginRight: 6 }} /> {saving ? "Assigning…" : `Assign ${selected.length || ""}`.trim()}
             </Button>
           </div>

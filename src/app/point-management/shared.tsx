@@ -5,7 +5,7 @@ import { Badge, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from 
 import {
   Layers, Inbox, UserCheck, Play, CheckCircle2, LifeBuoy, ShieldCheck, GitMerge,
   FlaskConical, TestTube2, ClipboardCheck, RotateCcw, PauseCircle, XCircle, CheckSquare, AlarmClock, FolderOpen,
-  LayoutDashboard, Code2, TrendingUp, ClipboardList, PlusCircle, UserPlus, UserCog, BadgeCheck, Clock, Activity, Users, Building2, Edit,
+  LayoutDashboard, BarChart3, Code2, TrendingUp, ClipboardList, PlusCircle, UserPlus, UserCog, BadgeCheck, Clock, Activity, Users, Building2, Edit,
 } from "lucide-react";
 import { statusVariant, priorityVariant, fmtDate, fmtDateTime, type AdminDashboardStats, type PointGridRow, type TimeReportRow } from "@/lib/tms";
 
@@ -137,6 +137,7 @@ export function developerColumns(onEdit: (pointId: number) => void): ColumnDef<P
     { accessorKey: "customerName", header: "Customer", size: 150, cell: ({ row }) => dash(row.original.customerName) },
     { accessorKey: "productName", header: "Product", size: 140, cell: ({ row }) => dash(row.original.productName) },
     { accessorKey: "assignedByName", header: "Assigned By", size: 150, cell: ({ row }) => dash(row.original.assignedByName) },
+    { accessorKey: "assignedToName", header: "Assign To", size: 150, cell: ({ row }) => dash(row.original.assignedToName) },
     { accessorKey: "reportedByName", header: "Reported By", size: 150, cell: ({ row }) => dash(row.original.reportedByName) },
     { accessorKey: "category", header: "Category", size: 120, cell: ({ row }) => dash(row.original.category) },
     { accessorKey: "priority", header: "Priority", size: 100, cell: ({ row }) => <Badge variant={priorityVariant(row.original.priority)}>{row.original.priority}</Badge> },
@@ -217,10 +218,11 @@ export const PM_HEADERS: Record<string, { title: string; icon: LucideIcon }> = {
   "admin-dashboard":    { title: "Admin Dashboard",        icon: LayoutDashboard },
   "developer":          { title: "Developer Task",         icon: Code2 },
   "developer-kpi":      { title: "My KPI Dashboard",       icon: TrendingUp },
+  "implementor-dashboard": { title: "Implementor Dashboard", icon: BarChart3 },
   "tester":             { title: "Tester Dashboard",       icon: TestTube2 },
   "manage-points":      { title: "Manage Points",          icon: ClipboardList },
   "add-point":          { title: "Add Point",              icon: PlusCircle },
-  "assign":             { title: "Assign / Create Ticket", icon: UserPlus },
+  "assign":             { title: "Assign Ticket",          icon: UserPlus },
   "manage-assignments": { title: "Manage Assignments",     icon: UserCog },
   "verify":             { title: "Verify Tickets",         icon: BadgeCheck },
   "merge":              { title: "Merge Code",             icon: GitMerge },

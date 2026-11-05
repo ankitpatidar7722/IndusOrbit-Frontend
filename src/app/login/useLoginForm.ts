@@ -20,6 +20,8 @@ export interface LoginForm {
   greeting: () => string;
   submit: (e: FormEvent) => Promise<void>;
   forgot: () => void;
+  /** "Forgot Password?" OTP dialog (rendered by the login page, the same for every skin). */
+  forgotOpen: boolean; setForgotOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 /**
@@ -37,6 +39,7 @@ export function useLoginForm(): LoginForm {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   // Live clock (drives the time-based greeting) — null on the server to avoid a hydration mismatch.
   useEffect(() => {
@@ -96,7 +99,7 @@ export function useLoginForm(): LoginForm {
     else setErr("Invalid username or password.");
   }
 
-  const forgot = () => setErr("Please contact your administrator to reset your password.");
+  const forgot = () => { setErr(null); setForgotOpen(true); };
 
-  return { email, setEmail, password, setPassword, show, setShow, remember, setRemember, err, setErr, busy, now, greeting, submit, forgot };
+  return { email, setEmail, password, setPassword, show, setShow, remember, setRemember, err, setErr, busy, now, greeting, submit, forgot, forgotOpen, setForgotOpen };
 }

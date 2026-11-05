@@ -42,7 +42,13 @@ export default function ClientsPage() {
   const [canCreate, setCanCreate] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
 
-  const reload = () => customersApi.list().then(setRows).catch((e) => setErr(String(e)));
+  // Newest client first: Client Codes (IA00xxx) are issued in sequence, so a higher number = created later.
+  // Clients with another code format (e.g. "CRM-0425") or none go last. (The API returns A–Z for the pickers
+  // elsewhere — only this list is reordered.)
+  const codeNo = (c: { companyUniqueCode?: string | null }) => { const m = /^\s*IA0*(\d+)\s*$/i.exec(c.companyUniqueCode ?? ""); return m ? Number(m[1]) : -1; };
+  const reload = () => customersApi.list()
+    .then((list) => setRows([...list].sort((a, b) => codeNo(b) - codeNo(a))))
+    .catch((e) => setErr(String(e)));
   useEffect(() => {
     reload().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,7 +79,10 @@ export default function ClientsPage() {
     });
   }, [rows]);
 
-  const openDetail = (c: CustomerCard) => setDetailId(c.companyUserID);
+  // View → read-only everywhere; Edit (and a row double-click) → Company Detail opens in edit mode.
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("edit");
+  const openDetail = (c: CustomerCard) => { setDetailMode("edit"); setDetailId(c.companyUserID); };
+  const openView = (c: CustomerCard) => { setDetailMode("view"); setDetailId(c.companyUserID); };
 
   const columns = useMemo<ColumnDef<CustomerCard>[]>(() => [
     { accessorKey: "companyUniqueCode", header: "Client Code", size: 120, meta: { inputType: "text" }, cell: ({ row }) => <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{dash(row.original.companyUniqueCode)}</span> },
@@ -87,7 +96,7 @@ export default function ClientsPage() {
     { id: "erpStatus", accessorFn: (c) => c.subscriptionStatus ?? "", header: "ERP Status", size: 175, minSize: 165, meta: { inputType: "text" }, cell: ({ row }) => statusPill(row.original.subscriptionStatus) },
     { id: "cloudStatus", accessorFn: (c) => c.cloudSubscriptionStatus ?? "", header: "Cloud Status", size: 175, minSize: 165, meta: { inputType: "text" }, cell: ({ row }) => statusPill(row.original.cloudSubscriptionStatus) },
     { ...createActionsColumn<CustomerCard>({
-      onView: openDetail,
+      onView: openView,
       onEdit: openDetail,
       onDelete: (c) => setDelTarget(c),
       showView: true, showEdit: true, showDelete: canDelete,
@@ -161,7 +170,7 @@ export default function ClientsPage() {
         onClose={() => setDelTarget(null)}
         onDeleted={(msg) => { setDelTarget(null); setFlash(msg); reload(); }}
       />
-      <ClientDetailModal id={detailId} isOpen={!!detailId} onClose={() => setDetailId(null)} onChanged={reload} />
+      <ClientDetailModal id={detailId} mode={detailMode} isOpen={!!detailId} onClose={() => setDetailId(null)} onChanged={reload} />
     </Page>
   );
 }

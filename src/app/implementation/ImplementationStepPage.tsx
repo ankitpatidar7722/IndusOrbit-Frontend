@@ -7,6 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import { Rocket, Activity, FileSpreadsheet, FileCheck2, HardHat, Users2, Package, ChevronUp, ChevronDown } from "lucide-react";
 import BrandedLoader from "@/components/BrandedLoader";
 import ClientDetailBody from "@/app/clients/ClientDetailBody";
+import { AllOnsitePanel, type OnsiteClient } from "@/app/clients/[code]/TrackerPanel";
+import TemplateMasterPanel, { type TemplateRecipient } from "@/app/clients/TemplateMasterPanel";
 import { customersApi, type CustomerCard } from "@/lib/customers";
 import { fetchMyModulePerms } from "@/lib/myPermissions";
 
@@ -34,14 +36,26 @@ const PRODUCT_LABEL: Record<string, string> = {
 // (lowercase + strip non-alphanumeric) before grouping/matching so no client is mis-bucketed.
 const normApp = (a?: string | null) => (a ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const DEFAULT_PRODUCT = "estimoprime";
+// Onsite only: one grid for many clients (the client is picked inside the form).
+const ALL_PRODUCTS = "__allproducts__";
+const ALL_CLIENTS = "__allclients__";
+/** "Amit (Estimoprime)" — the client name with its Indus product. */
+const nameWithProduct = (c: CustomerCard) => {
+  const app = PRODUCT_LABEL[normApp(c.applicationName)] ?? (c.applicationName ?? "").trim();
+  return `${c.companyName || c.companyUserID}${app ? ` (${app})` : ""}`;
+};
+const clientLabelOf = (c: CustomerCard) => `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}`;
 
 export default function ImplementationStepPage({ step }: { step: StepId }) {
   const meta = STEP_META[step];
+  // Onsite + Template Master Excel work across ALL clients on one page (no pickers): Onsite picks the
+  // client in its form, Templates when emailing — the template library is the same for every client.
+  const allowAll = step === "onsite" || step === "templates";
   const { data: session } = useSession();
   const [clients, setClients] = useState<CustomerCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<string>(DEFAULT_PRODUCT);  // normalized applicationName
-  const [clientId, setClientId] = useState<string>("");             // = CustomerCard.companyUserID
+  const [product, setProduct] = useState<string>(allowAll ? ALL_PRODUCTS : DEFAULT_PRODUCT);  // normalized applicationName
+  const [clientId, setClientId] = useState<string>(allowAll ? ALL_CLIENTS : "");              // = CustomerCard.companyUserID
   // This step's edit permission comes from the /implementation/<step> module's OWN authority
   // (User Management → Module Authority), not the client-detail-tab (clienttab-*) system.
   const [editable, setEditable] = useState(false);
@@ -82,8 +96,8 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
       a.value === DEFAULT_PRODUCT ? -1 : b.value === DEFAULT_PRODUCT ? 1
       : a.value === "__none__" ? 1 : b.value === "__none__" ? -1
       : a.label.localeCompare(b.label));
-    return opts;
-  }, [clients]);
+    return allowAll ? [{ value: ALL_PRODUCTS, label: "All Products" }, ...opts] : opts;
+  }, [clients, allowAll]);
 
   // Once loaded, if the default product has no clients, fall back to the first available product.
   useEffect(() => {
@@ -93,11 +107,30 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
   }, [loading, productOptions]);
 
   // Clients filtered by the selected product.
-  const clientOptions = useMemo(
-    () => clients
-      .filter((c) => c.companyUserID && (product === "__none__" ? normApp(c.applicationName) === "" : normApp(c.applicationName) === product))
-      .map((c) => ({ value: c.companyUserID, label: `${c.companyName || c.companyUserID}${c.companyUniqueCode ? ` (${c.companyUniqueCode})` : ""}` })),
+  const productClients = useMemo(
+    () => clients.filter((c) => c.companyUserID && (product === ALL_PRODUCTS ? true
+      : product === "__none__" ? normApp(c.applicationName) === "" : normApp(c.applicationName) === product)),
     [clients, product]
+  );
+  const clientOptions = useMemo(() => {
+    const opts = productClients.map((c) => ({ value: c.companyUserID, label: clientLabelOf(c) }));
+    return allowAll && opts.length ? [{ value: ALL_CLIENTS, label: `All Clients (${opts.length})` }, ...opts] : opts;
+  }, [productClients, allowAll]);
+  // Template Master Excel "Send to" list: "Name (Product)".
+  const templateRecipients = useMemo<TemplateRecipient[]>(
+    () => productClients.map((c) => ({ value: c.companyUserID, label: nameWithProduct(c), client: c }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [productClients]
+  );
+  // "All Clients" grid: rows are keyed by the same code the per-client Tracker uses (CompanyUniqueCode, else CompanyUserID).
+  const onsiteClients = useMemo<OnsiteClient[]>(
+    () => productClients.map((c) => ({
+      // Form dropdown shows "Name (Product)", e.g. "Amit (Estimoprime)".
+      code: c.companyUniqueCode || c.companyUserID, name: c.companyName || c.companyUserID,
+      label: nameWithProduct(c),
+      email: c.email, userId: c.companyUserID, address: c.address,
+    })).sort((a, b) => a.name.localeCompare(b.name)),
+    [productClients]
   );
 
   const Icon = meta.icon;
@@ -127,7 +160,9 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "rgb(var(--fg-default))", margin: 0, letterSpacing: 0.2 }}>{meta.title}</h1>
           </div>
 
-          {/* Indus Product filter + client picker (client list follows the selected product). */}
+          {/* Indus Product filter + client picker (client list follows the selected product).
+              Onsite has none: it always shows every client, and the client is picked in the form. */}
+          {!allowAll && (<>
           <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 14, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>
@@ -136,7 +171,7 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
               <div style={{ width: 220 }}>
                 <KDropdown
                   value={product}
-                  onValueChange={(v) => { setProduct(String(v)); setClientId(""); }}
+                  onValueChange={(v) => { setProduct(String(v)); setClientId(allowAll ? ALL_CLIENTS : ""); }}
                   options={productOptions}
                   placeholder={loading ? "Loading…" : "— Select product —"}
                   searchable
@@ -167,11 +202,16 @@ export default function ImplementationStepPage({ step }: { step: StepId }) {
               <button onClick={() => setCompact(true)} style={toggleBtn}><ChevronUp size={14} /> Collapse selectors</button>
             </div>
           )}
+          </>)}
         </>
       )}
 
       {loading ? (
         <BrandedLoader size="md" text="Loading clients…" />
+      ) : clientId === ALL_CLIENTS && step === "templates" ? (
+        <TemplateMasterPanel recipients={templateRecipients} canEdit={editable} canDelete={deletable} />
+      ) : clientId === ALL_CLIENTS ? (
+        <AllOnsitePanel clients={onsiteClients} canEdit={editable} hideTitle />
       ) : clientId ? (
         <ClientDetailBody id={clientId} lockTab={step} lockTabEditable={editable} lockTabDelete={deletable} inModal={false} compactHeader={compact} onClose={() => {}} />
       ) : (

@@ -1,18 +1,23 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Tabs, Badge, Button, Card, CardHeader, CardTitle, CardContent, StandardModal, useModalAlert, TooltipProvider, useDevice } from "indas-ui";
 import ChipTabs from "@/components/phone/ChipTabs";
 import KDropdown from "@/components/KDropdown";
 // Same full-featured grid as /users (owned source — colored header tint, white filter row, etc.)
 import { DataGrid, createActionsColumn } from "@/components/datagrid";
 import DateField from "@/components/DateField";
+import TimeField from "@/components/TimeField";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, FileSpreadsheet, Target, Eye, Sparkles, Flag, GraduationCap, GitPullRequest, MessagesSquare } from "lucide-react";
+import { PartyPopper, ClipboardCheck, Plus, Mail, ListTodo, Check, Download, Upload, FileSpreadsheet, Target, Eye, Sparkles, Printer, Save, Flag, GraduationCap, GitPullRequest, MessagesSquare } from "lucide-react";
 import { trackerAiApi } from "@/lib/trackerAi";
 import { useSession } from "next-auth/react";
 import { api, type Milestone, type TrainingUpdate, type ChangeRequest, type SupportLog, type OnsiteVisit, type KeylineModule } from "@/lib/api";
 import CommunicationLogTab from "./CommunicationLogTab";
+import TrackerAttachments from "./TrackerAttachments";
+import { fileToBase64, type EmailAttachmentBase64 } from "@/lib/email";
+import { printTrainingSheet } from "@/lib/trainingSheet";
 import { usersApi } from "@/lib/users";
+import OnsiteDashboard from "./OnsiteDashboard";
 import { fetchUserPermissions } from "@/lib/featurePermissions";
 import { statusVariant } from "@/lib/ui";
 import { useEmailComposer } from "@/components/email/EmailComposerProvider";
@@ -31,7 +36,12 @@ type FieldType = "text" | "url" | "date" | "time" | "textarea" | "select" | "mod
 // span: grid-column width on a 12-col layout — lets a form pack rows of 3 (span 4) or 4 (span 3) fields; omit for the default 3-up grid.
 // autoGrow: textarea that grows its height to fit the text inside it (no scrollbar, no manual drag handle).
 // typable: for a "module" field — free text is allowed alongside picking from the dropdown.
-type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string }; locked?: boolean; multi?: boolean; typable?: boolean };
+// multi: "module" / "submodule" field takes several values (comma-joined string, shown as tags).
+// required: the form can't be saved while this field is blank (label shows a red *).
+// placeholder: overrides the default hint ("Enter <Label>" for text, "Select <Label>" for pickers).
+// numeric: number-only text box. minFrom (date only): key of another date field — earlier days can't be picked.
+// `choices` (select only): value ≠ label, e.g. Client Name → client code. Excel shows/accepts the label (or the value).
+type FieldDef = { key: string; label: string; type?: FieldType; options?: string[]; choices?: { value: string; label: string }[]; full?: boolean; span?: number; autoGrow?: boolean; dependsOn?: string; compute?: (v: Record<string, unknown>) => string; refillWhenEmpty?: boolean; autofill?: { mobileKey?: string; ageKey?: string; roleKey?: string }; numeric?: boolean; minFrom?: string; disabledWhen?: (v: Record<string, unknown>) => boolean; locked?: boolean; multi?: boolean; typable?: boolean; required?: boolean; placeholder?: string; personPermission?: string };
 
 /** Inclusive day-count between two yyyy-mm-dd dates (same day = 1); blank if either is missing/invalid. */
 function daysBetween(from?: unknown, to?: unknown): string {
@@ -60,6 +70,8 @@ const inputStyle: React.CSSProperties = {
   width: "100%", padding: "9px 11px", border: "1px solid #cbd5e1", borderRadius: 8,
   fontSize: 13, background: "rgb(var(--bg-surface))", color: "rgb(var(--fg-default))", outline: "none",
 };
+// Single-line inputs share one fixed height with the dropdown / date / time pickers (40px).
+const lineInputStyle: React.CSSProperties = { ...inputStyle, height: 40, padding: "0 11px" };
 
 /** The real (red) YouTube logo — lucide has no Youtube brand icon in this version. */
 function YoutubeIcon({ size = 15 }: { size?: number }) {
@@ -75,7 +87,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 /** Textarea that auto-sizes its height to fit its content — grows as you type, no scrollbar, no drag handle. */
-function AutoGrowTextarea({ value, onChange, minHeight = 44 }: { value: string; onChange: (v: string) => void; minHeight?: number }) {
+function AutoGrowTextarea({ value, onChange, minHeight = 44, placeholder }: { value: string; onChange: (v: string) => void; minHeight?: number; placeholder?: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -84,29 +96,11 @@ function AutoGrowTextarea({ value, onChange, minHeight = 44 }: { value: string; 
     el.style.height = `${Math.max(minHeight, el.scrollHeight)}px`;
   }, [value, minHeight]);
   return (
-    <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)}
+    <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
       style={{ ...inputStyle, minHeight, resize: "none", overflow: "hidden", lineHeight: 1.5 }} />
   );
 }
 
-/* fast 3-dropdown time picker (Hour / Minute / AM-PM) — replaces the slow native scroll wheel */
-const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")); // 00,05,…,55
-function parseTime(v: string) {
-  if (!v || !v.includes(":")) return { h: "", m: "", ap: "" };
-  const [H, M] = v.split(":");
-  let hh = parseInt(H, 10);
-  if (isNaN(hh)) return { h: "", m: "", ap: "" };
-  const ap = hh >= 12 ? "PM" : "AM";
-  let h12 = hh % 12; if (h12 === 0) h12 = 12;
-  return { h: String(h12).padStart(2, "0"), m: (M ?? "00").padStart(2, "0"), ap };
-}
-function composeTime(h: string, m: string, ap: string) {
-  if (!h || !m || !ap) return "";
-  let H = parseInt(h, 10) % 12;
-  if (ap === "PM") H += 12;
-  return `${String(H).padStart(2, "0")}:${m}`;
-}
 /** Training session time rule: End Time must be after Start Time (same day) and the session at most
  *  12 hours. Times are "HH:mm" (24h). Either one left blank is allowed (e.g. still scheduled). */
 const MAX_SESSION_MINUTES = 12 * 60;
@@ -117,28 +111,6 @@ function validateSessionTime(v: Record<string, unknown>): string | null {
   if (b <= a) return "End Time must be later than Start Time.";
   if (b - a > MAX_SESSION_MINUTES) return "A training session cannot be longer than 12 hours. Please check Start Time and End Time.";
   return null;
-}
-function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { h, m, ap } = parseTime(value);
-  const set = (nh: string, nm: string, nap: string) => onChange(composeTime(nh, nm, nap || "AM"));
-  const sel: React.CSSProperties = { ...inputStyle, padding: "7px 6px", flex: 1 };
-  return (
-    <div style={{ display: "flex", gap: 6 }}>
-      <select style={sel} value={h} onChange={(e) => set(e.target.value, m || "00", ap)}>
-        <option value="">HH</option>
-        {HOURS.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <select style={sel} value={m} onChange={(e) => set(h, e.target.value, ap)}>
-        <option value="">MM</option>
-        {MINUTES.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <select style={sel} value={ap} onChange={(e) => set(h || "12", m || "00", e.target.value)}>
-        <option value="">--</option>
-        <option value="AM">AM</option>
-        <option value="PM">PM</option>
-      </select>
-    </div>
-  );
 }
 
 // Keyline (Module Name / Sub Module Name) catalog — fetched once, cached for every form.
@@ -162,14 +134,14 @@ async function loadUserNames(): Promise<string[]> {
 }
 
 // Active users WITH mobile + date-of-birth — for a "person" field that auto-fills Mobile + Age.
-type AppUserLite = { fullName: string; mobile?: string | null; dateOfBirth?: string | null };
+type AppUserLite = { userId: number; fullName: string; mobile?: string | null; dateOfBirth?: string | null; role?: string | null };
 let _usersDetailedCache: AppUserLite[] | null = null;
 async function loadUsersDetailed(): Promise<AppUserLite[]> {
   if (_usersDetailedCache) return _usersDetailedCache;
   try {
     const r = await usersApi.list();
     _usersDetailedCache = r.success
-      ? r.data.filter((u) => u.isActive && u.fullName?.trim()).map((u) => ({ fullName: u.fullName, mobile: u.mobile, dateOfBirth: u.dateOfBirth }))
+      ? r.data.filter((u) => u.isActive && u.fullName?.trim()).map((u) => ({ userId: u.userId, fullName: u.fullName, mobile: u.mobile, dateOfBirth: u.dateOfBirth, role: u.role }))
       : [];
   } catch { _usersDetailedCache = []; }
   return _usersDetailedCache;
@@ -198,7 +170,7 @@ function AiSummaryField({ value, onChange, entity, fields, values, disabled }: {
   };
   return (
     <div>
-      <textarea style={{ ...inputStyle, minHeight: 72, resize: "vertical" }} value={value}
+      <textarea style={{ ...inputStyle, minHeight: 56, resize: "vertical" }} value={value}
         onChange={(e) => onChange(e.target.value)} placeholder="Click “Summarize with AI” to auto-generate — or write your own." />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
         <button type="button" onClick={generate} disabled={busy || disabled}
@@ -217,12 +189,20 @@ function AiSummaryField({ value, onChange, entity, fields, values, disabled }: {
 }
 
 function EntityFormModal({
-  open, title, fields, initial, saving, onClose, onSave, readOnly = false, columns,
+  open, title, fields, initial, saving, onClose, onSave, readOnly = false, columns, attach, onPrint,
 }: {
   open: boolean; title: string; fields: FieldDef[]; initial: Record<string, unknown>;
-  saving: boolean; onClose: () => void; onSave: (values: Record<string, unknown>) => void; readOnly?: boolean;
+  saving: boolean; onClose: () => void; onSave: (values: Record<string, unknown>, pendingFiles: File[]) => void; readOnly?: boolean;
   columns?: number;   // explicit grid column count (e.g. 5-up rows); falls back to spans ? 12 : 3
+  // Attachments (PDF / images) for this entity; rowId is null while creating a new row. With `after` the
+  // picker sits INSIDE the form grid right after that field (taking `span` columns); otherwise below the form.
+  attach?: { code: string; entity: string; rowId: number | null; after?: string; span?: number };
+  // "Print Training Sheet" — prints from the form's CURRENT values.
+  onPrint?: (values: Record<string, unknown>) => void;
 }) {
+  // Files picked on a NEW row — uploaded by the grid right after the row is created.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  useEffect(() => { if (open) setPendingFiles([]); }, [open]);
   const { data: session } = useSession();
   const currentUserName = ((session?.user as { name?: string } | undefined)?.name) || "";
 
@@ -254,7 +234,20 @@ function EntityFormModal({
   // Load users WITH mobile + DOB when this form uses a "person" field (Onsite Person Name).
   const needsPersons = useMemo(() => fields.some((fd) => fd.type === "person"), [fields]);
   const [persons, setPersons] = useState<AppUserLite[]>(_usersDetailedCache ?? []);
-  useEffect(() => { if (open && needsPersons) loadUsersDetailed().then(setPersons); }, [open, needsPersons]);
+  // personPermission: only users granted that feature key (User Management → User Permissions) are listed.
+  // The grants are re-read on every open, so ticking someone in User Management shows up without a reload.
+  const personPermission = useMemo(() => fields.find((fd) => fd.type === "person")?.personPermission, [fields]);
+  useEffect(() => {
+    if (!open || !needsPersons) return;
+    let live = true;
+    Promise.all([
+      loadUsersDetailed(),
+      personPermission
+        ? usersApi.usersWithPermission(personPermission).then((r) => (r.success ? new Set(r.data) : null)).catch(() => null)
+        : Promise.resolve(null),
+    ]).then(([all, allowed]) => { if (live) setPersons(allowed ? all.filter((u) => allowed.has(u.userId)) : all); });
+    return () => { live = false; };
+  }, [open, needsPersons, personPermission]);
   // Choosing a person also fills the mapped Mobile + Age (from the app-user's DOB) — all stay editable.
   const setPerson = (fd: FieldDef, name: string) => setF((p) => {
     const next = { ...p, [fd.key]: name };
@@ -262,6 +255,7 @@ function EntityFormModal({
     if (u && fd.autofill) {
       if (fd.autofill.mobileKey) next[fd.autofill.mobileKey] = u.mobile ?? "";
       if (fd.autofill.ageKey) next[fd.autofill.ageKey] = ageFromDob(u.dateOfBirth);
+      if (fd.autofill.roleKey) next[fd.autofill.roleKey] = u.role ?? "";
     }
     return next;
   });
@@ -269,24 +263,25 @@ function EntityFormModal({
   // Auto-fill derived (compute) fields when their INPUTS change — but keep them editable:
   // only overwrite when the freshly computed value differs from the last one we filled, so a
   // manual edit survives (editing the field itself doesn't change the computed inputs).
+  // Computed here, NOT inside a setF updater: the updater mutated computedRef, and React (Strict Mode)
+  // runs updaters twice — the 2nd run saw "already filled" and returned the old state, so Days/Total
+  // never appeared. Fields computed from other computed fields (Total ← Days) settle on the next pass.
   useEffect(() => {
-    setF((prev) => {
-      let next = prev; let changed = false;
-      for (const fd of fields) {
-        if (!fd.compute) continue;
-        const v = fd.compute(prev);
-        // Inputs unchanged → keep the current value. A CLEARED field is only auto-refilled for fields
-        // that opt in (refillWhenEmpty, e.g. Timeline Var Status); otherwise a blank stays blank so the
-        // user can actually clear it (e.g. Days — was previously un-clearable).
-        if (v === computedRef.current[fd.key]) {
-          const isEmpty = String(prev[fd.key] ?? "").trim() === "";
-          if (!isEmpty || !fd.refillWhenEmpty) continue;
-        }
-        computedRef.current[fd.key] = v;
-        if (v !== "" && String(prev[fd.key] ?? "") !== v) { if (!changed) { next = { ...prev }; changed = true; } next[fd.key] = v; }
+    const next: Record<string, unknown> = { ...f }; let changed = false;   // a copy — the state object is never mutated
+    for (const fd of fields) {
+      if (!fd.compute) continue;
+      const v = fd.compute(next);
+      // Inputs unchanged → keep the current value. A CLEARED field is only auto-refilled for fields
+      // that opt in (refillWhenEmpty, e.g. Timeline Var Status); otherwise a blank stays blank so the
+      // user can actually clear it (e.g. Days — was previously un-clearable).
+      if (v === computedRef.current[fd.key]) {
+        const isEmpty = String(next[fd.key] ?? "").trim() === "";
+        if (!isEmpty || !fd.refillWhenEmpty) continue;
       }
-      return changed ? next : prev;
-    });
+      computedRef.current[fd.key] = v;
+      if (v !== "" && String(next[fd.key] ?? "") !== v) { next[fd.key] = v; changed = true; }
+    }
+    if (changed) setF(next);
   }, [f, fields]);
 
   const heads = useMemo(() => Array.from(new Set(keyline.map((k) => k.head))), [keyline]);
@@ -302,9 +297,24 @@ function EntityFormModal({
   // so rows of 4 fields (span 3) or 3 fields (span 4) both fill a row exactly). Otherwise keep the simple 3-up grid.
   const gridCols = useMemo(() => columns ?? (fields.some((fd) => fd.span) ? 12 : 3), [fields, columns]);
 
+  // Print needs a saved row (the sheet carries its reference number).
+  const canPrint = !!onPrint && !!attach?.rowId;
+  const attachCell = attach && (
+    <TrackerAttachments code={attach.code} entity={attach.entity} rowId={attach.rowId} readOnly={readOnly} compact={!!attach.after}
+      pending={pendingFiles} setPending={setPendingFiles} />
+  );
   return (
-    <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size={columns && columns >= 5 ? "xl" : "lg"} showFooter={!readOnly}
-      onSave={() => onSave(f)} onCancel={onClose} saveLabel="Save" saving={saving} disableOutsideClose>
+    <StandardModal isOpen={open} onClose={onClose} title={readOnly ? `${title} · View only` : title} size={columns && columns >= 5 ? "xl" : "lg"}
+      showFooter={!readOnly || canPrint}
+      // With Print: our own footer (Print · Cancel · Save) — StandardModal's footerActions replaces its default buttons.
+      footerActions={canPrint ? (
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <Button variant="outline" size="md" icon={Printer} onClick={() => onPrint!(f)}>Print</Button>
+          {!readOnly && <Button variant="action-cancel" size="md" onClick={onClose}>Cancel</Button>}
+          {!readOnly && <Button variant="action-save" size="md" icon={Save} loading={saving} onClick={() => onSave(f, pendingFiles)}>Save</Button>}
+        </div>
+      ) : undefined}
+      onSave={() => onSave(f, pendingFiles)} onCancel={onClose} saveLabel="Save" saving={saving} disableOutsideClose>
       <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: "12px 16px", ...(readOnly ? { pointerEvents: "none", opacity: 0.92 } : {}) }}>
         {fields.map((fd) => {
           const val = (f[fd.key] as string) ?? "";
@@ -313,35 +323,59 @@ function EntityFormModal({
           const span = isFull ? { gridColumn: "1 / -1" } : (fd.span ? { gridColumn: `span ${fd.span}` } : undefined);
           // Per-field lock: this field is view-only for users without the authority, while the
           // rest of the form stays editable. (Whole-form readOnly already disables everything.)
-          const fieldLocked = !!fd.locked && !readOnly;
+          // disabledWhen: greyed out by another field's value (e.g. Salary while Site Charge is filled).
+          const fieldLocked = (!!fd.locked || !!fd.disabledWhen?.(f)) && !readOnly;
+          // Same hint style on every field: "Enter …" to type, "Select …" to pick.
+          const typed = !fd.type || fd.type === "text" || fd.type === "url" || fd.type === "textarea";
+          const ph = fd.placeholder ?? (typed ? `Enter ${fd.label}` : fd.type === "date" ? "Select date" : fd.type === "time" ? "Select time" : `Select ${fd.label}`);
           return (
-            <div key={fd.key} style={{ ...span, ...(fieldLocked ? { pointerEvents: "none", opacity: 0.55 } : {}) }}>
-              <label style={labelStyle}>{fd.label}{fieldLocked && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>🔒 view only</span>}</label>
+            <Fragment key={fd.key}>
+            <div style={{ ...span, ...(fieldLocked ? { pointerEvents: "none", opacity: 0.55 } : {}) }}>
+              <label style={labelStyle}>{fd.label}{fd.required && <span style={{ color: "#e11d48", marginLeft: 2 }}>*</span>}{fd.locked && fieldLocked && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "rgb(var(--fg-muted))" }}>🔒 view only</span>}</label>
               {fd.compute && !fd.type ? (
                 <input type="text" value={val} onChange={(e) => set(fd.key, e.target.value)}
-                  title="Auto-calculated from the dates — you can override it" style={inputStyle} />
+                  title="Auto-calculated — you can override it" style={lineInputStyle} />
               ) : fd.type === "aiSummary" ? (
                 <AiSummaryField value={val} onChange={(v) => set(fd.key, v)} entity={title} fields={fields} values={f} disabled={readOnly || fieldLocked} />
               ) : fd.type === "textarea" ? (
                 fd.autoGrow ? (
-                  <AutoGrowTextarea value={val} onChange={(v) => set(fd.key, v)} minHeight={isFull ? 76 : 44} />
+                  <AutoGrowTextarea value={val} onChange={(v) => set(fd.key, v)} minHeight={isFull ? 60 : 38} placeholder={ph} />
                 ) : (
-                  <textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={val} onChange={(e) => set(fd.key, e.target.value)} />
+                  <textarea style={{ ...inputStyle, minHeight: 62, resize: "vertical" }} value={val} onChange={(e) => set(fd.key, e.target.value)} placeholder={ph} />
                 )
               ) : fd.type === "time" ? (
-                <TimeSelect value={val} onChange={(v) => set(fd.key, v)} />
+                <TimeField value={val} placeholder={ph} onChange={(v) => setF((p) => {
+                  const next = { ...p, [fd.key]: v };
+                  if (fd.key === "startTime" && v && !String(p.endTime ?? "").trim() && fields.some((x) => x.key === "endTime")) {
+                    const [h, m] = v.split(":").map(Number); const e = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+                    next.endTime = `${String(Math.floor(e / 60)).padStart(2, "0")}:${String(e % 60).padStart(2, "0")}`;
+                  }
+                  return next;
+                })} />
               ) : fd.type === "select" ? (
                 <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
-                  options={(fd.options ?? []).map((o) => ({ value: o, label: o }))} placeholder="— select —" size="md" />
+                  // An older free-text value (e.g. "300") stays visible until changed.
+                  options={fd.choices ?? (val && !(fd.options ?? []).includes(val) ? [val, ...(fd.options ?? [])] : (fd.options ?? [])).map((o) => ({ value: o, label: o }))} placeholder={ph}
+                  searchable={!!fd.choices} size="md" />
               ) : fd.type === "module" ? (
-                fd.typable ? (
+                fd.multi ? (() => {
+                  // Several modules, typable: stored as a comma-joined string, shown as tags.
+                  const arr = val ? String(val).split(",").map((x) => x.trim()).filter(Boolean) : [];
+                  const opts = Array.from(new Set([...heads, ...arr]));
+                  return (
+                    <KDropdown value={arr}
+                      onValueChange={(v) => setModule(fd.key, (Array.isArray(v) ? v : [String(v)]).map((x) => String(x).trim()).filter(Boolean).join(", "))}
+                      options={opts.map((h) => ({ value: h, label: h }))}
+                      placeholder={ph} searchable multiSelect showAsTags allowTextInput allowCustomInput size="md" />
+                  );
+                })() : fd.typable ? (
                   // Typable: pick a keyline module OR type any name; a saved custom value stays in the list.
                   <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v ?? "").trim())}
                     options={(val && !heads.includes(val) ? [val, ...heads] : heads).map((h) => ({ value: h, label: h }))}
-                    placeholder="Select or type…" searchable allowTextInput allowCustomInput size="md" />
+                    placeholder={ph} searchable allowTextInput allowCustomInput size="md" />
                 ) : (
                   <KDropdown value={val} onValueChange={(v) => setModule(fd.key, String(v))}
-                    options={heads.map((h) => ({ value: h, label: h }))} placeholder="— select —" searchable size="md" />
+                    options={heads.map((h) => ({ value: h, label: h }))} placeholder={ph} searchable size="md" />
                 )
               ) : fd.type === "submodule" ? (
                 (() => {
@@ -368,23 +402,38 @@ function EntityFormModal({
               ) : fd.type === "user" ? (
                 <KDropdown value={val} onValueChange={(v) => set(fd.key, String(v))}
                   options={(val && !userNames.includes(val) ? [val, ...userNames] : userNames).map((n) => ({ value: n, label: n }))}
-                  placeholder="— select user —" searchable size="md" />
+                  placeholder={ph} searchable size="md" />
               ) : fd.type === "person" ? (
                 <KDropdown value={val} onValueChange={(v) => setPerson(fd, String(v))}
                   options={(() => { const names = persons.map((p) => p.fullName); return (val && !names.includes(val) ? [val, ...names] : names).map((n) => ({ value: n, label: n })); })()}
-                  placeholder="— select person —" searchable size="md" />
+                  placeholder={ph} searchable size="md" />
               ) : fd.type === "date" ? (
-                <DateField value={val} onChange={(v) => set(fd.key, v)} />
+                <DateField value={val} placeholder={ph} onChange={(v) => set(fd.key, v)}
+                  minDate={fd.minFrom ? String(f[fd.minFrom] ?? "") || undefined : undefined} />
               ) : fd.type === "url" ? (
-                <input type="url" inputMode="url" style={inputStyle} value={val} onChange={(e) => set(fd.key, e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=…" />
+                <input type="url" inputMode="url" style={lineInputStyle} value={val} onChange={(e) => set(fd.key, e.target.value)}
+                  placeholder={ph} />
               ) : (
-                <input type="text" style={inputStyle} value={val} onChange={(e) => set(fd.key, e.target.value)} />
+                fd.numeric ? (
+                  <input type="text" inputMode="decimal" style={lineInputStyle} value={val} placeholder="0" disabled={fieldLocked}
+                    onChange={(e) => set(fd.key, e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))} />
+                ) : (
+                  <input type="text" style={lineInputStyle} value={val} onChange={(e) => set(fd.key, e.target.value)} placeholder={ph} />
+                )
               )}
             </div>
+            {/* Inline attachment picker after its field. Its links/buttons set pointer-events:auto, so View mode can still open files. */}
+            {attach?.after === fd.key && (
+              <div style={{ gridColumn: `span ${attach.span ?? 4}` }}>
+                <label style={labelStyle}>Attach PDF / Image</label>
+                {attachCell}
+              </div>
+            )}
+            </Fragment>
           );
         })}
       </div>
+      {attach && !attach.after && <div style={{ marginTop: 12 }}>{attachCell}</div>}
     </StandardModal>
   );
 }
@@ -407,13 +456,13 @@ function CellEditor({ fd, value, error, onChange }: { fd: FieldDef; value: strin
     border: `1px solid ${error ? "#e05252" : "#d6dbe3"}`, background: error ? "#fff5f5" : "#fff", color: "rgb(var(--fg-default))",
   };
   if (fd.type === "select") {
-    const opts = fd.options ?? [];
-    const unknown = value && !opts.some((o) => o.toLowerCase() === value.toLowerCase());
+    const opts = fd.choices ?? (fd.options ?? []).map((o) => ({ value: o, label: o }));
+    const unknown = value && !opts.some((o) => o.value.toLowerCase() === value.toLowerCase());
     return (
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={base}>
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={fd.choices ? { ...base, width: 220 } : base}>
         <option value="">—</option>
         {unknown && <option value={value}>⚠ {value}</option>}
-        {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+        {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     );
   }
@@ -441,7 +490,8 @@ function ImportPreviewModal({ open, title, fields, initialRows, onClose, onImpor
   const cellError = (fd: FieldDef, val: string): boolean => {
     const v = (val ?? "").trim();
     if (fd.key === requiredKey && !v) return true;
-    if (fd.type === "select" && v && fd.options && !fd.options.some((o) => o.toLowerCase() === v.toLowerCase())) return true;
+    if (fd.type === "select" && v && fd.choices && !fd.choices.some((o) => o.value.toLowerCase() === v.toLowerCase())) return true;
+    if (fd.type === "select" && v && !fd.choices && fd.options && !fd.options.some((o) => o.toLowerCase() === v.toLowerCase())) return true;
     if (fd.type === "date" && v && !isValidDate(v)) return true;
     return false;
   };
@@ -535,8 +585,21 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   formColumns?: number;
   // Optional pre-save validation — return an error string to block the save (e.g. To ≥ From).
   validate?: (v: Record<string, unknown>) => string | null;
+  // Multi-client grids ("All Clients"): the client a row belongs to — used instead of the client* props for email.
+  rowClient?: (row: T) => { email?: string | null; name?: string | null; code?: string | null; userId?: string | null };
+  // Export file name suffix when there is no single client (e.g. "All Clients").
+  exportLabel?: string;
+  // Hide the grid's title (the page heading already names it); the buttons stay right-aligned.
+  hideTitle?: boolean;
+  // Attachments (PDF / images) on each row, stored under this tracker entity (e.g. "training").
+  attachEntity?: string;
+  // Put the attachment picker inside the form, right after this field key, taking `attachSpan` of 12 columns.
+  attachAfter?: string;
+  attachSpan?: number;
+  // "Print" — printable sheet for a row (row icon in the grid + button inside the form).
+  printSheet?: (values: Record<string, unknown>) => void;
 }) {
-  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientEmail, clientName, clientCode, clientUserId, canEdit = true, sendToPoint, sendToTask, summary } = props;
+  const { code, title, rows, columns, fields, blank, apiFns, send, reload, onFlash, clientName, clientCode, canEdit = true, sendToPoint, sendToTask, summary } = props;
   const { openComposer } = useEmailComposer();
   // `view`: opened from View (or a phone card tap) → the same form, read-only.
   const [modal, setModal] = useState<{ open: boolean; row: T | null; view?: boolean }>({ open: false, row: null });
@@ -554,16 +617,28 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
   const openView = (row: T) => setModal({ open: true, row, view: true });
   const close = () => setModal({ open: false, row: null });
 
-  const save = async (values: Record<string, unknown>) => {
+  const printRef = useRef(props.printSheet);
+  printRef.current = props.printSheet;
+  const save = async (values: Record<string, unknown>, pendingFiles: File[] = []) => {
+    const missing = fields.filter((fd) => fd.required && !String(values[fd.key] ?? "").trim()).map((fd) => fd.label);
+    if (missing.length) { showError("Check the form", `Please fill the required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}.`); return; }
     const verr = props.validate?.(values);
     if (verr) { showError("Check the form", verr); return; }
     setSaving(true);
     const editing = !!modal.row;
     try {
+      let rowId = modal.row?.id ?? 0;
       if (modal.row) await apiFns.update(code, modal.row.id, { ...modal.row, ...values });
-      else await apiFns.add(code, values);
+      else rowId = ((await apiFns.add(code, values)) as unknown as { id?: number })?.id ?? 0;
+      // Files picked while creating the row upload now that it has an id.
+      let uploadErr = "";
+      if (props.attachEntity && pendingFiles.length && rowId) {
+        try { await api.uploadTrackerAttachments(code, props.attachEntity, rowId, pendingFiles); }
+        catch (e) { uploadErr = e instanceof Error ? e.message : String(e); }
+      }
       close(); reload();
-      showSuccess("Success", `${singular} ${editing ? "updated" : "created"} successfully.`, 2200);
+      if (uploadErr) showError("Saved, but the attachment failed", `${singular} ${editing ? "updated" : "created"}, but the file upload failed: ${uploadErr}. Open the row and attach it again.`);
+      else showSuccess("Success", `${singular} ${editing ? "updated" : "created"} successfully.`, 2200);
     } catch (e) { showError("Save Failed", String(e)); } finally { setSaving(false); }
   };
   const doDelete = (row: T) => {
@@ -668,9 +743,9 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       hdr.font = { bold: true, color: { argb: "FF15233A" } };
       hdr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF1F8" } };
       hdr.alignment = { vertical: "middle" };
-      // dropdown data-validation for select columns
+      // dropdown data-validation for select columns (a `choices` list is too long for an Excel list rule — typed instead)
       fields.forEach((fd, i) => {
-        if (fd.type === "select" && fd.options?.length) {
+        if (fd.type === "select" && !fd.choices && fd.options?.length) {
           for (let r = 2; r <= 500; r++) {
             ws.getCell(r, i + 1).dataValidation = {
               type: "list", allowBlank: true, formulae: [`"${fd.options.join(",")}"`],
@@ -709,7 +784,8 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
         const out: Record<string, unknown> = {};
         for (const fd of fields) {
           const v = fd.compute && (rec[fd.key] == null || rec[fd.key] === "") ? fd.compute(rec) : rec[fd.key];
-          out[fd.key] = v == null ? "" : fd.type === "date" ? fmtDate(v) : String(v);
+          out[fd.key] = v == null ? "" : fd.type === "date" ? fmtDate(v)
+            : fd.choices ? (fd.choices.find((c) => c.value === String(v))?.label ?? String(v)) : String(v);
         }
         ws.addRow(out);
       }
@@ -723,7 +799,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const d = new Date();
-      const who = (clientName || clientCode || code || "").replace(/[\\/:*?"<>|]+/g, " ").trim();
+      const who = (props.exportLabel || clientName || clientCode || code || "").replace(/[\\/:*?"<>|]+/g, " ").trim();
       a.href = url; a.download = `${title}${who ? ` - ${who}` : ""} - ${String(d.getDate()).padStart(2, "0")}-${MON[d.getMonth()]}-${d.getFullYear()}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
@@ -767,6 +843,11 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           let val = raw == null ? "" : String(raw).trim();
           if (val) any = true;
           if (fd.type === "date" && val) val = toYmd(raw);
+          // `choices`: accept the label ("Akrati Offset, Ujjain (IA00333)") or the value (code), any case.
+          if (fd.choices && val) {
+            const lv = val.toLowerCase();
+            val = fd.choices.find((c) => c.value.toLowerCase() === lv || c.label.toLowerCase() === lv)?.value ?? val;
+          }
           values[fd.key] = val;
         }
         if (any) parsed.push(values);
@@ -801,23 +882,49 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
       () => openMailComposer(row)
     );
   };
-  const openMailComposer = (row: T) => {
+  // This row's attached files (signed sheet etc.) as email attachments — best-effort: a file that can't be
+  // fetched is skipped, never blocks the email.
+  const rowAttachments = async (row: T): Promise<EmailAttachmentBase64[]> => {
+    if (!props.attachEntity) return [];
+    const entity = props.attachEntity;
+    try {
+      const list = await api.trackerAttachments(code, entity, row.id);
+      const out = await Promise.all(list.map(async (a) => {
+        try {
+          const res = await fetch(api.trackerAttachmentUrl(code, entity, row.id, a.id));
+          if (!res.ok) return null;
+          const blob = await res.blob();
+          return await fileToBase64(new File([blob], a.originalName, { type: a.contentType || blob.type }));
+        } catch { return null; }
+      }));
+      return out.filter((x): x is EmailAttachmentBase64 => !!x);
+    } catch { return []; }
+  };
+  const openMailComposer = async (row: T) => {
     // Always open the composer — even when the client has no email on file.
     // If we have one, prefill "To"; otherwise leave it empty for the user to fill.
     const rec = row as unknown as Record<string, unknown>;
-    const lines = columns
+    const rc = props.rowClient?.(row);
+    const clientEmail = rc ? rc.email : props.clientEmail, clientName = rc ? rc.name : props.clientName;
+    const clientCode = rc ? rc.code : props.clientCode, clientUserId = rc ? rc.userId : props.clientUserId;
+    // Multi-client grid shows only a few columns — the email lists every form field instead (minus the client picker).
+    const lines = (rc
+      ? fields.filter((fd) => !fd.choices).map((fd) => { const v = rec[fd.key]; return v != null && String(v).trim() !== "" ? `${fd.label}: ${v}` : null; })
+      : columns
       .filter((c) => (c as unknown as { accessorKey?: string }).accessorKey && typeof c.header === "string")
       .map((c) => {
         const key = (c as unknown as { accessorKey: string }).accessorKey;
         const v = rec[key];
         return v != null && String(v).trim() !== "" ? `${c.header as string}: ${v}` : null;
-      })
+      }))
       .filter(Boolean) as string[];
     const body = `Dear ${clientName || "Sir/Madam"},\n\nHere is the latest ${singular.toLowerCase()} update for your project${clientCode ? ` (${clientCode})` : ""}:\n\n${lines.join("\n")}\n\nRegards,\nIndus Analytics`;
+    const attachments = await rowAttachments(row);
     openComposer({
       to: clientEmail ? [{ email: clientEmail, name: clientName ?? undefined }] : [],
       subject: `${singular} Update — ${clientName || clientCode || "your project"}`,
       body,
+      attachments,
       context: { clientCode: clientUserId || clientCode || undefined, displayCode: clientCode ?? undefined, clientName: clientName ?? undefined, module: title },
       onSent: () => flag(row, "emailed"),
     });
@@ -846,14 +953,17 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
         },
       });
     }
-    // Standard Actions column (View / Edit / Delete) — same component + look as /users.
+    // Standard Actions column (View / Edit / Delete, + Print when the grid has a printable sheet) — same look as /users.
     extra.push(createActionsColumn<T>({
       onView: (r) => openView(r),
       onEdit: (r) => openEdit(r),
       onDelete: (r) => doDelete(r),
+      ...(props.printSheet ? { onPrint: (r: T) => printRef.current?.(r as unknown as Record<string, unknown>), showPrint: true } : {}),
+      // Printing is reading, not a module "Print" right — keep it available to everyone who can see the row.
+      permissions: { canPrint: true },
       showView: true, showEdit: canEdit, showDelete: canEdit,
       mode: "buttons",
-      primaryActions: ["view", "edit", "delete"],
+      primaryActions: props.printSheet ? ["print", "view", "edit", "delete"] : ["view", "edit", "delete"],
       // doDelete() handles its own confirmation (and the "sent to Point Management" block), so the
       // grid's built-in confirm dialog is turned off to avoid a double prompt.
       confirmDelete: false,
@@ -870,7 +980,7 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
         {/* hide-on-phone: on a phone the grid's list header (title + sort / search / refresh) and the
             floating "+" replace this row. */}
         <div className="hide-on-phone" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{title}</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{props.hideTitle ? null : title}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {/* Export Excel: read-only, so view-only users get it too (desktop only, like Import). */}
             <span className="hide-on-mobile" style={{ display: "contents" }}>
@@ -920,7 +1030,9 @@ function EntityGrid<T extends { id: number; emailed?: boolean; tasked?: boolean;
           persistKey={`tracker-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-v1`}
         />
         <EntityFormModal open={modal.open} title={modal.view ? singular : `${modal.row ? "Edit" : "New"} ${singular}`}
-          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit || !!modal.view} columns={props.formColumns} />
+          fields={fields} initial={initial} saving={saving} onClose={close} onSave={save} readOnly={!canEdit || !!modal.view} columns={props.formColumns}
+          attach={props.attachEntity ? { code, entity: props.attachEntity, rowId: modal.row?.id ?? null, after: props.attachAfter, span: props.attachSpan } : undefined}
+          onPrint={props.printSheet} />
         <ImportPreviewModal open={preview.open} title={title} fields={fields} initialRows={preview.rows}
           onClose={() => setPreview({ open: false, rows: [] })} onImport={doImportRows} />
         <AlertComponent />
@@ -1095,8 +1207,6 @@ const MILESTONE_BLANK = { status: "Pending", sortOrder: 0 };
 
 const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
   { accessorKey: "moduleName", header: "Main Module", size: 150 },
-  { accessorKey: "subModule", header: "Sub Module", size: 150 },
-  { accessorKey: "timelineDays", header: "Timeline (Days)", size: 120 },
   { accessorKey: "logDate", header: "Schedule Date", size: 130 },
   { accessorKey: "startTime", header: "Start Time", size: 100 },
   { accessorKey: "endTime", header: "End Time", size: 100 },
@@ -1108,7 +1218,8 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
     accessorKey: "videoUrl", header: "YouTube Link", size: 130,
     cell: ({ row }) => {
       const u = (row.original.videoUrl ?? "").trim();
-      if (!u) return "—";
+      // "Watch" only for a real web link — NA / 0 / plain text shows as a dash.
+      if (!/^https?:\/\/\S+\.\S+/i.test(u)) return "—";
       return (
         <a href={u} target="_blank" rel="noreferrer" title={u}
           style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#c0392b", fontWeight: 600, textDecoration: "none" }}>
@@ -1121,22 +1232,22 @@ const TRAINING_COLS: ColumnDef<TrainingUpdate>[] = [
   { accessorKey: "summary", header: "Summary", size: 280, cell: summaryCell<TrainingUpdate>() },
 ];
 const TRAINING_FIELDS: FieldDef[] = [
-  // Row 1 — 4 fields (span 3 each = 12)
-  { key: "moduleName", label: "Main Module", type: "module", span: 3, typable: true },
-  { key: "subModule", label: "Sub Module", type: "submodule", dependsOn: "moduleName", span: 3, multi: true },
-  { key: "timelineDays", label: "Timeline in Days", span: 3 },
-  { key: "logDate", label: "Schedule Date", type: "date", span: 3 },
-  // Row 2 — 3 fields (span 4 each = 12)
-  { key: "startTime", label: "Start Time", type: "time", span: 4 },
-  { key: "endTime", label: "End Time", type: "time", span: 4 },
-  { key: "trainee", label: "Trainee Name", span: 4 },
-  // Row 3 — 4 fields (span 3 each = 12)
-  { key: "trainer", label: "Trainer from Indas", type: "user", span: 3 },
-  { key: "status", label: "Status", type: "select", options: ["Scheduled", "Running", "Complete", "Hold"], span: 3 },
-  { key: "videoUrl", label: "YouTube Link Attachment", type: "url", span: 3 },
-  { key: "remark", label: "Remark", type: "textarea", span: 3, autoGrow: true },
-  // Row 4 — full-width, auto-sizing (grows with the text typed in it)
-  { key: "details", label: "Details of Covered Modules in Training", type: "textarea", full: true, autoGrow: true },
+  // Sub Module + Timeline in Days removed from the form (Vivek, 2026-11-03); existing values stay in the DB.
+  // Compact layout (3 rows + 2 text areas) so the whole form fits without scrolling.
+  // Row 1 — Main Module (half) + Schedule Date + Status
+  { key: "moduleName", label: "Main Module", type: "module", span: 6, typable: true, multi: true, required: true },
+  { key: "logDate", label: "Schedule Date", type: "date", span: 3, required: true },
+  { key: "status", label: "Status", type: "select", options: ["Scheduled", "Running", "Complete", "Hold"], span: 3, required: true },
+  // Row 2 — 4 fields (span 3 each = 12)
+  { key: "startTime", label: "Start Time", type: "time", span: 3, required: true },
+  { key: "endTime", label: "End Time", type: "time", span: 3, required: true },
+  { key: "trainee", label: "Trainee Name", span: 3, required: true },
+  { key: "trainer", label: "Trainer from Indas", type: "user", span: 3, required: true },
+  // Row 3 — full-width, auto-sizing (grows with the text typed in it)
+  { key: "details", label: "Details of Covered Modules in Training", type: "textarea", full: true, autoGrow: true, required: true },
+  // Row 4 — YouTube link + Remark + "Attach PDF / Image" (the attachment picker is placed after Remark, span 4)
+  { key: "videoUrl", label: "YouTube Link Attachment", type: "url", span: 4, required: true },
+  { key: "remark", label: "Remark", span: 4 },
   // Row 5 — full-width
   { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
@@ -1159,17 +1270,24 @@ const CR_COLS: ColumnDef<ChangeRequest>[] = [
 ];
 // Rendered on a 5-column grid (formColumns={5}): Row1 = 5 fields, Row2 = Point Description (full,
 // auto-grow), Row3 = 5 fields, Row4 = Summary (full).
+/** Days taken from Raised to Completion (same day = 0); blank until both dates are set. */
+function crCompletionDays(v: Record<string, unknown>): string {
+  const a = String(v.raisedDate ?? "").slice(0, 10), b = String(v.completionDate ?? "").slice(0, 10);
+  if (!a || !b) return "";
+  const n = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+  return isNaN(n) || n < 0 ? "" : String(n);
+}
 const CR_FIELDS: FieldDef[] = [
-  { key: "moduleName", label: "Module Name", type: "module", span: 1 },
+  { key: "moduleName", label: "Module Name", type: "module", span: 1, required: true },
   { key: "subModule", label: "Sub Module Name", type: "submodule", dependsOn: "moduleName", span: 1 },
   { key: "raisedBy", label: "Raised By", span: 1 },
-  { key: "raisedDate", label: "Raised Date", type: "date", span: 1 },
-  { key: "queryType", label: "Query Type", type: "select", options: ["Improvement", "Bug", "New Feature", "Configuration"], span: 1 },
-  { key: "description", label: "Point Description", type: "textarea", autoGrow: true, full: true },
-  { key: "status", label: "Status", type: "select", options: ["Open", "In Progress", "Completed", "Rejected"], span: 1 },
-  { key: "completionDate", label: "Completion Date", type: "date", span: 1 },
-  { key: "completionDays", label: "Completion Days", span: 1 },
-  { key: "reportedBy", label: "Reported By", type: "user", span: 1 },
+  { key: "raisedDate", label: "Raised Date", type: "date", span: 1, required: true },
+  { key: "queryType", label: "Query Type", type: "select", options: ["Improvement", "Bug", "New Feature", "Configuration"], span: 1, required: true },
+  { key: "description", label: "Point Description", type: "textarea", autoGrow: true, full: true, required: true },
+  { key: "status", label: "Status", type: "select", options: ["Open", "In Progress", "Completed", "Rejected"], span: 1, required: true },
+  { key: "completionDate", label: "Completion Date", type: "date", span: 1, minFrom: "raisedDate" },
+  { key: "completionDays", label: "Completion Days", span: 1, compute: crCompletionDays },
+  { key: "reportedBy", label: "Reported By", type: "user", span: 1, required: true },
   { key: "remark", label: "Remark", type: "textarea", autoGrow: true, span: 1 },
   { key: "summary", label: "Summary", type: "aiSummary", full: true },
 ];
@@ -1180,6 +1298,7 @@ const txt = (v?: string) => (v && v.trim() ? v : "—");
 
 const ONSITE_COLS: ColumnDef<OnsiteVisit>[] = [
   { accessorKey: "person", header: "Person Name", size: 170 },
+  { accessorKey: "designation", header: "Designation", size: 150 },
   { accessorKey: "age", header: "Age", size: 70 },
   { accessorKey: "mobileNo", header: "Mobile No", size: 130 },
   { accessorKey: "location", header: "Location", size: 150 },
@@ -1189,27 +1308,49 @@ const ONSITE_COLS: ColumnDef<OnsiteVisit>[] = [
   { accessorKey: "ticketCharge", header: "Tickets", size: 140, cell: ({ row }) => txt(row.original.ticketCharge) },
   { accessorKey: "hotelCharge", header: "Hotel Charge", size: 150, cell: ({ row }) => txt(row.original.hotelCharge) },
   { accessorKey: "foodCharge", header: "Food Charge", size: 150, cell: ({ row }) => txt(row.original.foodCharge) },
-  { accessorKey: "siteCharge", header: "Site Charge", size: 150, cell: ({ row }) => txt(row.original.siteCharge) },
-  { accessorKey: "status", header: "Status", size: 120, cell: badgeCell<OnsiteVisit>() },
+  { accessorKey: "siteCharge", header: "Site Charge (Per Day)", size: 170, cell: ({ row }) => txt(row.original.siteCharge) },
+  { accessorKey: "salary", header: "Salary (Per Month)", size: 160, cell: ({ row }) => txt(row.original.salary) },
+  { accessorKey: "totalAmount", header: "Total Amount", size: 140, cell: ({ row }) => txt(row.original.totalAmount) },
+  // Onsite colours: Complete green, Onsite blue, Planned purple, Office orange. ("Ongoing" = the old name of Onsite.)
+  { accessorKey: "status", header: "Status", size: 120, cell: ({ row }) => {
+    const s = row.original.status;
+    return <Badge variant={s === "Onsite" || s === "Ongoing" ? "info" : s === "Planned" ? "purple" : s === "Office" ? "orange" : statusVariant(s)}>{s}</Badge>;
+  } },
 ];
+
+const CHARGE_BY = ["By Client", "By Indus"];
+const num = (v: unknown) => { const n = parseFloat(String(v ?? "").replace(/[^0-9.]/g, "")); return isNaN(n) ? 0 : n; };
+/** Total = Site Charge (per day) × Days + Salary; blank until any of them is filled. */
+const filled = (v: unknown) => String(v ?? "").trim() !== "";
+/** Total = Site Charge (per day) × Days, OR monthly Salary ÷ 30 × Days — only one of the two is filled. */
+function onsiteTotal(v: Record<string, unknown>): string {
+  const days = num(v.days || daysBetween(v.fromDate, v.toDate));
+  const t = filled(v.siteCharge) ? num(v.siteCharge) * days : (num(v.salary) / 30) * days;
+  return t > 0 ? String(Math.round(t)) : "";
+}
 
 const SEND_MAIL_TASK: ("mail" | "task" | "point")[] = ["mail", "task"];
 const SEND_MAIL_TASK_POINT: ("mail" | "task" | "point")[] = ["mail", "task", "point"];
 const SEND_MAIL: ("mail" | "task" | "point")[] = ["mail"];
 const ONSITE_FIELDS: FieldDef[] = [
-  // Person Name = app-user dropdown; selecting it auto-fills Mobile + Age (from DOB) — both editable.
-  { key: "person", label: "Person Name", type: "person", autofill: { mobileKey: "mobileNo", ageKey: "age" } },
+  // Person Name = app-user dropdown; selecting it auto-fills Designation (Role) + Mobile + Age (from DOB) — all editable.
+  { key: "person", label: "Person Name", type: "person", personPermission: "onsite.person", autofill: { mobileKey: "mobileNo", ageKey: "age", roleKey: "designation" } },
+  { key: "designation", label: "Designation" },
   { key: "age", label: "Age" },
   { key: "mobileNo", label: "Mobile No" },
   { key: "location", label: "Location" },
   { key: "fromDate", label: "From Date", type: "date" },
-  { key: "toDate", label: "To Date", type: "date" },
+  { key: "toDate", label: "To Date", type: "date", minFrom: "fromDate" },
   { key: "days", label: "Days", compute: (v) => daysBetween(v.fromDate, v.toDate) },
-  { key: "status", label: "Status", type: "select", options: ["Planned", "Ongoing", "Complete"] },
-  { key: "ticketCharge", label: "Tickets (Charge)" },
-  { key: "hotelCharge", label: "Hotel Charge" },
-  { key: "foodCharge", label: "Food Charge" },
-  { key: "siteCharge", label: "Site Charge" },
+  { key: "status", label: "Status", type: "select", options: ["Planned", "Onsite", "Complete", "Office"] },
+  { key: "ticketCharge", label: "Tickets (Charge)", type: "select", options: CHARGE_BY },
+  { key: "hotelCharge", label: "Hotel Charge", type: "select", options: CHARGE_BY },
+  { key: "foodCharge", label: "Food Charge", type: "select", options: CHARGE_BY },
+  // Either Site Charge (per day) OR Salary (per month) — filling one disables the other.
+  // (An older row with both filled keeps both editable so one can be cleared.)
+  { key: "siteCharge", label: "Site Charge (Per Day)", numeric: true, disabledWhen: (v) => filled(v.salary) && !filled(v.siteCharge) },
+  { key: "salary", label: "Salary (Per Month)", numeric: true, disabledWhen: (v) => filled(v.siteCharge) && !filled(v.salary) },
+  { key: "totalAmount", label: "Total Amount", compute: onsiteTotal },
 ];
 const ONSITE_BLANK = { status: "Planned" };
 
@@ -1236,6 +1377,13 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
     if (!uid) return; // default (false) already denies until we know
     fetchUserPermissions(uid).then((p) => setCanEditRoadmap(p.has("milestone.editRoadmapColumns"))).catch(() => {});
   }, [session]);
+  // New Change Request: Raised Date defaults to today (stable per mount — the form re-seeds when `blank` changes).
+  // New Training: Schedule Date defaults to today too.
+  const [crBlank, trainingBlank] = useMemo(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return [{ ...CR_BLANK, raisedDate: today }, { ...TRAINING_BLANK, logDate: today }];
+  }, []);
   const milestoneFields = useMemo(
     () => MILESTONE_FIELDS.map((fd) => (["name", "taskTimeline", "plannedDate"].includes(fd.key) ? { ...fd, locked: !canEditRoadmap } : fd)),
     [canEditRoadmap],
@@ -1295,7 +1443,7 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
   // tracker
   const subTabs = [
     { id: "milestones", label: "Milestone Roadmap", icon: Flag, count: data.milestones?.length },
-    { id: "training", label: "Training & Daily Status", icon: GraduationCap, count: data.training?.length },
+    { id: "training", label: "Training Update & Status", icon: GraduationCap, count: data.training?.length },
     { id: "cr", label: "Change Request", icon: GitPullRequest, count: data.changeRequests?.length },
     { id: "comm", label: "Communication Log", icon: MessagesSquare },
   ];
@@ -1320,15 +1468,21 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
           apiFns={{ add: api.addMilestone, update: api.updateMilestone, del: api.deleteMilestone }} canEdit={canEdit} />
       )}
       {sub === "training" && (
-        <EntityGrid<TrainingUpdate> code={code} title="Training & Daily Status" singular="Training & Daily Status" rows={data.training} columns={TRAINING_COLS}
-          fields={TRAINING_FIELDS} blank={TRAINING_BLANK} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
+        <EntityGrid<TrainingUpdate> code={code} title="Training Update & Status" singular="Training Update & Status" rows={data.training} columns={TRAINING_COLS}
+          fields={TRAINING_FIELDS} blank={trainingBlank} send={SEND_MAIL_TASK} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "training", id, { clientName: clientName ?? undefined })}
           validate={validateSessionTime}
+          attachEntity="training" attachAfter="remark" attachSpan={4}
+          printSheet={(v) => { if (!printTrainingSheet({
+            clientName, venue: clientAddress,
+            modules: v.moduleName as string, scheduleDate: v.logDate as string, startTime: v.startTime as string, endTime: v.endTime as string,
+            trainees: v.trainee as string, trainer: v.trainer as string, status: v.status as string, details: v.details as string, remark: v.remark as string,
+          })) setFlash("Allow pop-ups for this site to print the training sheet."); }}
           apiFns={{ add: api.addTraining, update: api.updateTraining, del: api.deleteTraining }} canEdit={canEdit} />
       )}
       {sub === "cr" && (
         <EntityGrid<ChangeRequest> code={code} title="Change Requests" rows={data.changeRequests} columns={CR_COLS} formColumns={5}
-          fields={CR_FIELDS} blank={CR_BLANK} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
+          fields={CR_FIELDS} blank={crBlank} send={SEND_MAIL_TASK_POINT} reload={load} onFlash={setFlash} clientEmail={clientEmail} clientName={clientName} clientCode={clientCode} clientUserId={clientUserId}
           sendToPoint={(cd, id) => api.changeRequestToPoint(cd, id, { clientName: clientName ?? undefined, application: clientApplication ?? undefined })}
           sendToTask={(cd, id) => api.trackerRowToWorklog(cd, "changerequest", id, { clientName: clientName ?? undefined })}
           apiFns={{ add: api.addChangeRequest, update: api.updateChangeRequest, del: api.deleteChangeRequest }} canEdit={canEdit} />
@@ -1336,6 +1490,89 @@ export default function TrackerPanel({ code, view, clientEmail, clientName, clie
       {sub === "comm" && (
         // Keyed by CompanyUserID (unique) — not the tracker's CompanyUniqueCode, which repeats/blank for some clients.
         <CommunicationLogTab code={clientUserId || code} clientName={clientName} canEdit={canEdit} onFlash={setFlash} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Onsite: all clients in one grid */
+export interface OnsiteClient { code: string; name: string; label: string; email?: string | null; userId?: string | null; address?: string | null }
+
+/** "All Clients" Onsite view: every visit of the given clients in one grid, with the client picked in the form. */
+export function AllOnsitePanel({ clients, canEdit = true, hideTitle }: { clients: OnsiteClient[]; canEdit?: boolean; hideTitle?: boolean }) {
+  const [rows, setRows] = useState<OnsiteVisit[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const byCode = useMemo(() => new Map(clients.map((c) => [c.code.toLowerCase(), c])), [clients]);
+  const load = useCallback(async () => {
+    setErr(null);
+    try { setRows(await api.allOnsite()); } catch (e) { setErr(String(e)); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), 3000); return () => clearTimeout(t); }, [flash]);
+
+  // Only the clients this user can see (Project Assignment scope + the product filter).
+  const visible = useMemo(() => (rows ?? []).filter((r) => byCode.has((r.clientCode ?? "").toLowerCase())), [rows, byCode]);
+  // Two lists: Completed = Status "Complete", Pending = everything else (Planned / Onsite / Office / blank).
+  const [view, setView] = useState<"pending" | "completed" | "dashboard">("pending");
+  const isDone = (r: OnsiteVisit) => (r.status ?? "").trim().toLowerCase() === "complete";
+  const doneCount = visible.filter(isDone).length;
+  const shown = visible.filter((r) => (view === "completed") === isDone(r));
+  const clientOf = useCallback((code?: string | null) => byCode.get((code ?? "").toLowerCase()), [byCode]);
+
+  const columns = useMemo<ColumnDef<OnsiteVisit>[]>(() => [
+    { id: "client", header: "Client Name", size: 260, accessorFn: (r) => clientOf(r.clientCode)?.name ?? r.clientCode },
+    // Short list here; every other detail is in the View / Edit form.
+    ...ONSITE_COLS.filter((c) => ["person", "fromDate", "toDate", "status"].includes((c as { accessorKey?: string }).accessorKey ?? "")),
+  ], [clientOf]);
+  const fields = useMemo<FieldDef[]>(() => [
+    { key: "clientCode", label: "Client Name", type: "select", choices: clients.map((c) => ({ value: c.code, label: c.label })) },
+    // Location follows the picked client's address (still editable).
+    ...ONSITE_FIELDS.map((fd) => (fd.key === "location" ? { ...fd, compute: (v: Record<string, unknown>) => clientOf(String(v.clientCode ?? ""))?.address ?? "" } : fd)),
+  ], [clients, clientOf]);
+
+  if (err) return <div style={{ color: "#c0392b" }}>{err}</div>;
+  if (!rows) return <div style={{ padding: 24, textAlign: "center", opacity: 0.6 }}>Loading…</div>;
+
+  const need = (b: unknown) => {
+    const code = String((b as Record<string, unknown>)?.clientCode ?? "").trim();
+    if (!code) throw new Error("Please select the Client Name.");
+    return code;
+  };
+  return (
+    <div>
+      {flash && <div style={{ background: "#e6f6ec", color: "#1c6b3c", border: "1px solid #b7e2c6", borderRadius: 10, padding: "8px 12px", marginBottom: 12, fontSize: 13, fontWeight: 600 }}>✓ {flash}</div>}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {([["pending", "Pending", visible.length - doneCount], ["completed", "Completed", doneCount], ["dashboard", "Dashboard", null]] as const).map(([id, label, n]) => {
+          const on = view === id;
+          return (
+            <button key={id} type="button" onClick={() => setView(id)} style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 16px", borderRadius: 999, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: `1px solid ${on ? "rgb(var(--color-primary))" : "rgb(var(--border-default))"}`,
+              background: on ? "rgb(var(--color-primary))" : "rgb(var(--bg-surface))", color: on ? "#fff" : "#334155",
+            }}>
+              {label}
+              {n !== null && <span style={{ minWidth: 22, padding: "1px 7px", borderRadius: 999, fontSize: 11.5, background: on ? "rgba(255,255,255,.22)" : "rgb(var(--bg-subtle))" }}>{n}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {view === "dashboard" ? <OnsiteDashboard visits={rows} clientName={(c) => clientOf(c)?.name ?? null} onRefresh={load} /> : (
+      <EntityGrid<OnsiteVisit> code="" title="Onsite Visits" rows={shown} columns={columns} fields={fields} blank={ONSITE_BLANK}
+        send={SEND_MAIL} reload={load} onFlash={setFlash} exportLabel="All Clients" hideTitle={hideTitle}
+        rowClient={(r) => { const c = clientOf(r.clientCode); return { email: c?.email, name: c?.name, code: c?.code, userId: c?.userId }; }}
+        validate={(v) => {
+          if (!String(v.clientCode ?? "").trim()) return "Please select the Client Name.";
+          const f = String(v.fromDate ?? "").slice(0, 10), t = String(v.toDate ?? "").slice(0, 10);
+          return f && t && t < f ? "To Date cannot be earlier than From Date." : null;
+        }}
+        apiFns={{
+          add: (_c, b) => api.addOnsite(need(b), b),
+          update: (_c, id, b) => api.updateOnsite(need(b), id, b),
+          del: (_c, id) => api.deleteOnsite("all", id),
+        }}
+        canEdit={canEdit} />
       )}
     </div>
   );
